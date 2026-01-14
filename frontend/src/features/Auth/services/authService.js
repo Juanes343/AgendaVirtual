@@ -1,0 +1,26 @@
+import api from '../../../services/api';
+
+const authService = {
+    login: async (credentials) => {
+        // credentials: { tipo_doc, usuario, passwd }
+        const response = await api.post('/login', credentials);
+        return response.data;
+    },
+
+    register: async (userData) => {
+        const response = await api.post('/register', userData);
+        return response.data;
+    },
+
+    checkPatient: async (data) => {
+        const response = await api.post('/check-patient', data);
+        return response.data;
+    },
+    
+    recoverPassword: async (data) => {
+        const response = await api.post('/recover-password', data);
+        return response.data;
+    }
+};
+
+export default authService;

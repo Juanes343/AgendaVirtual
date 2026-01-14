@@ -1,0 +1,314 @@
+/* Global Container */
+.login-page-container {
+    background: radial-gradient(circle at center, #0F3460 0%, #0a192f 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Main Card Wrapper */
+.login-card-wrapper {
+    width: 100%;
+    max-width: 1000px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-wrap: wrap; /* responsive wrap */
+}
+
+/* Left Panel Style */
+.login-left-panel {
+    background: linear-gradient(135deg, #1e4b85 0%, #0f3057 100%);
+    color: white;
+    padding: 60px 40px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Decorative background waves/circles for left panel */
+.login-left-panel::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    left: -50px;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.left-panel-content {
+    z-index: 1; /* Ensure content is above background effects */
+}
+
+.brand-header {
+    margin-bottom: 3rem;
+    display: flex;
+    align-items: center;
+}
+.brand-icon {
+    font-size: 2.5rem;
+    margin-right: 15px;
+    color: #fff;
+}
+
+.brand-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+.brand-subtitle {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    font-weight: 400;
+    display: block;
+}
+
+.main-headline {
+    font-size: 1.8rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: 2.5rem;
+}
+
+.features-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 4rem;
+}
+
+.features-list li {
+    margin-bottom: 1.2rem;
+    display: flex;
+    align-items: center;
+    font-size: 1.1rem;
+    font-weight: 300;
+}
+
+.features-list li i {
+    color: #60a5fa; /* Light blue check icon */
+    margin-right: 15px;
+    font-size: 1.3rem;
+}
+
+/* Doctor Illustration */
+.doctor-illustration {
+    margin-top: auto;
+    text-align: center;
+    position: relative;
+    height: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    overflow: hidden; 
+}
+
+.doctor-img {
+    max-height: 350px;
+    width: auto;
+    object-fit: contain;
+    mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+}
+
+/* Right Panel Style */
+.login-right-panel {
+    background-color: #0d1b2a; /* Darker navy */
+    padding: 60px 40px;
+    color: #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 600px;
+}
+
+.form-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.form-subtitle {
+    color: #64748b;
+    margin-bottom: 2.5rem;
+    font-size: 1rem;
+}
+
+/* Form Groups */
+.form-label-custom {
+    color: #cbd5e1;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.input-group-custom {
+    background-color: #1a2736;
+    border: 1px solid #303f57;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    margin-bottom: 1.5rem;
+    transition: all 0.2s;
+    height: 50px;
+}
+
+.input-group-custom:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+    background-color: #1e2e42;
+}
+
+.input-icon {
+    color: #64748b;
+    font-size: 1.2rem;
+    margin-right: 12px;
+}
+.input-action-icon {
+    color: #64748b;
+    font-size: 1.2rem;
+    margin-left: 12px;
+    cursor: pointer;
+}
+.input-action-icon:hover {
+    color: #cbd5e1;
+}
+
+.form-control-custom {
+    background: transparent;
+    border: none;
+    color: #fff;
+    width: 100%;
+    outline: none;
+    font-size: 1rem;
+    height: 100%;
+}
+
+.form-control-custom::placeholder {
+    color: #475569;
+}
+
+/* Select specifics */
+select.form-control-custom {
+    cursor: pointer;
+    /* appearance: none; */ 
+}
+/* Fix for select option background in dark mode */
+select.form-control-custom option {
+    background-color: #0d1b2a;
+    color: white;
+}
+
+/* Checkbox */
+.remember-me {
+    display: flex;
+    align-items: center;
+    color: #94a3b8;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+.remember-me input {
+    margin-right: 8px;
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6;
+}
+
+/* Primary Button */
+.btn-login {
+    background-color: #3b82f6;
+    border: none;
+    color: white;
+    width: 100%;
+    padding: 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1.5rem;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.btn-login:hover {
+    background-color: #2563eb;
+}
+.btn-login:disabled {
+    background-color: #1e3a8a;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Footer Links */
+.auth-links {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.link-item {
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.link-item:hover {
+    color: white;
+}
+
+.link-item i {
+    text-align: center;
+    width: 20px;
+    margin-right: 8px;
+}
+
+.secure-badge {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem; /* Separator like in image */
+    border-top: 1px solid #1e293b;
+    color: #64748b;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+}
+
+.secure-badge i {
+    margin-right: 8px;
+}
+
+/* Responsive Overrides */
+@media (max-width: 991px) {
+    .login-card-wrapper {
+        flex-direction: column;
+        max-width: 600px;
+    }
+    .login-left-panel {
+        padding: 30px;
+    }
+    .features-list {
+        margin-bottom: 2rem;
+    }
+    .doctor-illustration {
+        display: none;
+    }
+}
