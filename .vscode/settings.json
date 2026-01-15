@@ -1,0 +1,13 @@
+{
+    "git.useEditorAsCommitInput": true,
+    "git.verboseCommit": true,
+    "git.enableSmartCommit": true,
+    "git.suggestSmartCommit": true,
+    "git.allowForcePush": false,
+    "conventionalCommits.emojiFormat": "emoji",
+    "conventionalCommits.showEditor": true,
+    "conventionalCommits.promptBody": true,
+    "conventionalCommits.promptFooter": true,
+    "gitmoji.outputType": "emoji",
+    "gitmoji.showEmojiCode": true
+}

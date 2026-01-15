@@ -8,4 +8,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // Configura la base del path para la URL de despliegue si es necesario.
+  // Por defecto es '/'
+  base: '/', 
+  build: {
+    outDir: 'build',
+  },
 })
