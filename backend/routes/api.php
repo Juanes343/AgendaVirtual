@@ -8,6 +8,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/check-patient', [AuthController::class, 'checkPatient']);
 Route::post('/recover-password', [AuthController::class, 'recoverPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {

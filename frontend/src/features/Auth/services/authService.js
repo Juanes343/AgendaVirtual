@@ -20,6 +20,11 @@ const authService = {
     recoverPassword: async (data) => {
         const response = await api.post('/recover-password', data);
         return response.data;
+    },
+
+    resetPassword: async (data) => {
+        const response = await api.post('/reset-password', data);
+        return response.data;
     }
 };
 

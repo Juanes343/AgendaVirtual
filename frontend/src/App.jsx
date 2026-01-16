@@ -4,6 +4,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { UserProvider, useUser } from './contexts/UserContext/UserContext';
 import LoginPage from './features/Auth/pages/LoginPage';
 import RegisterPage from './features/Auth/pages/RegisterPage';
+import ResetPasswordView from './features/Auth/views/ResetPasswordView';
 import DashboardView from './features/Home/views/DashboardView';
 
 const Home = () => <DashboardView />;
@@ -19,6 +20,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/reset-password" element={<ResetPasswordView />} />
       <Route
         path="/home"
         element={

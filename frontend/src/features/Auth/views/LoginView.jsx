@@ -27,7 +27,28 @@ export default function LoginView() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Estados para Recuperación de Contraseña
+    const [isRecoverModalOpen, setIsRecoverModalOpen] = useState(false);
+    const [recoverData, setRecoverData] = useState({ tipo_doc: 'CC', usuario: '' });
+    const [recoverLoading, setRecoverLoading] = useState(false);
+    const [recoverMessage, setRecoverMessage] = useState(null); // { type: 'success' | 'error', text: '' }
+
     const selectedDocType = documentTypes.find(d => d.value === formData.tipo_doc) || documentTypes[0];
+
+    // Manejo del formulario de recuperación
+    const handleRecoverSubmit = async (e) => {
+        e.preventDefault();
+        setRecoverLoading(true);
+        setRecoverMessage(null);
+        try {
+            const res = await authService.recoverPassword(recoverData);
+            setRecoverMessage({ type: 'success', text: res.message });
+        } catch (err) {
+            setRecoverMessage({ type: 'error', text: err.response?.data?.message || 'Error al intentar recuperar contraseña.' });
+        } finally {
+            setRecoverLoading(false);
+        }
+    };
 
     const handleChange = (e) => {
         setFormData({
@@ -253,7 +274,10 @@ export default function LoginView() {
                             </form>
 
                             <div className="space-y-3 pt-2">
-                                <button className="w-full text-sm text-muted-foreground hover:text-primary transition-colors text-center">
+                                <button
+                                    onClick={() => setIsRecoverModalOpen(true)}
+                                    className="w-full text-sm text-muted-foreground hover:text-primary transition-colors text-center"
+                                >
                                     ¿Olvidaste tu contraseña?
                                 </button>
                                 <Link to="/register" className="block w-full text-sm text-foreground hover:text-primary transition-colors text-center font-medium border border-border rounded-lg py-2 hover:bg-muted/50">
@@ -269,6 +293,65 @@ export default function LoginView() {
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Recuperación */}
+            {isRecoverModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-border p-6 relative">
+                        <button 
+                            onClick={() => { setIsRecoverModalOpen(false); setRecoverMessage(null); }}
+                            className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+                        >
+                            <span className="sr-only">Cerrar</span>
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+
+                        <div className="text-center mb-6">
+                            <h3 className="text-xl font-bold text-foreground">Recuperar Contraseña</h3>
+                            <p className="text-sm text-muted-foreground">Ingresa tus datos para recibir un enlace de restablecimiento.</p>
+                        </div>
+
+                        {recoverMessage && (
+                            <div className={`mb-4 p-3 rounded-lg text-sm ${recoverMessage.type === 'success' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                                {recoverMessage.text}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleRecoverSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">Tipo de documento</label>
+                                <select 
+                                    className="w-full px-3 py-2 bg-input/50 border border-input rounded-lg text-foreground focus:ring-2 focus:ring-primary outline-none"
+                                    value={recoverData.tipo_doc}
+                                    onChange={(e) => setRecoverData({...recoverData, tipo_doc: e.target.value})}
+                                >
+                                    {documentTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">Número de documento</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-3 py-2 bg-input/50 border border-input rounded-lg text-foreground focus:ring-2 focus:ring-primary outline-none"
+                                    placeholder="Ingresa tu número"
+                                    value={recoverData.usuario}
+                                    onChange={(e) => setRecoverData({...recoverData, usuario: e.target.value})}
+                                    required
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={recoverLoading}
+                                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-2.5 rounded-lg font-medium transition-all disabled:opacity-70"
+                            >
+                                {recoverLoading ? 'Enviando...' : 'Enviar enlace'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

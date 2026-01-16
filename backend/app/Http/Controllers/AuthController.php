@@ -6,9 +6,13 @@ use Illuminate\Http\Request;
 
 use App\Models\SystemUsuarioVirtual;
 use App\Models\Paciente;
+use App\Models\TokenAgendaVirtual; // Modelo nuevo para los tokens
+use App\Mail\RestorePasswordMail;  // Correo
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -174,7 +178,7 @@ class AuthController extends Controller
      * Endpoint para autenticación de usuarios (Login)
      * POST /api/login
      */
-    
+
     public function login(Request $request)
     {
         // 1. Validar inputs
@@ -248,6 +252,151 @@ class AuthController extends Controller
      */
     public function recoverPassword(Request $request)
     {
-         return response()->json(['message' => 'Funcionalidad en construcción'], 501);
+        // 1. Validar
+        $validator = Validator::make($request->all(), [
+            'tipo_doc' => 'required|string',
+            'usuario'  => 'required|string', 
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => 'Por favor ingrese tipo y número de documento.'], 400);
+        }
+
+        // 2. Buscar usuario
+        $usuario = SystemUsuarioVirtual::where('paciente_id', $request->usuario)
+            ->where('tipo_documento', $request->tipo_doc)
+            ->first();
+
+        // Para seguridad, verificamos si existe como paciente también
+        $paciente = Paciente::where('paciente_id', $request->usuario)
+            ->where('tipo_id_paciente', $request->tipo_doc)
+            ->first();
+
+        if (!$usuario || !$paciente) {
+            // Retornamos 404 o un mensaje genérico por seguridad
+            return response()->json(['success' => false, 'message' => 'Usuario no encontrado.'], 404);
+        }
+
+        if (empty($paciente->email)) {
+            return response()->json(['success' => false, 'message' => 'Este usuario no tiene un correo registrado. Contacte a soporte.'], 400);
+        }
+
+        try {
+            // 3. Generar Token aleatorio
+            $tokenStr = Str::random(60);
+            
+            // 4. Guardar en base de datos (tokens_agenda_virtual)
+            // Se asume estado '1' = Activo
+            TokenAgendaVirtual::create([
+                'incriptacion'   => $tokenStr,
+                'paciente_id'    => $usuario->paciente_id,
+                'tipo_documento' => $usuario->tipo_documento,
+                'fecha_registro' => now(), // o date('Y-m-d H:i:s')
+                'estado'         => '1'
+            ]);
+
+            // 5. Construir enlace para el frontend
+            // Ajustamos la URL base según tu entorno (Hardcoded temporalmente según tu screenshot)
+            $baseUrl = 'https://devel82els.simde.com.co/AgendaVirtual/frontend/build';
+            $link = $baseUrl . '/#/reset-password?token=' . $tokenStr;
+            
+            $nombrePaciente = trim("{$paciente->primer_nombre} {$paciente->primer_apellido}");
+            
+            // 6. Enviar correo
+            Mail::to($paciente->email)->send(new RestorePasswordMail($nombrePaciente, $link));
+
+            // Enmascarar email para mostrarlo en el mensaje
+            $maskedEmail = $this->maskEmail($paciente->email);
+
+            return response()->json([
+                'success' => true, 
+                'message' => "Se ha enviado un enlace de recuperación al correo {$maskedEmail}"
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Error al procesar la solicitud de recuperación.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Endpoint para cambiar la contraseña usando el token
+     */
+    public function resetPassword(Request $request)
+    {
+        // 1. Validar inputs
+        $validator = Validator::make($request->all(), [
+            'token'    => 'required|string',
+            'password' => 'required|string|min:6',
+            'password_confirmation' => 'required|same:password',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contraseña inválida o no coinciden.',
+                'errors' => $validator->errors()
+            ], 400);
+        }
+
+        try {
+            // 2. Buscar token válido (estado '1' = activo)
+            $tokenRecord = TokenAgendaVirtual::where('incriptacion', $request->token)
+                ->where('estado', '1')
+                ->first();
+
+            if (!$tokenRecord) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El enlace de recuperación es inválido o ya ha sido utilizado.'
+                ], 404);
+            }
+
+            // Opcional: Verificar expiración (ej: 24 horas)
+            // if ($tokenRecord->fecha_registro < now()->subHours(24)) { ... }
+
+            // 3. Buscar Usuario Virtual
+            $usuario = SystemUsuarioVirtual::where('paciente_id', $tokenRecord->paciente_id)
+                ->where('tipo_documento', $tokenRecord->tipo_documento)
+                ->first();
+
+            if (!$usuario) {
+                return response()->json(['success' => false, 'message' => 'Usuario asociado no encontrado.'], 404);
+            }
+
+            // 4. Actualizar contraseña (MD5 según lógica legacy observada)
+            $usuario->passwd = md5($request->password);
+            $usuario->save();
+
+            // 5. Invalidar Token
+            $tokenRecord->estado = '0';
+            $tokenRecord->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contraseña restablecida exitosamente. Ahora puede iniciar sesión.'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al restablecer la contraseña.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Helper para ocultar parte del correo
+    private function maskEmail($email) {
+        $parts = explode('@', $email);
+        if(count($parts) < 2) return $email;
+        $name = $parts[0];
+        $len = strlen($name);
+        $visibleLen = floor($len / 2);
+        $maskedName = substr($name, 0, $visibleLen) . str_repeat('*', $len - $visibleLen);
+        return $maskedName . '@' . $parts[1];
     }
 }
