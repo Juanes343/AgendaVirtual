@@ -8,9 +8,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  // Configura la base del path para la URL de despliegue si es necesario.
-  // Por defecto es '/'
-  base: '/', 
+
+  // Ruta base EXACTA donde se sirve el build
+  base: '/AgendaVirtual/frontend/build/',
+
   build: {
     outDir: 'build',
   },

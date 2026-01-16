@@ -174,12 +174,13 @@ class AuthController extends Controller
      * Endpoint para autenticación de usuarios (Login)
      * POST /api/login
      */
+    
     public function login(Request $request)
     {
-        // 1. Validar los datos de entrada
+        // 1. Validar inputs
         $validator = Validator::make($request->all(), [
             'tipo_doc' => 'required|string',
-            'usuario'  => 'required|string', // Es el número de documento (paciente_id)
+            'usuario'  => 'required|string', 
             'passwd'   => 'required|string',
         ]);
 
@@ -188,23 +189,30 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Datos inválidos',
                 'errors'  => $validator->errors()
-            ], 400); // Bad Request
+            ], 400); 
         }
 
-        // 2. Buscar al usuario en la tabla system_usuarios_virtual
+        // 2. Buscar usuario
         $usuario = SystemUsuarioVirtual::where('paciente_id', $request->usuario)
                                        ->where('tipo_documento', $request->tipo_doc)
                                        ->first();
 
-        // 3. Verificar si el usuario existe y la contraseña es correcta (MD5 Legacy)
+        // 3. Validar password (MD5)
         if (!$usuario || md5($request->passwd) !== $usuario->passwd) {
             return response()->json([
                 'success' => false,
                 'message' => 'Credenciales incorrectas'
-            ], 401); // Unauthorized
+            ], 401); 
         }
 
-        // 4. Obtener datos del Paciente relacionado
+        // 4. Autenticar manualmente para Sanctum (Usando helper auth() para evitar error de Clase no encontrada)
+        auth()->login($usuario); 
+
+        // 5. Crear Token
+        // *IMPORTANTE*: Esto requiere que SystemUsuarioVirtual use el trait HasApiTokens
+        $token = $request->user()->createToken('auth_token')->plainTextToken;
+
+        // 6. Obtener datos extra (Paciente)
         $paciente = Paciente::where('paciente_id', $usuario->paciente_id)
                             ->where('tipo_id_paciente', $usuario->tipo_documento)
                             ->first();
@@ -213,14 +221,23 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Inicio de sesión exitoso',
             'data' => [
+                'token' => $token, // Token generado
                 'usuario' => [
                     'id' => $usuario->usuario_id_virtual,
-                    'documento' => $usuario->paciente_id,
+                    'documento' => $usuario->paciente_id, // Asegurar compatibilidad
                     'tipo_documento' => $usuario->tipo_documento,
                 ],
                 'paciente' => $paciente ? [
-                    'nombre_completo' => "{$paciente->primer_nombre} {$paciente->segundo_nombre} {$paciente->primer_apellido} {$paciente->segundo_apellido}",
+                    'paciente_id' => $paciente->paciente_id,
+                    'tipo_id_paciente' => $paciente->tipo_id_paciente,
+                    'primer_nombre' => $paciente->primer_nombre,
+                    'segundo_nombre' => $paciente->segundo_nombre,
+                    'primer_apellido' => $paciente->primer_apellido,
+                    'segundo_apellido' => $paciente->segundo_apellido,
+                    'nombre_completo' => trim("{$paciente->primer_nombre} {$paciente->segundo_nombre} {$paciente->primer_apellido} {$paciente->segundo_apellido}"),
                     'email' => $paciente->email,
+                    'fecha_nacimiento' => $paciente->fecha_nacimiento,
+                    'celular' => $paciente->celular_telefono
                 ] : null
             ]
         ]);

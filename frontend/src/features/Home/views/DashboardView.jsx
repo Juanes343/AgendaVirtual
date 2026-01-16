@@ -3,10 +3,13 @@ import { Home, FileText, User, Activity, Menu, X, Bell, Calendar, LogOut } from 
 import { useUser } from '../../../contexts/UserContext/UserContext';
 import logo from '../../../assets/images/sandi_virtual.png';
 
+import MedicalHistoryView from '../../MedicalHistory/views/MedicalHistoryView';
+
 export default function DashboardView() {
   const [activeTab, setActiveTab] = useState("inicio");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout } = useUser();
+
 
   const tabs = [
     { id: "inicio", label: "Inicio", icon: Home },
@@ -16,14 +19,26 @@ export default function DashboardView() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
+    <div className="min-h-screen font-sans text-white relative" style={{ background: 'radial-gradient(circle at center, #0F3460 0%, #0a192f 100%)' }}>
+      {/* Background pattern */}
+      <div className="fixed inset-0 opacity-10 pointer-events-none z-0">
+          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                  <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                      <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-blue-500" />
+                  </pattern>
+              </defs>
+              <rect width="100" height="100" fill="url(#grid)" />
+          </svg>
+      </div>
+
       {/* Header */}
-      <header className="bg-card/80 backdrop-blur-xl border-b border-border sticky top-0 z-50">
+      <header className="bg-[#0f172a]/80 backdrop-blur-xl border-b border-blue-900/30 sticky top-0 z-50 relative shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <img src={logo} alt="Logo" className="w-12 h-12 rounded-lg object-contain bg-primary/10 p-1" />
+              <img src={logo} alt="Logo" className="w-12 h-12 rounded-lg object-contain bg-blue-500/10 p-1" />
               <span className="text-2xl font-bold hidden sm:block">SanDi•Med</span>
             </div>
 
@@ -37,8 +52,8 @@ export default function DashboardView() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                       activeTab === tab.id
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                        : "text-gray-400 hover:bg-white/5 hover:text-white"
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -51,25 +66,27 @@ export default function DashboardView() {
             {/* User Menu */}
             <div className="flex items-center gap-4">
               <div className="relative hidden sm:block">
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-card"></span>
-                  <Bell className="w-5 h-5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0f172a]"></span>
+                  <Bell className="w-5 h-5 text-gray-300 cursor-pointer hover:text-white transition-colors" />
               </div>
-              <div className="flex items-center gap-3 pl-4 border-l border-border">
+              <div className="flex items-center gap-3 pl-4 border-l border-blue-900/30">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium leading-none">{user?.paciente?.nombre_completo || 'Usuario'}</p>
-                  <p className="text-xs text-muted-foreground">{user?.paciente?.documento || 'ID'}</p>
+                  <p className="text-sm font-medium leading-none truncate max-w-[150px] text-gray-100" title={user?.paciente?.nombre_completo}>
+                      {user?.paciente?.nombre_completo || 'Usuario'}
+                  </p>
+                  <p className="text-xs text-blue-300">{user?.paciente?.documento || 'ID'}</p>
                 </div>
-                <div className="w-9 h-9 bg-accent rounded-full flex items-center justify-center text-accent-foreground font-medium">
+                <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium shrink-0 shadow-lg shadow-blue-900/20">
                   {user?.paciente?.nombre_completo ? user.paciente.nombre_completo.charAt(0) : 'U'}
                 </div>
-                <button title="Cerrar Sesión" onClick={logout} className="ml-2 text-muted-foreground hover:text-destructive">
+                <button title="Cerrar Sesión" onClick={logout} className="ml-2 text-gray-400 hover:text-red-400 transition-colors">
                     <LogOut size={20} />
                 </button>
               </div>
 
               {/* Mobile Menu Button */}
               <button
-                className="md:hidden p-2 text-muted-foreground hover:bg-muted rounded-lg"
+                className="md:hidden p-2 text-gray-400 hover:bg-white/5 rounded-lg"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               >
                 {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -80,7 +97,7 @@ export default function DashboardView() {
 
         {/* Mobile menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-border bg-card">
+          <div className="md:hidden border-t border-blue-900/30 bg-[#0f172a]">
             <div className="p-4 space-y-2">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -93,8 +110,8 @@ export default function DashboardView() {
                     }}
                     className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${
                       activeTab === tab.id
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted"
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-400 hover:bg-white/5"
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -108,17 +125,17 @@ export default function DashboardView() {
       </header>
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
         {activeTab === "inicio" && <InicioTab user={user} />}
-        {activeTab === "historial" && <HistorialTab />}
+        {activeTab === "historial" && <MedicalHistoryView />}
         {activeTab === "datos" && <DatosTab user={user} />}
         {activeTab === "diagnosticos" && <DiagnosticosTab />}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border mt-auto">
+      <footer className="border-t border-blue-900/30 mt-auto relative z-10 bg-[#0f172a]/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-gray-500">
             © {new Date().getFullYear()} SanDi•Med. Todos los derechos reservados.
           </p>
         </div>
