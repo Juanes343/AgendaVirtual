@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Dompdf\Dompdf;
+use App\Mail\WelcomeMail;
 
 class AuthController extends Controller
 {
@@ -96,6 +97,20 @@ class AuthController extends Controller
             //$usuario->created_at = now();
             //$usuario->updated_at = now();
             $usuario->save();
+
+            // Enviar correo de bienvenida
+            try {
+                // Recuperar paciente para tener el email y nombre (si ya existía, usamos $pacienteExistente)
+                $pacienteFinal = $pacienteExistente ?? $paciente;
+                
+                if (!empty($pacienteFinal->email)) {
+                    $nombreCompleto = trim("{$pacienteFinal->primer_nombre} {$pacienteFinal->primer_apellido}");
+                    Mail::to($pacienteFinal->email)->send(new WelcomeMail($nombreCompleto, $pacienteFinal->paciente_id));
+                }
+            } catch (\Exception $e) {
+                // Loguear error pero no detener registro
+                \Illuminate\Support\Facades\Log::error('Error enviando WelcomeMail: ' . $e->getMessage());
+            }
 
             DB::commit();
 
