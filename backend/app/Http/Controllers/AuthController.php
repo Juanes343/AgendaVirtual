@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Dompdf\Dompdf;
 
 class AuthController extends Controller
 {
@@ -398,5 +399,22 @@ class AuthController extends Controller
         $visibleLen = floor($len / 2);
         $maskedName = substr($name, 0, $visibleLen) . str_repeat('*', $len - $visibleLen);
         return $maskedName . '@' . $parts[1];
+    }
+
+    /**
+     * Generar y descargar el manual de usuario
+     */
+    public function downloadManual()
+    {
+        $dompdf = new Dompdf();
+        $html = view('manual.usuario')->render();
+        $dompdf->set_option('isRemoteEnabled', true);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return response($dompdf->output())
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="Manual_Usuario_AgendaVirtual.pdf"');
     }
 }

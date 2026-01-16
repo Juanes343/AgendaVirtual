@@ -106,10 +106,10 @@ export default function LoginView() {
 
             <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8 lg:gap-16 items-center relative z-10">
                 {/* Left side - Branding */}
-                <div className="space-y-8">
+                <div className="space-y-6">
                    {/* Logo */}
                     <div className="flex items-center gap-3">
-                        <img src={logo} alt="Logo" className="w-20 h-20 rounded-xl object-contain bg-primary/10 p-1" />
+                        <img src={logo} alt="Logo" className="w-16 h-16 rounded-xl object-contain bg-primary/10 p-1" />
                         <div>
                             <h1 className="text-3xl font-bold text-foreground">SanDi•Med</h1>
                             <p className="text-base text-muted-foreground">Portal del Paciente</p>
@@ -118,16 +118,16 @@ export default function LoginView() {
 
                     {/* Tagline */}
                     <div className="space-y-4">
-                        <h2 className="text-3xl lg:text-4xl font-bold text-foreground leading-tight text-balance">
+                        <h2 className="text-3xl font-bold text-foreground leading-tight text-balance">
                             Tu salud, <span className="text-primary">organizada</span> en un solo lugar
                         </h2>
-                        <p className="text-lg text-muted-foreground text-pretty">
+                        <p className="text-base text-muted-foreground text-pretty">
                             Accede a tus citas médicas, resultados y recordatorios desde cualquier dispositivo.
                         </p>
                     </div>
 
                     {/* Features */}
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
                                 <Calendar className="w-4 h-4 text-primary" />
@@ -154,19 +154,42 @@ export default function LoginView() {
                         </div>
                     </div>
 
-                    {/* Doctor illustration */}
-                    <div className="hidden lg:block relative h-48">
-                         <div className="absolute bottom-0 left-0 w-48 h-48 bg-card/50 rounded-2xl border border-border/50 backdrop-blur-sm flex items-center justify-center overflow-hidden">
-                            <img src={doctorImg} alt="Doctor" className="w-full h-full object-cover opacity-90" />
+                    {/* Footer: Manual & Doctor Image Side by Side */}
+                    <div className="flex items-end justify-between pt-4 pr-4">
+                        {/* Manual de Usuario Link - Left */}
+                        <a 
+                            href={`${import.meta.env.VITE_API_URL}/manual`} 
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-card/30 backdrop-blur min-w-[120px] p-2 rounded-xl border border-white/5 flex items-center gap-3 group hover:bg-card/50 transition-all cursor-pointer"
+                        >
+                            <div className="relative group-hover:-translate-y-1 transition-transform duration-300">
+                                <div className="absolute inset-0 bg-red-500/30 blur-md rounded-lg"></div>
+                                <div className="flex items-center justify-center w-8 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded shadow-lg relative border border-white/10">
+                                    <span className="text-white text-[8px] font-bold">PDF</span>
+                                    <div className="absolute top-0 right-0 border-t-[5px] border-r-[5px] border-t-white/30 border-r-transparent"></div>
+                                </div>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider group-hover:text-primary transition-colors">Manual de</span>
+                                <span className="text-xs font-bold text-foreground">Usuario</span>
+                            </div>
+                        </a>
+
+                        {/* Doctor illustration - Right (Moved as requested) */}
+                        <div className="hidden lg:block relative w-32 h-32">
+                             <div className="absolute bottom-0 right-0 w-full h-full bg-card/60 rounded-2xl border border-white/10 backdrop-blur-sm flex items-center justify-center overflow-hidden shadow-2xl">
+                                <img src={doctorImg} alt="Doctor" className="w-full h-full object-cover opacity-90 scale-105" />
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Right side - Login form */}
                 <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto">
-                    <div className="bg-card/80 backdrop-blur-xl rounded-2xl border border-border/50 p-8 shadow-2xl">
-                        <div className="space-y-6">
-                            <div className="text-center space-y-2">
+                    <div className="bg-card/80 backdrop-blur-xl rounded-2xl border border-border/50 p-6 shadow-2xl">
+                        <div className="space-y-4">
+                            <div className="text-center space-y-1">
                                 <h3 className="text-2xl font-bold text-foreground">Iniciar sesión</h3>
                                 <p className="text-sm text-muted-foreground">
                                     Acceso seguro al <a href="#" className="text-primary hover:underline">portal del paciente</a>
@@ -179,7 +202,7 @@ export default function LoginView() {
                                 </div>
                             )}
 
-                            <form onSubmit={handleSubmit} className="space-y-5">
+                            <form onSubmit={handleSubmit} className="space-y-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-foreground">Tipo de documento</label>
                                     <div className="relative">
