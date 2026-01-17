@@ -5,6 +5,7 @@ import logo from '../../../assets/images/sandi_virtual.png';
 
 import MedicalHistoryView from '../../MedicalHistory/views/MedicalHistoryView';
 import ScheduleAppointmentView from '../../Appointments/views/ScheduleAppointmentView';
+import ProfileView from '../../Profile/views/ProfileView';
 
 export default function DashboardView() {
   const [activeTab, setActiveTab] = useState("inicio");
@@ -71,8 +72,8 @@ export default function DashboardView() {
                   <Bell className="w-5 h-5 text-gray-300 cursor-pointer hover:text-white transition-colors" />
               </div>
               <div className="flex items-center gap-3 pl-4 border-l border-blue-900/30">
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium leading-none truncate max-w-[150px] text-gray-100" title={user?.paciente?.nombre_completo}>
+                <div className="hidden sm:flex flex-col items-end max-w-[350px] text-right">
+                  <p className="text-sm font-medium leading-tight text-gray-100 truncate w-full" title={user?.paciente?.nombre_completo}>
                       {user?.paciente?.nombre_completo || 'Usuario'}
                   </p>
                   <p className="text-xs text-blue-300">{user?.paciente?.documento || 'ID'}</p>
@@ -129,7 +130,7 @@ export default function DashboardView() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
         {activeTab === "inicio" && <InicioTab user={user} setActiveTab={setActiveTab} />}
         {activeTab === "historial" && <MedicalHistoryView />}
-        {activeTab === "datos" && <DatosTab user={user} />}
+        {activeTab === "datos" && <ProfileView />}
         {activeTab === "diagnosticos" && <DiagnosticosTab />}
         {/* Nueva vista de agendamiento */}
         {activeTab === "agendar" && <ScheduleAppointmentView />}

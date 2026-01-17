@@ -432,4 +432,77 @@ class AuthController extends Controller
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'inline; filename="Manual_Usuario_AgendaVirtual.pdf"');
     }
+
+    /**
+     * Actualiza los datos de perfil del paciente
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        if (!$user->paciente_id) {
+            return response()->json(['message' => 'Usuario no es un paciente'], 400);
+        }
+
+        // Validar datos básicos
+        $request->validate([
+            'email' => 'required|email',
+            'celular' => 'nullable|string',
+            'direccion' => 'nullable|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            /* 
+             // 1. Opcional: Actualizar email en tabla de usuarios virtuales si existiera columna email
+             // $user->email = $request->email;
+             // $user->save();
+            */
+
+            // 2. Actualizar datos en tabla pacientes
+            DB::table('pacientes')
+                ->where('paciente_id', $user->paciente_id)
+                ->where('tipo_id_paciente', $user->tipo_documento)
+                ->update([
+                    'email' => $request->email,
+                    'celular_telefono' => $request->celular,
+                    'residencia_direccion' => $request->direccion
+                ]);
+
+            DB::commit();
+            
+            // Recargar datos actualizados para responder
+             $paciente = DB::table('pacientes')
+                ->where('paciente_id', $user->paciente_id)
+                ->where('tipo_id_paciente', $user->tipo_documento)
+                ->first();
+
+            return response()->json([
+                'message' => 'Datos actualizados correctamente',
+                'paciente' => $paciente 
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al actualizar: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Cambia la contraseña del usuario logueado
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'newPassword' => 'required|min:6|confirmed', 
+        ]);
+
+        $user = $request->user();
+        
+        // El sistema usa MD5 según endpoints anteriores
+        $user->passwd = md5($request->newPassword);
+        $user->save();
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente']);
+    }
 }

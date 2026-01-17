@@ -40,5 +40,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/medical-history/{evolucion_id}/pdf-formula', [\App\Http\Controllers\ReportController::class, 'generateFormulaPdf']);
     Route::get('/medical-history/{evolucion_id}/pdf-orden', [\App\Http\Controllers\ReportController::class, 'generateOrderPdf']);
     Route::get('/medical-history/{evolucion_id}/pdf-incapacidad', [\App\Http\Controllers\ReportController::class, 'generateIncapacidadPdf']);
+
+    // Perfil de Usuario
+    Route::put('/profile/update', [AuthController::class, 'updateProfile']);
+    Route::post('/profile/change-password', [AuthController::class, 'changePassword']);
 });
 

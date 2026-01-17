@@ -261,7 +261,7 @@ export default function ScheduleAppointmentView() {
           <div>
             <label className="block text-sm font-medium text-blue-900 mb-2">
               <FileText className="w-4 h-4 inline mr-2 text-orange-500" />
-              Plan / Seguro
+              Plan
             </label>
             <select 
                 className="w-full rounded-lg border-blue-200 focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 text-slate-700"
