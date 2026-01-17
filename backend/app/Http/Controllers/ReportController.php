@@ -34,12 +34,12 @@ class ReportController extends Controller
                 $join->on('c.tercero_id', '=', 'd.tercero_id')
                      ->on('c.tipo_tercero_id', '=', 'd.tipo_id_tercero');
             })
-            ->leftJoin('departamentos as dep', 'a.departamento', '=', 'dep.departamento')
+            ->leftJoin('cups', 'a.cargo_cita', '=', 'cups.cargo')
             ->select(
                 'a.ingreso',
                 DB::raw("MAX(DATE(a.fecha)) as fecha"), // Solo fecha
                 DB::raw("MAX(d.nombre) as profesional_nombre"),
-                DB::raw("MAX(dep.descripcion) as servicio"),
+                DB::raw("MAX(cups.descripcion) as servicio"),
                 'b.estado'
             )
             ->where('b.paciente_id', $pacienteId)

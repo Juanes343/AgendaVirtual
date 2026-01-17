@@ -38,19 +38,21 @@ export default function MedicalHistoryView() {
                             
                             {/* Info Principal */}
                             <div className="flex-1 space-y-2">
-                                <div className="flex items-center gap-3 text-sm text-blue-300 font-semibold uppercase tracking-wider">
+                                <div className="flex flex-wrap items-center gap-3 text-sm text-blue-300 font-semibold uppercase tracking-wider">
                                     <div className={`px-2 py-0.5 rounded text-[10px] ${item.estado === '1' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
                                         Ingreso #{item.ingreso}
                                     </div>
                                     <span className="flex items-center gap-1"><Calendar size={14} /> {item.fecha}</span>
+                                    
+                                    {/* Professional Name moved here */}
+                                    <div className="flex items-center gap-2 text-gray-400 text-sm border-l border-white/10 pl-3 ml-1">
+                                        <User size={14} className="text-blue-500" />
+                                        <span>{item.profesional_nombre}</span>
+                                    </div>
                                 </div>
                                 <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
                                     {item.servicio || 'ATENCIÓN MÉDICA GENERAL'}
                                 </h3>
-                                <div className="flex items-center gap-2 text-gray-400 text-sm">
-                                    <User size={14} className="text-blue-500" />
-                                    <span>{item.profesional_nombre}</span>
-                                </div>
                             </div>
 
                             {/* Botón Acción */}

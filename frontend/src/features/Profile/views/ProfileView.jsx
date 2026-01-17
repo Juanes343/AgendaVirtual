@@ -199,16 +199,18 @@ export default function ProfileView() {
               <div className="flex gap-2">
                 <input
                   type="text"
+                  name="primer_nombre"
                   value={formData.primer_nombre}
-                  readOnly
-                  className="w-1/2 bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed"
+                  onChange={handleInputChange}
+                  className="w-1/2 bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   placeholder="Primer Nombre"
                 />
                 <input
                   type="text"
+                  name="segundo_nombre"
                   value={formData.segundo_nombre}
-                  readOnly
-                  className="w-1/2 bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed"
+                  onChange={handleInputChange}
+                  className="w-1/2 bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   placeholder="Segundo Nombre"
                 />
               </div>
@@ -218,16 +220,18 @@ export default function ProfileView() {
               <div className="flex gap-2">
                  <input
                   type="text"
+                  name="primer_apellido"
                   value={formData.primer_apellido}
-                  readOnly
-                  className="w-1/2 bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed"
+                  onChange={handleInputChange}
+                  className="w-1/2 bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   placeholder="Primer Apellido"
                 />
                 <input
                   type="text"
+                  name="segundo_apellido"
                   value={formData.segundo_apellido}
-                  readOnly
-                  className="w-1/2 bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed"
+                  onChange={handleInputChange}
+                  className="w-1/2 bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   placeholder="Segundo Apellido"
                 />
               </div>

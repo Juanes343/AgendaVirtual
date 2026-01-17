@@ -140,7 +140,7 @@ export default function DashboardView() {
       <footer className="border-t border-blue-900/30 mt-auto relative z-10 bg-[#0f172a]/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
           <p className="text-center text-sm text-gray-500">
-            © {new Date().getFullYear()} SanDi•Med. Todos los derechos reservados.
+            © {new Date().getFullYear()} SIMDE SAS. Todos los derechos reservados.
           </p>
         </div>
       </footer>

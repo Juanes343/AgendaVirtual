@@ -257,7 +257,8 @@ class AuthController extends Controller
                     'nombre_completo' => trim("{$paciente->primer_nombre} {$paciente->segundo_nombre} {$paciente->primer_apellido} {$paciente->segundo_apellido}"),
                     'email' => $paciente->email,
                     'fecha_nacimiento' => $paciente->fecha_nacimiento,
-                    'celular' => $paciente->celular_telefono
+                    'celular' => $paciente->celular_telefono,
+                    'residencia_direccion' => $paciente->residencia_direccion
                 ] : null
             ]
         ]);
@@ -448,6 +449,10 @@ class AuthController extends Controller
             'email' => 'required|email',
             'celular' => 'nullable|string',
             'direccion' => 'nullable|string',
+            'primer_nombre' => 'nullable|string|max:50',
+            'segundo_nombre' => 'nullable|string|max:50',
+            'primer_apellido' => 'nullable|string|max:50',
+            'segundo_apellido' => 'nullable|string|max:50',
         ]);
 
         try {
@@ -466,7 +471,11 @@ class AuthController extends Controller
                 ->update([
                     'email' => $request->email,
                     'celular_telefono' => $request->celular,
-                    'residencia_direccion' => $request->direccion
+                    'residencia_direccion' => $request->direccion,
+                    'primer_nombre' => strtoupper($request->primer_nombre),
+                    'segundo_nombre' => strtoupper($request->segundo_nombre),
+                    'primer_apellido' => strtoupper($request->primer_apellido),
+                    'segundo_apellido' => strtoupper($request->segundo_apellido),
                 ]);
 
             DB::commit();
