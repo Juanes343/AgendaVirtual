@@ -126,7 +126,7 @@ export default function DashboardView() {
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
-        {activeTab === "inicio" && <InicioTab user={user} />}
+        {activeTab === "inicio" && <InicioTab user={user} setActiveTab={setActiveTab} />}
         {activeTab === "historial" && <MedicalHistoryView />}
         {activeTab === "datos" && <DatosTab user={user} />}
         {activeTab === "diagnosticos" && <DiagnosticosTab />}
@@ -144,19 +144,7 @@ export default function DashboardView() {
   );
 }
 
-function InicioTab({ user }) {
-  const appointments = [
-    {
-      id: 1,
-      doctor: "Dr. Carlos Méndez",
-      specialty: "Medicina General",
-      date: "15 Ene 2026",
-      time: "10:00 AM",
-      status: "confirmada",
-    },
-     // ... more data
-  ];
-
+function InicioTab({ user, setActiveTab }) {
   return (
     <div className="space-y-8">
       {/* Welcome card */}
@@ -175,32 +163,33 @@ function InicioTab({ user }) {
         </div>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Navigation Grid */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {[
-          { label: "Próximas citas", value: "2", icon: Calendar, color: "text-primary" },
-          { label: "Exámenes pendientes", value: "1", icon: FileText, color: "text-emerald-500" },
-          { label: "Medicamentos activos", value: "3", icon: Activity, color: "text-blue-500" },
-          { label: "Días hasta próxima cita", value: "2", icon: Calendar, color: "text-orange-500" },
-        ].map((stat, i) => {
-          const Icon = stat.icon;
+          { id: "historial", label: "Historial Médico", icon: FileText, color: "text-emerald-500", desc: "Consulte su historia clínica detallada" },
+          { id: "datos", label: "Datos Básicos", icon: User, color: "text-blue-500", desc: "Gestione su información personal" },
+          { id: "diagnosticos", label: "Apoyos Diagnósticos", icon: Activity, color: "text-purple-500", desc: "Ver resultados de exámenes" },
+        ].map((item) => {
+          const Icon = item.icon;
           return (
-            <div key={i} className="bg-card/50 border border-border p-5 rounded-2xl hover:border-primary/50 transition-colors group">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-muted-foreground font-medium">{stat.label}</p>
-                  <p className="text-3xl font-bold mt-2">{stat.value}</p>
-                </div>
-                <div className={`p-3 rounded-xl bg-muted group-hover:bg-primary/10 transition-colors ${stat.color}`}>
-                  <Icon className="w-6 h-6" />
+            <button
+               key={item.id}
+               onClick={() => setActiveTab(item.id)}
+               className="bg-card/50 border border-border p-6 rounded-2xl hover:border-primary/50 transition-all hover:bg-card/80 text-left group flex flex-col justify-between h-48 sm:h-56"
+            >
+              <div className="flex justify-between items-start w-full">
+                <div className={`p-4 rounded-xl bg-muted group-hover:bg-primary/10 transition-colors ${item.color}`}>
+                  <Icon className="w-8 h-8 sm:w-10 sm:h-10" />
                 </div>
               </div>
-            </div>
+              <div className="mt-4">
+                <h3 className="text-xl sm:text-2xl font-bold group-hover:text-primary transition-colors">{item.label}</h3>
+                <p className="text-muted-foreground mt-2 text-sm sm:text-base">{item.desc}</p>
+              </div>
+            </button>
           );
         })}
       </div>
-
-       {/* Additional sections omitted for brevity but can include more if needed */}
     </div>
   );
 }
