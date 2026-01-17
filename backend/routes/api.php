@@ -15,6 +15,8 @@ Route::get('/manual', [AuthController::class, 'downloadManual']);
 // Rutas de Agendamiento (Públicas para catálogos)
 Route::prefix('appointments')->group(function () {
     Route::get('/plans', [AppointmentController::class, 'getPlans']);
+    Route::get('/affiliate-types', [AppointmentController::class, 'getAffiliateTypes']); 
+    Route::get('/patient-last-data', [AppointmentController::class, 'getPatientLastData']); 
     Route::get('/types', [AppointmentController::class, 'getAppointmentTypes']);
     Route::get('/services', [AppointmentController::class, 'getServices']);
     Route::get('/professionals', [AppointmentController::class, 'getProfessionals']);

@@ -8,8 +8,26 @@ const appointmentService = {
   },
 
   // Obtener Planes
-  getPlans: async () => {
-    const response = await api.get('/appointments/plans');
+  getPlans: async (pacienteId, tipoDoc) => {
+    const response = await api.get('/appointments/plans', {
+      params: { paciente_id: pacienteId, tipo_doc: tipoDoc }
+    });
+    return response.data;
+  },
+
+  // Obtener Tipos de Afiliado (NUEVO)
+  getAffiliateTypes: async (planId) => {
+    const response = await api.get('/appointments/affiliate-types', {
+      params: { plan_id: planId }
+    });
+    return response.data;
+  },
+
+  // Obtener Datos Previos Paciente (NUEVO)
+  getPatientLastData: async (pacienteId, tipoDoc) => {
+    const response = await api.get('/appointments/patient-last-data', {
+      params: { paciente_id: pacienteId, tipo_doc: tipoDoc }
+    });
     return response.data;
   },
 

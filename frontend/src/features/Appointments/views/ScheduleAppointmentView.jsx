@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, User, Activity, Clock, ChevronLeft, ChevronRight, CheckCircle, AlertCircle, FileText } from 'lucide-react';
+import { Calendar, User, Users, Activity, Clock, ChevronLeft, ChevronRight, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import appointmentService from '../services/appointmentService';
 import { useUser } from '../../../contexts/UserContext/UserContext';
 import Swal from 'sweetalert2';
@@ -9,12 +9,14 @@ export default function ScheduleAppointmentView() {
   
   // Selectors State
   const [plans, setPlans] = useState([]);
+  const [affiliateTypes, setAffiliateTypes] = useState([]); // NUEVO: Tipos de Afiliado
   const [types, setTypes] = useState([]);
   const [services, setServices] = useState([]);
   const [professionals, setProfessionals] = useState([]);
   
   // Selection State
   const [selectedPlan, setSelectedPlan] = useState('');
+  const [selectedAffiliateType, setSelectedAffiliateType] = useState(''); // NUEVO
   const [selectedType, setSelectedType] = useState('');
   const [selectedService, setSelectedService] = useState('');
   const [selectedProfessional, setSelectedProfessional] = useState('');
@@ -24,22 +26,57 @@ export default function ScheduleAppointmentView() {
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 1. Cargar Planes y Tipos al iniciar
+  // 1. Cargar Planes y Tipos al iniciar (Con paciente_id)
   useEffect(() => {
     async function loadInitialData() {
+      if (!user?.paciente) return;
+      
       try {
         const [plansData, typesData] = await Promise.all([
-          appointmentService.getPlans(),
+          appointmentService.getPlans(user.paciente.paciente_id, user.paciente.tipo_id_paciente),
           appointmentService.getAppointmentTypes()
         ]);
         setPlans(plansData);
         setTypes(typesData);
+        
+        // Cargar últimos datos usados (Autoselección)
+        const lastData = await appointmentService.getPatientLastData(user.paciente.paciente_id, user.paciente.tipo_id_paciente);
+        if (lastData?.plan_id) {
+             // Podríamos autoseleccionar plan aquí si deseamos
+             // setSelectedPlan(lastData.plan_id);
+        }
       } catch (error) {
         console.error("Error loading initial data", error);
       }
     }
     loadInitialData();
-  }, []);
+  }, [user]);
+
+  // 1.1 Cargar Tipos de Afiliado al cambiar Plan
+  useEffect(() => {
+      setAffiliateTypes([]);
+      setSelectedAffiliateType('');
+      
+      if(!selectedPlan) return;
+      
+      async function loadAffiliateTypes() {
+          try {
+              const data = await appointmentService.getAffiliateTypes(selectedPlan);
+              setAffiliateTypes(data);
+              // Preseleccionar si solo hay uno
+              if(data.length === 1) setSelectedAffiliateType(data[0].id);
+              
+              // Intentar recuperar el último usado si coincide
+              const lastData = await appointmentService.getPatientLastData(user.paciente.paciente_id, user.paciente.tipo_id_paciente);
+              if (lastData?.tipo_afiliado_id) {
+                   const exists = data.find(d => d.id === lastData.tipo_afiliado_id);
+                   if(exists) setSelectedAffiliateType(lastData.tipo_afiliado_id);
+              }
+
+          } catch (e) { console.error(e); }
+      }
+      loadAffiliateTypes();
+  }, [selectedPlan, user]);
 
   // 2. Cargar Servicios cuando Cambia Plan o Tipo
   useEffect(() => {
@@ -156,6 +193,12 @@ export default function ScheduleAppointmentView() {
   }
 
   const handleBook = async (turno) => {
+      // Validar Tipo de Afiliado si hay opciones disponibles y no se ha seleccionado
+      if (affiliateTypes.length > 0 && !selectedAffiliateType) {
+         Swal.fire('Atención', 'Por favor selecciona un Tipo de Afiliado / Rango', 'warning');
+         return;
+      }
+
       const confirm = await Swal.fire({
           title: '¿Confirmar Cita?',
           text: `Doctor: ${turno.doctor || 'Asignado'} - Fecha: ${turno.start}`,
@@ -168,13 +211,18 @@ export default function ScheduleAppointmentView() {
 
       if (confirm.isConfirmed) {
           try {
+              // Obtener objeto del tipo de afiliado para sacar el rango
+              const affType = affiliateTypes.find(a => a.id === selectedAffiliateType);
+              
               await appointmentService.bookAppointment({
                   agenda_cita_id: turno.id,
                   agenda_turno_id: turno.agenda_turno_id,
                   paciente_id: user?.paciente?.paciente_id,
                   plan_id: selectedPlan,
                   service_id: selectedService,
-                  appointment_type_id: selectedType
+                  appointment_type_id: selectedType,
+                  tipo_afiliado: selectedAffiliateType,
+                  rango: affType ? affType.rango : null
               });
               Swal.fire('¡Agendado!', 'Tu cita ha sido reservada.', 'success');
               searchAvailability(); 
@@ -207,9 +255,9 @@ export default function ScheduleAppointmentView() {
 
       {/* Filters Card */}
       <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-6">
-        <div className="grid md:grid-cols-4 gap-6"> {/* Cambiado a 4 columnas */}
+        <div className="grid md:grid-cols-3 gap-6"> 
           
-          {/* 1. Plan (NUEVO) */}
+          {/* 1. Plan */}
           <div>
             <label className="block text-sm font-medium text-blue-900 mb-2">
               <FileText className="w-4 h-4 inline mr-2 text-orange-500" />
@@ -224,6 +272,24 @@ export default function ScheduleAppointmentView() {
               {plans.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </div>
+
+          {/* 1.5 Tipo de Afiliado (Si aplica) */}
+          {affiliateTypes.length > 0 && (
+             <div>
+                <label className="block text-sm font-medium text-blue-900 mb-2">
+                  <Users className="w-4 h-4 inline mr-2 text-purple-500" />
+                  Tipo Afiliado / Rango
+                </label>
+                <select 
+                    className="w-full rounded-lg border-blue-200 focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 text-slate-700"
+                    value={selectedAffiliateType}
+                    onChange={(e) => setSelectedAffiliateType(e.target.value)}
+                >
+                  <option value="">-- SELECCIONAR --</option>
+                  {affiliateTypes.map(t => <option key={t.id} value={t.id}>{t.label} {t.rango ? `(${t.rango})` : ''}</option>)}
+                </select>
+             </div>
+          )}
 
           {/* 2. Tipo de Cita */}
           <div>

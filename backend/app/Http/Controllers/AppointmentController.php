@@ -10,38 +10,121 @@ class AppointmentController extends Controller
 {
     /**
      * Obtener lista de Planes activos
+     * Ajustado: Filtra planes tipo_cliente=25 y el último plan usado por el paciente (si existe).
      */
-    public function getPlans()
+    public function getPlans(Request $request)
     {
-        $plans = DB::select("
+        $documento = $request->query('paciente_id');
+        $tipoDoc = $request->query('tipo_doc'); // Front debe enviar esto si es posible, sino intentamos solo con documento
+        
+        $lastPlanId = null;
+
+        if ($documento) {
+            // Buscar último plan usado en os_ordenes_servicios
+            $queryLast = DB::table('os_ordenes_servicios')
+                ->where('paciente_id', $documento);
+                
+            if ($tipoDoc) {
+                $queryLast->where('tipo_id_paciente', $tipoDoc);
+            }
+            
+            $lastOrder = $queryLast->orderBy('orden_servicio_id', 'desc')
+                ->select('plan_id')
+                ->first();
+
+            if ($lastOrder) {
+                $lastPlanId = $lastOrder->plan_id;
+            }
+        }
+
+        $query = "
             SELECT 
                 plan_id as id,
                 plan_descripcion as label
             FROM planes
             WHERE estado = '1'
-            -- AND sw_afiliados = '1' -- Descomentar si es necesario filtrar solo planes de afiliados
-            ORDER BY plan_descripcion
-        ");
+        ";
+        
+        // Condición: tipo_cliente = '25' O plan_id = last_plan
+        if ($lastPlanId) {
+            $query .= " AND (tipo_cliente = '25' OR plan_id = '$lastPlanId')";
+        } else {
+            $query .= " AND tipo_cliente = '25'";
+        }
+
+        $query .= " ORDER BY plan_descripcion";
+        
+        $plans = DB::select($query);
         
         return response()->json($plans);
     }
 
     /**
+     * Obtener Tipos de Afiliado por Plan (Dropdown)
+     * Basado en AgendaSQL::ObtenerTiposAfiliados
+     */
+    public function getAffiliateTypes(Request $request)
+    {
+        $planId = $request->query('plan_id');
+        
+        if (!$planId) return response()->json([]);
+
+        $types = DB::select("
+            SELECT DISTINCT 
+                TA.tipo_afiliado_nombre as label,
+                TA.tipo_afiliado_id as id,
+                PR.rango
+            FROM tipos_afiliado TA
+            JOIN planes_rangos PR ON PR.tipo_afiliado_id = TA.tipo_afiliado_id
+            WHERE PR.plan_id = ?
+            AND PR.estado = '1'
+            ORDER BY TA.tipo_afiliado_nombre ASC
+        ", [$planId]);
+
+        return response()->json($types);
+    }
+    
+    /**
+     * Obtener Últimos Datos del Paciente (Rango y Tipo Afiliado)
+     * Basado en AgendaSQL::UltimoRegisto
+     */
+    public function getPatientLastData(Request $request)
+    {
+        $documento = $request->query('paciente_id');
+        $tipoDoc = $request->query('tipo_doc');
+        
+        if (!$documento) return response()->json(null);
+
+        $query = DB::table('os_ordenes_servicios')
+            ->where('paciente_id', $documento)
+            ->select('rango', 'tipo_afiliado_id');
+            
+        if ($tipoDoc) {
+             $query->where('tipo_id_paciente', $tipoDoc);
+        }
+
+        $data = $query->orderBy('orden_servicio_id', 'desc')->first();
+
+        return response()->json($data);
+    }
+
+    /**
      * Obtener lista de tipos de cita (Tipos de Consulta)
      * Basado en AgendaSQL::getConsultas / TiposConsulta
+     * Ajuste: Muestra Departamento/Sede para evitar duplicados visuales.
      */
     public function getAppointmentTypes()
     {
-        // Consulta ajustada a la estructura legacy (agendavirtualSQL.php)
-        // Se une con tipos_consultas_cargos para filtrar por sw_cargo_virtual = '1'
+        // Se intenta unir con 'departamentos' para traer nombre de la sede.
         $types = DB::select("
             SELECT DISTINCT
                 a.tipo_consulta_id as id,
-                a.descripcion as label
+                (a.descripcion || ' - ' || COALESCE(d.descripcion, a.departamento)) as label
             FROM tipos_consulta a
             JOIN tipos_consultas_cargos b ON a.tipo_consulta_id = b.tipo_consulta_id
+            LEFT JOIN departamentos d ON a.departamento = d.departamento
             --WHERE b.sw_cargo_virtual = '1'
-            ORDER BY a.descripcion ASC
+            ORDER BY label ASC
         ");
 
         return response()->json($types);
@@ -276,17 +359,27 @@ class AppointmentController extends Controller
              return response()->json(['message' => 'No se encontró información tarifaria para el servicio seleccionado', 'success' => false], 400);
         }
 
-        // 4. Obtener Tipo Afiliado y Rango Válidos (Evitar error varchar(2))
-        $datosAfiliado = DB::selectOne("
-            SELECT DISTINCT TA.tipo_afiliado_id, PR.rango
-            FROM tipos_afiliado TA
-            JOIN planes_rangos PR ON PR.tipo_afiliado_id = TA.tipo_afiliado_id
-            WHERE PR.plan_id = ?
-            LIMIT 1
-        ", [$params['plan_id']]);
+        // 4. Obtener Tipo Afiliado y Rango (Prioridad: Front -> Backend Default)
+        $tipoAfiliadoId = isset($params['tipo_afiliado']) ? $params['tipo_afiliado'] : null;
+        $rangoVal = isset($params['rango']) ? $params['rango'] : null;
 
-        $tipoAfiliadoId = $datosAfiliado ? $datosAfiliado->tipo_afiliado_id : 'C'; // Default seguro (1 car)
-        $rangoVal = $datosAfiliado ? $datosAfiliado->rango : 'A';
+        if (!$tipoAfiliadoId) {
+            $datosAfiliado = DB::selectOne("
+                SELECT DISTINCT TA.tipo_afiliado_id, PR.rango
+                FROM tipos_afiliado TA
+                JOIN planes_rangos PR ON PR.tipo_afiliado_id = TA.tipo_afiliado_id
+                WHERE PR.plan_id = ?
+                LIMIT 1
+            ", [$params['plan_id']]);
+
+            $tipoAfiliadoId = $datosAfiliado ? $datosAfiliado->tipo_afiliado_id : 'C'; // Default seguro
+            if (!$rangoVal) {
+                $rangoVal = $datosAfiliado ? $datosAfiliado->rango : 'A';
+            }
+        }
+
+        // Asegurar un rango por defecto si sigue nulo
+        if (!$rangoVal) $rangoVal = 'A';
         
         DB::beginTransaction();
 
@@ -338,7 +431,8 @@ class AppointmentController extends Controller
                 'cod_autorizacion' => $authSeq,
                 'fecha_deseada' => $turno->fecha_turno, 
                 'observacion' => 'Agendado desde Web',
-                'sw_tipo_atencion' => '1' 
+                'sw_tipo_atencion' => '1',
+                'modalidad_atencion_id' => '01'
             ]);
 
             // D. Orden Servicio (OS)
