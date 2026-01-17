@@ -6,6 +6,7 @@ export default function MedicalHistoryView() {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedIngreso, setSelectedIngreso] = useState(null);
+    const [activeTab, setActiveTab] = useState(1); // 1: Consulta Externa, 2: Apoyos Diagnósticos
 
     useEffect(() => { loadHistory(); }, []);
 
@@ -20,34 +21,79 @@ export default function MedicalHistoryView() {
         return <HistoryDetail ingresoId={selectedIngreso} onBack={() => setSelectedIngreso(null)} />;
     }
 
+    // Filtrar historial según tab activa
+    // Nota: tipo_consulta_id puede venir como número o string "1"/"2"
+    const filteredHistory = history.filter(item => {
+        return parseInt(item.tipo_consulta_id) === activeTab;
+    });
+
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold flex items-center gap-2 text-white">
-                <FileText className="text-blue-400" /> Historial Médico
-            </h2>
+            <div className="space-y-4">
+                <h2 className="text-2xl font-bold flex items-center gap-2 text-white">
+                    <FileText className="text-blue-400" /> Historial Médico
+                </h2>
+                
+                {/* Tabs de Tipo de Consulta - Aligned Right */}
+                <div className="flex justify-end gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-blue-600/20 scrollbar-track-transparent">
+                    <button
+                        onClick={() => setActiveTab(1)}
+                        className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
+                            activeTab === 1 
+                                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                                : 'bg-[#1e293b] border-white/5 text-gray-400 hover:border-blue-500/50 hover:text-white'
+                        }`}
+                    >
+                        Consulta Externa
+                    </button>
+                    <button
+                        onClick={() => setActiveTab(2)}
+                        className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
+                            activeTab === 2 
+                                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                                : 'bg-[#1e293b] border-white/5 text-gray-400 hover:border-blue-500/50 hover:text-white'
+                        }`}
+                    >
+                        Apoyos Diagnósticos
+                    </button>
+                    <button
+                        onClick={() => setActiveTab(3)}
+                        className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
+                            activeTab === 3
+                                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                                : 'bg-[#1e293b] border-white/5 text-gray-400 hover:border-blue-500/50 hover:text-white'
+                        }`}
+                    >
+                        Cirugía
+                    </button>
+                </div>
+            </div>
 
             {/* Lista de Tarjetas (Agrupadas por Ingreso) */}
              <div className="grid grid-cols-1 gap-4">
                 {loading ? (
                     <div className="text-center py-8 text-gray-400">Cargando registros...</div>
-                ) : history.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400">No se encontraron registros históricos.</div>
-                ) : history.map((item, i) => (
+                ) : filteredHistory.length === 0 ? (
+                    <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
+                        <Activity className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                        <p className="text-gray-400">No hay registros de {activeTab === 1 ? 'Consulta Externa' : 'Apoyos Diagnósticos'} para mostrar.</p>
+                    </div>
+                ) : filteredHistory.map((item, i) => (
                     <div key={i} className="bg-[#1e293b]/50 backdrop-blur-md rounded-xl border border-blue-900/30 overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group">
                         <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             
                             {/* Info Principal */}
                             <div className="flex-1 space-y-2">
                                 <div className="flex flex-wrap items-center gap-3 text-sm text-blue-300 font-semibold uppercase tracking-wider">
-                                    <div className={`px-2 py-0.5 rounded text-[10px] ${item.estado === '1' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                                    <div className={`px-2 py-1 rounded text-sm ${item.estado === '1' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
                                         Ingreso #{item.ingreso}
                                     </div>
                                     <span className="flex items-center gap-1"><Calendar size={14} /> {item.fecha}</span>
                                     
                                     {/* Professional Name moved here */}
-                                    <div className="flex items-center gap-2 text-gray-400 text-sm border-l border-white/10 pl-3 ml-1">
+                                    <div className="flex items-center gap-2 text-blue-300 text-sm border-l border-white/10 pl-3 ml-1 font-bold">
                                         <User size={14} className="text-blue-500" />
-                                        <span>{item.profesional_nombre}</span>
+                                        <span>{'PROFESIONAL: ' + item.profesional_nombre}</span>
                                     </div>
                                 </div>
                                 <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
@@ -59,7 +105,11 @@ export default function MedicalHistoryView() {
                             <div>
                                 <button 
                                     onClick={() => setSelectedIngreso(item.ingreso)} 
-                                    className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 w-full md:w-auto justify-center"
+                                    className={`px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 w-full md:w-auto justify-center ${
+                                        activeTab === 1 
+                                            ? 'bg-blue-600 hover:bg-blue-500 text-white' 
+                                            : 'bg-purple-600 hover:bg-purple-500 text-white'
+                                    }`}
                                 >
                                     <Eye size={18} /> Ver Detalles
                                 </button>
