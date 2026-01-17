@@ -4,6 +4,7 @@ import { useUser } from '../../../contexts/UserContext/UserContext';
 import logo from '../../../assets/images/sandi_virtual.png';
 
 import MedicalHistoryView from '../../MedicalHistory/views/MedicalHistoryView';
+import ScheduleAppointmentView from '../../Appointments/views/ScheduleAppointmentView';
 
 export default function DashboardView() {
   const [activeTab, setActiveTab] = useState("inicio");
@@ -130,6 +131,8 @@ export default function DashboardView() {
         {activeTab === "historial" && <MedicalHistoryView />}
         {activeTab === "datos" && <DatosTab user={user} />}
         {activeTab === "diagnosticos" && <DiagnosticosTab />}
+        {/* Nueva vista de agendamiento */}
+        {activeTab === "agendar" && <ScheduleAppointmentView />}
       </main>
 
       {/* Footer */}
@@ -156,7 +159,10 @@ function InicioTab({ user, setActiveTab }) {
             </h1>
             <p className="text-lg text-muted-foreground">Tu salud está en buenas manos</p>
           </div>
-          <button className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2">
+          <button 
+            onClick={() => setActiveTab('agendar')}
+            className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2"
+          >
             <Calendar className="w-5 h-5" />
             Agendar cita
           </button>

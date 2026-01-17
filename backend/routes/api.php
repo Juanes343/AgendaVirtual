@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AppointmentController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -11,8 +12,20 @@ Route::post('/recover-password', [AuthController::class, 'recoverPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/manual', [AuthController::class, 'downloadManual']);
 
+// Rutas de Agendamiento (Públicas para catálogos)
+Route::prefix('appointments')->group(function () {
+    Route::get('/plans', [AppointmentController::class, 'getPlans']);
+    Route::get('/types', [AppointmentController::class, 'getAppointmentTypes']);
+    Route::get('/services', [AppointmentController::class, 'getServices']);
+    Route::get('/professionals', [AppointmentController::class, 'getProfessionals']);
+    Route::get('/availability', [AppointmentController::class, 'getAvailability']);
+});
+
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
+    // Agendamiento (Solo reservar requiere auth)
+    Route::post('/appointments/book', [AppointmentController::class, 'bookAppointment']);
+
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
