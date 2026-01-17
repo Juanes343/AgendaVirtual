@@ -94,7 +94,7 @@ export default function MedicalHistoryView() {
                                     <div className="flex items-center gap-2 text-blue-300 text-sm border-l border-white/10 pl-3 ml-1 font-bold">
                                         <User size={14} className="text-blue-500" />
                                         <span>{'PROFESIONAL: ' + item.profesional_nombre}</span>
-                                    </div>
+                                    </div>  
                                 </div>
                                 <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
                                     {item.servicio || 'ATENCIÓN MÉDICA GENERAL'}

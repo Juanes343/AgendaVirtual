@@ -1,0 +1,21 @@
+cd /var/www/html/php82/AgendaVirtual 2>/dev/null || cd AgendaVirtual
+cat > .gitignore <<'EOF'
+# PHP / Laravel
+/vendor/
+composer.phar
+.env
+
+# Node / Vite
+/node_modules/
+dist/
+
+# Logs / cache
+*.log
+/storage/*.key
+/storage/logs/
+bootstrap/cache/
+
+# OS
+.DS_Store
+Thumbs.db
+EOF
