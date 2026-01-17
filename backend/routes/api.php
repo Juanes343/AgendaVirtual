@@ -34,10 +34,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Módulo de Historia Clínica y Reportes
     Route::get('/medical-history', [\App\Http\Controllers\ReportController::class, 'getMedicalHistory']);
-    Route::get('/medical-history/{evolucion_id}', [\App\Http\Controllers\ReportController::class, 'getHistoryDetail']);
+    Route::get('/medical-history/{ingreso}', [\App\Http\Controllers\ReportController::class, 'getHistoryDetail']);
     
-    // Generación de PDFs
+    // Generación de PDFs (Siguen por evolución ID para precisión, o podemos cambiar a ingreso si se requiriera)
     Route::get('/medical-history/{evolucion_id}/pdf-formula', [\App\Http\Controllers\ReportController::class, 'generateFormulaPdf']);
     Route::get('/medical-history/{evolucion_id}/pdf-orden', [\App\Http\Controllers\ReportController::class, 'generateOrderPdf']);
+    Route::get('/medical-history/{evolucion_id}/pdf-incapacidad', [\App\Http\Controllers\ReportController::class, 'generateIncapacidadPdf']);
 });
 

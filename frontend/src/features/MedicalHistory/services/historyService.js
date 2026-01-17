@@ -5,8 +5,8 @@ const historyService = {
         const response = await api.get('/medical-history');
         return response.data;
     },
-    getDetail: async (evolucionId) => {
-        const response = await api.get(`/medical-history/${evolucionId}`);
+    getDetail: async (ingresoId) => {
+        const response = await api.get(`/medical-history/${ingresoId}`);
         return response.data;
     },
     printFormula: (evolucionId) => {
@@ -20,6 +20,15 @@ const historyService = {
     },
     printOrder: (evolucionId) => {
         return api.get(`/medical-history/${evolucionId}/pdf-orden`, { responseType: 'blob' })
+            .then((response) => {
+                const file = new Blob([response.data], { type: 'application/pdf' });
+                const fileURL = URL.createObjectURL(file);
+                window.open(fileURL, '_blank');
+            })
+            .catch(err => console.error("Error descargando PDF", err));
+    },
+    printIncapacity: (evolucionId) => {
+        return api.get(`/medical-history/${evolucionId}/pdf-incapacidad`, { responseType: 'blob' })
             .then((response) => {
                 const file = new Blob([response.data], { type: 'application/pdf' });
                 const fileURL = URL.createObjectURL(file);

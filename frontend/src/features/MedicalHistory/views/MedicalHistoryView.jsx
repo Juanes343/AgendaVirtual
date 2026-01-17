@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import historyService from '../services/historyService';
-import { Eye, Printer, ArrowLeft, FileText, Activity } from 'lucide-react';
+import { Eye, Printer, ArrowLeft, FileText, Activity, Layers, Calendar, User, Search, Stethoscope, Pill } from 'lucide-react';
 
 export default function MedicalHistoryView() {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedEvolucion, setSelectedEvolucion] = useState(null);
+    const [selectedIngreso, setSelectedIngreso] = useState(null);
 
     useEffect(() => { loadHistory(); }, []);
 
@@ -16,102 +16,171 @@ export default function MedicalHistoryView() {
         } catch (error) { console.error(error); } finally { setLoading(false); }
     };
 
-    if (selectedEvolucion) {
-        return <HistoryDetail evolucionId={selectedEvolucion} onBack={() => setSelectedEvolucion(null)} />;
+    if (selectedIngreso) {
+        return <HistoryDetail ingresoId={selectedIngreso} onBack={() => setSelectedIngreso(null)} />;
     }
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold flex items-center gap-2 text-white"><FileText className="text-blue-400" /> Historial Médico</h2>
-            <div className="bg-[#1e293b]/50 backdrop-blur-md rounded-xl border border-blue-900/30 overflow-hidden shadow-xl">
-                <table className="w-full text-sm text-center">
-                    <thead className="bg-blue-900/50 text-blue-100 uppercase text-xs font-bold tracking-wider">
-                        <tr>
-                            <th className="px-6 py-4 text-left">Fecha</th>
-                            <th className="px-6 py-4 text-left w-1/3">Profesional</th> {/* Más ancho para el nombre */}
-                            <th className="px-6 py-4">Ingreso</th>
-                            <th className="px-6 py-4 text-center">Opción</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-blue-800/20 text-gray-300">
-                        {loading ? (
-                            <tr><td colSpan="4" className="text-center py-8 text-gray-400">Cargando registros...</td></tr>
-                        ) : history.length === 0 ? (
-                            <tr><td colSpan="4" className="text-center py-8 text-gray-400">No se encontraron registros históricos.</td></tr>
-                        ) : history.map((item, i) => (
-                            <tr key={i} className="hover:bg-blue-800/20 transition-colors duration-150">
-                                <td className="px-6 py-4 text-left font-medium text-white">{item.fecha}</td>
-                                <td className="px-6 py-4 text-left font-medium text-blue-200">{item.profesional_nombre}</td>
-                                <td className="px-6 py-4">{item.ingreso}</td>
-                                <td className="px-6 py-4 flex justify-center">
-                                    <button 
-                                        onClick={() => setSelectedEvolucion(item.evolucion_id)} 
-                                        className="bg-blue-600/20 hover:bg-blue-600 hover:text-white text-blue-400 px-3 py-1.5 rounded-lg font-bold text-xs uppercase transition-all flex items-center gap-2"
-                                    >
-                                        <Eye size={16} /> Ver
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+            <h2 className="text-2xl font-bold flex items-center gap-2 text-white">
+                <FileText className="text-blue-400" /> Historial Médico
+            </h2>
+
+            {/* Lista de Tarjetas (Agrupadas por Ingreso) */}
+             <div className="grid grid-cols-1 gap-4">
+                {loading ? (
+                    <div className="text-center py-8 text-gray-400">Cargando registros...</div>
+                ) : history.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">No se encontraron registros históricos.</div>
+                ) : history.map((item, i) => (
+                    <div key={i} className="bg-[#1e293b]/50 backdrop-blur-md rounded-xl border border-blue-900/30 overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group">
+                        <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            
+                            {/* Info Principal */}
+                            <div className="flex-1 space-y-2">
+                                <div className="flex items-center gap-3 text-sm text-blue-300 font-semibold uppercase tracking-wider">
+                                    <div className={`px-2 py-0.5 rounded text-[10px] ${item.estado === '1' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                                        Ingreso #{item.ingreso}
+                                    </div>
+                                    <span className="flex items-center gap-1"><Calendar size={14} /> {item.fecha}</span>
+                                </div>
+                                <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
+                                    {item.servicio || 'ATENCIÓN MÉDICA GENERAL'}
+                                </h3>
+                                <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                    <User size={14} className="text-blue-500" />
+                                    <span>{item.profesional_nombre}</span>
+                                </div>
+                            </div>
+
+                            {/* Botón Acción */}
+                            <div>
+                                <button 
+                                    onClick={() => setSelectedIngreso(item.ingreso)} 
+                                    className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 w-full md:w-auto justify-center"
+                                >
+                                    <Eye size={18} /> Ver Detalles
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );
 }
 
-function HistoryDetail({ evolucionId, onBack }) {
-    const [details, setDetails] = useState({ medicamentos: [], solicitudes: [] });
+function HistoryDetail({ ingresoId, onBack }) {
+    const [details, setDetails] = useState({ medicamentos: [], solicitudes: [], incapacidades: [] }); // Ahora incluye incapacidades
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        historyService.getDetail(evolucionId).then(data => { if(data.success) setDetails(data.data); setLoading(false); });
-    }, [evolucionId]);
+        historyService.getDetail(ingresoId).then(data => { if(data.success) setDetails(data.data); setLoading(false); });
+    }, [ingresoId]);
 
-    if(loading) return <div>Cargando...</div>;
+    if(loading) return <div className="text-white text-center py-10">Cargando detalles...</div>;
+
+    // Helper para agrupar medicamentos por 'evolucion_id' (aunque suelen venir juntos, por si acaso hay multiples evoluciones en un ingreso)
+    const renderMedicamentos = () => {
+        if (details.medicamentos.length === 0) return null;
+        
+        // Agrupar por ID de evolución para botón de imprimir único por bloque
+        const grouped = details.medicamentos.reduce((acc, curr) => {
+            (acc[curr.evolucion_id] = acc[curr.evolucion_id] || []).push(curr);
+            return acc;
+        }, {});
+
+        return Object.entries(grouped).map(([evolucionId, meds]) => (
+            <div key={`med-${evolucionId}`} className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-6">
+                <div className="bg-blue-900/20 px-4 py-3 border-b border-blue-900/30 flex justify-between items-center">
+                    <h4 className="font-bold text-blue-300 flex items-center gap-2 uppercase text-sm"><Pill size={16} /> Medicamentos Formulados</h4>
+                    <span className="text-xs text-blue-400/50">Ref: {evolucionId}</span>
+                </div>
+                <div className="divide-y divide-blue-900/30">
+                    {meds.map((med, i) => (
+                        <div key={i} className="p-4 hover:bg-white/5 transition-colors">
+                            <div className="flex justify-between items-start gap-4">
+                                <div>
+                                    <p className="font-bold text-blue-100 text-sm">{med.producto}</p>
+                                    <p className="text-xs text-gray-400 mt-0.5 mb-2 italic">{med.principio_activo}</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-gray-300">
+                                        <span className="bg-blue-500/10 px-2 py-1 rounded">Dosis: <span className="font-bold text-white">{med.dosis} {med.unidad_dosificacion}</span></span>
+                                        <span className="bg-blue-500/10 px-2 py-1 rounded">Frec: <span className="font-bold text-white">{med.frecuencia}</span></span>
+                                        <span className="bg-blue-500/10 px-2 py-1 rounded">Cant: <span className="font-bold text-white">{med.cantidad}</span></span>
+                                    </div>
+                                    {med.observacion && <p className="text-xs text-yellow-500/80 mt-2">Nota: {med.observacion}</p>}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="bg-blue-950/30 p-2 text-center border-t border-blue-900/30">
+                    <button onClick={() => historyService.printFormula(evolucionId)} className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide">
+                        <Printer size={14} /> Imprimir Fórmula Médica
+                    </button>
+                </div>
+            </div>
+        ));
+    };
+
+    const renderSolicitudes = () => {
+        if (details.solicitudes.length === 0) return null;
+        
+        const grouped = details.solicitudes.reduce((acc, curr) => {
+            (acc[curr.evolucion_id] = acc[curr.evolucion_id] || []).push(curr);
+            return acc;
+        }, {});
+
+        return Object.entries(grouped).map(([evolucionId, sols]) => (
+            <div key={`sol-${evolucionId}`} className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-6">
+                 <div className="bg-purple-900/20 px-4 py-3 border-b border-blue-900/30 flex justify-between items-center">
+                    <h4 className="font-bold text-purple-300 flex items-center gap-2 uppercase text-sm"><Stethoscope size={16} /> Órdenes y Solicitudes</h4>
+                     <span className="text-xs text-purple-400/50">Ref: {evolucionId}</span>
+                </div>
+                <div className="divide-y divide-blue-900/30">
+                    {sols.map((sol, i) => (
+                        <div key={i} className="p-4 hover:bg-white/5 transition-colors">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex justify-between">
+                                    <span className="text-xs font-mono text-gray-500">{sol.cargo}</span>
+                                    <span className="text-xs text-gray-400">{sol.fecha_solicitud}</span>
+                                </div>
+                                <p className="font-medium text-purple-100 text-sm">{sol.descripcion}</p>
+                                {sol.observacion && <p className="text-xs text-gray-400 mt-1">Obs: {sol.observacion}</p>}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="bg-purple-950/20 p-2 text-center border-t border-blue-900/30">
+                     <button onClick={() => historyService.printOrder(evolucionId)} className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide">
+                        <Printer size={14} /> Imprimir Orden
+                    </button>
+                </div>
+            </div>
+        ));
+    };
 
     return (
-        <div className="space-y-6">
-            <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground"><ArrowLeft size={20} /> Regresar</button>
-            {details.medicamentos.length > 0 && (
-                <div className="space-y-2">
-                    <div className="bg-primary/10 text-primary px-4 py-2 font-bold uppercase text-sm rounded-t-lg border-b border-primary/20">Medicamentos Pos Formulados</div>
-                    <div className="bg-card border border-border rounded-b-lg overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-muted text-xs uppercase font-semibold"><tr><th className="px-4 py-2">Producto</th><th className="px-4 py-2">Indicaciones</th></tr></thead>
-                            <tbody className="divide-y divide-border">
-                                {details.medicamentos.map((med, i) => (
-                                    <tr key={i}>
-                                        <td className="px-4 py-3 align-top font-bold text-primary">{med.producto}<div className="text-xs text-muted-foreground">{med.principio_activo}</div></td>
-                                        <td className="px-4 py-3">Dosis: {med.dosis} {med.unidad_dosificacion} | Frecuencia: {med.frecuencia} | Cantidad: {med.cantidad}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <div className="bg-muted/30 p-2 text-center border-t border-border">
-                            <button onClick={() => historyService.printFormula(evolucionId)} className="text-primary hover:underline flex items-center justify-center gap-2 mx-auto font-medium text-sm"><Printer size={16} /> IMPRIMIR FÓRMULA MÉDICA</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+        <div className="space-y-6 animate-fade-in-up">
+            <button onClick={onBack} className="flex items-center gap-2 text-blue-300 hover:text-white transition-colors font-medium">
+                <ArrowLeft size={20} /> Regresar al Listado
+            </button>
             
-            {details.solicitudes.length > 0 && (
-                <div className="space-y-2">
-                    <div className="bg-blue-600/10 text-blue-700 px-4 py-2 font-bold uppercase text-sm rounded-t-lg">Solicitudes</div>
-                    <div className="bg-card border border-border rounded-b-lg overflow-hidden">
-                         <table className="w-full text-sm">
-                            <thead className="bg-muted text-xs uppercase font-semibold"><tr><th className="px-4 py-2">Fecha</th><th className="px-4 py-2">Cargo</th><th className="px-4 py-2">Descripción</th></tr></thead>
-                            <tbody className="divide-y divide-border">
-                                {details.solicitudes.map((sol, i) => (
-                                    <tr key={i}><td className="px-4 py-3">{sol.fecha_solicitud}</td><td className="px-4 py-3">{sol.cargo}</td><td className="px-4 py-3">{sol.descripcion}</td></tr>
-                                ))}
-                            </tbody>
-                        </table>
-                         <div className="bg-muted/30 p-2 text-center border-t border-border">
-                            <button onClick={() => historyService.printOrder(evolucionId)} className="text-blue-600 hover:underline flex items-center justify-center gap-2 mx-auto font-medium text-sm"><Printer size={16} /> IMPRIMIR ORDEN</button>
-                        </div>
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                     {/* Sección Medicamentos */}
+                     {renderMedicamentos()}
                 </div>
+                <div>
+                     {/* Sección Solicitudes */}
+                     {renderSolicitudes()}
+                </div>
+            </div>
+
+            {details.medicamentos.length === 0 && details.solicitudes.length === 0 && (
+                 <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
+                    <p className="text-gray-400">No hay registros de formulaciones u órdenes para este ingreso.</p>
+                 </div>
             )}
         </div>
     );
