@@ -40,6 +40,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/medical-history/{evolucion_id}/pdf-formula', [\App\Http\Controllers\ReportController::class, 'generateFormulaPdf']);
     Route::get('/medical-history/{evolucion_id}/pdf-orden', [\App\Http\Controllers\ReportController::class, 'generateOrderPdf']);
     Route::get('/medical-history/{evolucion_id}/pdf-incapacidad', [\App\Http\Controllers\ReportController::class, 'generateIncapacidadPdf']);
+    
+    // Envío de reportes por correo
+    Route::post('/medical-history/{ingreso}/send-email', [\App\Http\Controllers\ReportController::class, 'sendHistoryEmail']);
 
     // Perfil de Usuario
     Route::put('/profile/update', [AuthController::class, 'updateProfile']);

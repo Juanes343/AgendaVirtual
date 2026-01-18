@@ -35,6 +35,10 @@ const historyService = {
                 window.open(fileURL, '_blank');
             })
             .catch(err => console.error("Error descargando PDF", err));
+    },
+    sendReportEmail: async (ingresoId) => {
+        const response = await api.post(`/medical-history/${ingresoId}/send-email`);
+        return response.data;
     }
 };
 

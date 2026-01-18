@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import historyService from '../services/historyService';
-import { Eye, Printer, ArrowLeft, FileText, Activity, Layers, Calendar, User, Search, Stethoscope, Pill } from 'lucide-react';
+import { Eye, Printer, ArrowLeft, FileText, Activity, Layers, Calendar, User, Search, Stethoscope, Pill, Mail, CheckCircle } from 'lucide-react';
+import { useUser } from '../../../contexts/UserContext/UserContext';
+import Swal from 'sweetalert2';
 
 export default function MedicalHistoryView() {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedIngreso, setSelectedIngreso] = useState(null);
     const [activeTab, setActiveTab] = useState(1); // 1: Consulta Externa, 2: Apoyos Diagnósticos
+    const { user } = useUser();
+    const [sendingEmail, setSendingEmail] = useState(null); // ID del ingreso que se está enviando
 
     useEffect(() => { loadHistory(); }, []);
 
@@ -15,6 +19,52 @@ export default function MedicalHistoryView() {
             const data = await historyService.getHistory();
             if (data.success) setHistory(data.data);
         } catch (error) { console.error(error); } finally { setLoading(false); }
+    };
+
+    const handleSendEmail = async (ingresoId, e) => {
+        e.stopPropagation(); // Evitar abrir detalles
+        
+        // Confirmación
+        const result = await Swal.fire({
+            title: '¿Enviar reporte por correo?',
+            text: `Se enviará el reporte detallado al correo registrado: ${user?.paciente?.email || 'N/A'}.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sí, enviar',
+            cancelButtonText: 'Cancelar',
+             background: '#1e293b',
+             color: '#fff'
+        });
+
+        if (!result.isConfirmed) return;
+
+        setSendingEmail(ingresoId);
+        try {
+            await historyService.sendReportEmail(ingresoId); 
+            
+            Swal.fire({
+                title: '¡Enviado!',
+                text: 'El reporte ha sido enviado exitosamente a tu correo.',
+                icon: 'success',
+                confirmButtonColor: '#10b981',
+                background: '#1e293b',
+                color: '#fff'
+            });
+
+        } catch (error) {
+            Swal.fire({
+                title: 'Error',
+                text: 'Hubo un problema al enviar el correo. Inténtalo de nuevo.',
+                icon: 'error',
+                background: '#1e293b',
+                color: '#fff'
+            });
+            console.error(error);
+        } finally {
+            setSendingEmail(null);
+        }
     };
 
     if (selectedIngreso) {
@@ -102,10 +152,24 @@ export default function MedicalHistoryView() {
                             </div>
 
                             {/* Botón Acción */}
-                            <div>
+                            <div className="flex items-center gap-2 w-full md:w-auto">
+                                <button 
+                                    onClick={(e) => handleSendEmail(item.ingreso, e)}
+                                    disabled={sendingEmail === item.ingreso}
+                                    className="px-4 py-2.5 rounded-lg font-bold text-sm border border-gray-600 hover:border-blue-400 hover:text-blue-400 bg-transparent text-gray-400 transition-all flex items-center justify-center gap-2"
+                                    title="Enviar reporte por correo"
+                                >
+                                    {sendingEmail === item.ingreso ? (
+                                        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <Mail size={18} />
+                                    )}
+                                    <span className="hidden sm:inline">Enviar</span>
+                                </button>
+
                                 <button 
                                     onClick={() => setSelectedIngreso(item.ingreso)} 
-                                    className={`px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 w-full md:w-auto justify-center ${
+                                    className={`px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 flex-1 justify-center ${
                                         activeTab === 1 
                                             ? 'bg-blue-600 hover:bg-blue-500 text-white' 
                                             : 'bg-purple-600 hover:bg-purple-500 text-white'

@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Paciente;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 // use Barryvdh\DomPDF\Facade\Pdf; 
 
 class ReportController extends Controller
@@ -145,6 +148,99 @@ class ReportController extends Controller
                 'incapacidades' => $incapacidades
             ]
         ]);
+    }
+
+    /**
+     * Envía un correo con el reporte detallado del historial médico.
+     * @param int $ingreso
+     */
+    public function sendHistoryEmail(Request $request, $ingreso) 
+    {
+        // 1. Obtener datos del ingreso 
+        $detailResponse = $this->getHistoryDetail($ingreso);
+        $data = $detailResponse->getData()->data; 
+
+        // 2. Obtener datos cabecera (paciente/profesional) buscando alguna evolución del ingreso
+        $unaEvolucion = DB::table('hc_evoluciones')->where('ingreso', $ingreso)->orderBy('fecha', 'desc')->first();
+
+        if (!$unaEvolucion) {
+            return response()->json(['success' => false, 'message' => 'No se encontraron registros para este ingreso.'], 404);
+        }
+
+        $header = $this->getHeaderData($unaEvolucion->evolucion_id);
+
+        if (!$header) {
+             return response()->json(['success' => false, 'message' => 'Error obteniendo datos del paciente.'], 500);
+        }
+
+        // Recuperar email del paciente
+        $paciente = Paciente::where('paciente_id', $header->paciente_id)
+            ->where('tipo_id_paciente', $header->tipo_id_paciente)
+            ->first();
+
+        if (!$paciente || empty($paciente->email)) {
+             return response()->json(['success' => false, 'message' => 'El paciente no tiene un correo electrónico registrado.'], 400);
+        }
+
+        try {
+            // 3. Generar PDF consolidado en memoria
+            $dompdf = new \Dompdf\Dompdf();
+            $dompdf->set_option('isRemoteEnabled', true);
+            
+            // Vista unificada
+            $html = view('reporte_completo', [
+                'paciente' => $header,
+                'medicamentos' => $data->medicamentos,
+                'solicitudes' => $data->solicitudes,
+                'incapacidades' => $data->incapacidades,
+                'fecha' => $header->fecha,
+                'profesional' => $header->profesional,
+                'especialidad' => $header->especialidad,
+                'ingreso' => $ingreso
+            ])->render();
+
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $pdfContent = $dompdf->output();
+
+            // 4. Enviar Correo con Adjunto
+            Mail::send('emails.medical_history_report', [
+                'nombre' => $header->nombre_completo,
+                'fecha' => $header->fecha,
+                'tipo_reporte' => 'Historia Clínica - Ingreso #' . $ingreso,
+                'profesional' => $header->profesional
+            ], function($message) use ($paciente, $pdfContent, $ingreso) {
+                $message->to($paciente->email)
+                        ->subject('Reporte Historia Clínica - Ingreso #' . $ingreso)
+                        ->attachData($pdfContent, "Reporte_Historia_Clinica_{$ingreso}.pdf", [
+                            'mime' => 'application/pdf',
+                        ]);
+            });
+
+            return response()->json([
+                'success' => true, 
+                'message' => 'Reporte enviado correctamente a ' . $this->maskEmail($paciente->email)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error enviando reporte email: " . $e->getMessage());
+            return response()->json([
+                'success' => false, 
+                'message' => 'Error al enviar el correo.', 
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function maskEmail($email) {
+        $parts = explode('@', $email);
+        if(count($parts) < 2) return $email;
+        $name = $parts[0];
+        $len = strlen($name);
+        $visibleLen = floor($len / 2);
+        $maskedName = substr($name, 0, $visibleLen) . str_repeat('*', ($len - $visibleLen));
+        return $maskedName . '@' . $parts[1];
     }
     
     // Helper privado
