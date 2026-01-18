@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Home, FileText, User, Activity, Menu, X, Bell, Calendar, LogOut } from 'lucide-react';
 import { useUser } from '../../../contexts/UserContext/UserContext';
 import logo from '../../../assets/images/sandi_virtual.png';
+import simdeLogo from '../../../assets/images/simde_logo.png';
 
 import MedicalHistoryView from '../../MedicalHistory/views/MedicalHistoryView';
 import ScheduleAppointmentView from '../../Appointments/views/ScheduleAppointmentView';
@@ -17,7 +18,7 @@ export default function DashboardView() {
     { id: "inicio", label: "Inicio", icon: Home },
     { id: "historial", label: "Historial Médico", icon: FileText },
     { id: "datos", label: "Datos Básicos", icon: User },
-    { id: "diagnosticos", label: "Apoyos Diagnósticos", icon: Activity },
+    // { id: "diagnosticos", label: "Apoyos Diagnósticos", icon: Activity },
   ];
 
   return (
@@ -67,10 +68,6 @@ export default function DashboardView() {
 
             {/* User Menu */}
             <div className="flex items-center gap-4">
-              <div className="relative hidden sm:block">
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0f172a]"></span>
-                  <Bell className="w-5 h-5 text-gray-300 cursor-pointer hover:text-white transition-colors" />
-              </div>
               <div className="flex items-center gap-3 pl-4 border-l border-blue-900/30">
                 <div className="hidden sm:flex flex-col items-end max-w-[350px] text-right">
                   <p className="text-sm font-medium leading-tight text-gray-100 truncate w-full" title={user?.paciente?.nombre_completo}>
@@ -138,9 +135,10 @@ export default function DashboardView() {
 
       {/* Footer */}
       <footer className="border-t border-blue-900/30 mt-auto relative z-10 bg-[#0f172a]/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-          <p className="text-center text-sm text-gray-500">
-            © {new Date().getFullYear()} SIMDE SAS. Todos los derechos reservados.
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-center gap-2">
+          <img src={simdeLogo} alt="SIMDE SAS" className="h-5 w-auto opacity-70 grayscale hover:grayscale-0 transition-all duration-300" />
+          <p className="text-sm text-gray-500 pt-0.5">
+             © {new Date().getFullYear()} SIMDE SAS. Todos los derechos reservados.
           </p>
         </div>
       </footer>
@@ -175,7 +173,7 @@ function InicioTab({ user, setActiveTab }) {
         {[
           { id: "historial", label: "Historial Médico", icon: FileText, color: "text-emerald-500", desc: "Consulte su historia clínica detallada" },
           { id: "datos", label: "Datos Básicos", icon: User, color: "text-blue-500", desc: "Gestione su información personal" },
-          { id: "diagnosticos", label: "Apoyos Diagnósticos", icon: Activity, color: "text-purple-500", desc: "Ver resultados de exámenes" },
+          // { id: "diagnosticos", label: "Apoyos Diagnósticos", icon: Activity, color: "text-purple-500", desc: "Ver resultados de exámenes" },
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -248,7 +246,7 @@ function DatosTab({ user }) {
 function DiagnosticosTab() {
   return (
     <div className="space-y-6">
-       <h2 className="text-2xl font-bold">Apoyos Diagnósticos</h2>
+       {/* <h2 className="text-2xl font-bold">Apoyos Diagnósticos</h2> */}
        <p className="text-muted-foreground">Sin resultados pendientes.</p>
     </div>
   );
