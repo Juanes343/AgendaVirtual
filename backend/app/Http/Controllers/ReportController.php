@@ -202,20 +202,64 @@ class ReportController extends Controller
             $dompdf->loadHtml($html);
             $dompdf->setPaper('A4', 'portrait');
             $dompdf->render();
-            $pdfContent = $dompdf->output();
+            $pdfContentCompleto = $dompdf->output();
+
+            // 3.2 Generar PDF Formula (Si hay medicamentos)
+            $pdfContentFormula = null;
+            if (!empty($data->medicamentos) && count($data->medicamentos) > 0) {
+                $dompdfF = new \Dompdf\Dompdf();
+                $dompdfF->set_option('isRemoteEnabled', true);
+                $dompdfF->loadHtml(view('formula', [
+                    'paciente' => $header, 
+                    'medicamentos' => $data->medicamentos, 
+                    'fecha' => $header->fecha, 
+                    'profesional' => $header->profesional,
+                    'registro_medico' => $header->tarjeta_profesional
+                ])->render());
+                $dompdfF->setPaper('A4', 'portrait');
+                $dompdfF->render();
+                $pdfContentFormula = $dompdfF->output();
+            }
+
+            // 3.3 Generar PDF Ordenes (Si hay solicitudes)
+            $pdfContentOrden = null;
+            if (!empty($data->solicitudes) && count($data->solicitudes) > 0) {
+                $dompdfO = new \Dompdf\Dompdf();
+                $dompdfO->set_option('isRemoteEnabled', true);
+                $dompdfO->loadHtml(view('orden', [
+                    'paciente' => $header, 
+                    'solicitudes' => $data->solicitudes, 
+                    'fecha' => $header->fecha, 
+                    'profesional' => $header->profesional,
+                    'especialidad' => $header->especialidad
+                ])->render());
+                $dompdfO->setPaper('A4', 'portrait');
+                $dompdfO->render();
+                $pdfContentOrden = $dompdfO->output();
+            }
 
             // 4. Enviar Correo con Adjunto
-            Mail::send('emails.medical_history_report', [
+            Mail::send('emails.medical_history_report_v2', [
                 'nombre' => $header->nombre_completo,
                 'fecha' => $header->fecha,
-                'tipo_reporte' => 'Historia Clínica - Ingreso #' . $ingreso,
+                'ingreso' => $ingreso,
                 'profesional' => $header->profesional
-            ], function($message) use ($paciente, $pdfContent, $ingreso) {
+            ], function($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden) {
                 $message->to($paciente->email)
-                        ->subject('Reporte Historia Clínica - Ingreso #' . $ingreso)
-                        ->attachData($pdfContent, "Reporte_Historia_Clinica_{$ingreso}.pdf", [
-                            'mime' => 'application/pdf',
-                        ]);
+                        ->subject('Reporte Historia Clínica - Ingreso #' . $ingreso);
+                
+                // Adjunto 1: Reporte Completo
+                $message->attachData($pdfContentCompleto, "Historia_Clinica_Completa_{$ingreso}.pdf", ['mime' => 'application/pdf']);
+
+                // Adjunto 2: Fórmula (Si existe)
+                if ($pdfContentFormula) {
+                    $message->attachData($pdfContentFormula, "Formula_Medica_{$ingreso}.pdf", ['mime' => 'application/pdf']);
+                }
+
+                // Adjunto 3: Ordenes (Si existe)
+                if ($pdfContentOrden) {
+                    $message->attachData($pdfContentOrden, "Ordenes_Medicas_{$ingreso}.pdf", ['mime' => 'application/pdf']);
+                }
             });
 
             return response()->json([
