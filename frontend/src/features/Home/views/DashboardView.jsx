@@ -147,49 +147,73 @@ export default function DashboardView() {
 }
 
 function InicioTab({ user, setActiveTab }) {
+  const navCards = [
+    { 
+      id: "historial", 
+      label: "Historial Médico", 
+      desc: "Consulta tus diagnósticos, recetas y evolución clínica detallada.", 
+      icon: FileText, 
+      color: "text-emerald-500", 
+      bg: "bg-emerald-500/10",
+      border: "hover:border-emerald-500/50"
+    },
+    { 
+      id: "datos", 
+      label: "Datos Básicos", 
+      desc: "Gestiona tu información personal y contactos de emergencia actualizados.", 
+      icon: User, 
+      color: "text-blue-500", 
+      bg: "bg-blue-500/10",
+      border: "hover:border-blue-500/50" 
+    },
+    // { 
+    //   id: "diagnosticos", 
+    //   label: "Resultados", 
+    //   desc: "Visualiza tus apoyos diagnósticos y reportes de laboratorio recientes.", 
+    //   icon: Activity, 
+    //   color: "text-purple-500", 
+    //   bg: "bg-purple-500/10",
+    //   border: "hover:border-purple-500/50" 
+    // },
+  ];
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-10 animate-fade-in">
       {/* Welcome card */}
-      <div className="bg-card/80 backdrop-blur-xl rounded-2xl border border-border p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-slate-900/60 backdrop-blur-2xl rounded-3xl border border-white/10 p-8 sm:p-10 shadow-2xl">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="space-y-2">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              ¡Bienvenido, {user?.paciente?.primer_nombre || 'Paciente'}!
+            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white italic">
+              ¡Hola, {user?.paciente?.primer_nombre || 'Paciente'}!
             </h1>
-            <p className="text-lg text-muted-foreground">Tu salud está en buenas manos</p>
+            <p className="text-xl text-blue-200/60 font-semibold uppercase tracking-wide">Portal del Paciente SanDi•Med</p>
           </div>
           <button 
             onClick={() => setActiveTab('agendar')}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2"
+            className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-black shadow-xl shadow-blue-600/30 transition-all hover:scale-105 active:scale-95 flex items-center gap-2 text-lg"
           >
-            <Calendar className="w-5 h-5" />
-            Agendar cita
+            <Calendar className="w-6 h-6" />
+            Agendar Cita
           </button>
         </div>
       </div>
 
       {/* Navigation Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[
-          { id: "historial", label: "Historial Médico", icon: FileText, color: "text-emerald-500", desc: "Consulte su historia clínica detallada" },
-          { id: "datos", label: "Datos Básicos", icon: User, color: "text-blue-500", desc: "Gestione su información personal" },
-          // { id: "diagnosticos", label: "Apoyos Diagnósticos", icon: Activity, color: "text-purple-500", desc: "Ver resultados de exámenes" },
-        ].map((item) => {
-          const Icon = item.icon;
+      <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-8">
+        {navCards.map((card) => {
+          const Icon = card.icon;
           return (
             <button
-               key={item.id}
-               onClick={() => setActiveTab(item.id)}
-               className="bg-card/50 border border-border p-6 rounded-2xl hover:border-primary/50 transition-all hover:bg-card/80 text-left group flex flex-col justify-between h-48 sm:h-56"
+               key={card.id}
+               onClick={() => setActiveTab(card.id)}
+               className={`group relative overflow-hidden bg-slate-900/30 border border-white/5 p-10 rounded-[2.5rem] ${card.border} transition-all hover:bg-slate-900/60 text-left flex flex-col justify-between h-80 shadow-lg`}
             >
-              <div className="flex justify-between items-start w-full">
-                <div className={`p-4 rounded-xl bg-muted group-hover:bg-primary/10 transition-colors ${item.color}`}>
-                  <Icon className="w-8 h-8 sm:w-10 sm:h-10" />
-                </div>
+              <div className={`p-6 rounded-2xl ${card.bg} ${card.color} w-fit transition-transform group-hover:scale-125 ${card.id === 'datos' ? 'group-hover:-rotate-3' : 'group-hover:rotate-3'}`}>
+                <Icon className="w-11 h-11" />
               </div>
-              <div className="mt-4">
-                <h3 className="text-xl sm:text-2xl font-bold group-hover:text-primary transition-colors">{item.label}</h3>
-                <p className="text-muted-foreground mt-2 text-sm sm:text-base">{item.desc}</p>
+              <div>
+                <h3 className={`text-2xl font-black text-white ${card.id === 'historial' ? 'group-hover:text-emerald-400' : 'group-hover:text-blue-400'} transition-colors tracking-tight uppercase`}>{card.label}</h3>
+                <p className="text-gray-400 mt-3 text-base leading-relaxed font-medium">{card.desc}</p>
               </div>
             </button>
           );
