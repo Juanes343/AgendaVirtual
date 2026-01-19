@@ -422,6 +422,33 @@ class ReportController extends Controller
         $header = $this->getHeaderData($evolucion_id);
         if (!$header) return response()->json(['error' => 'No encontrado'], 404);
 
+        // --- Obtener datos de Empresa ---
+        $empresa = DB::table('empresas as e')
+            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
+            ->select(
+                'e.razon_social',
+                'e.id as nit',
+                'e.digito_verificacion',
+                'e.direccion',
+                'e.telefonos',
+                'e.website',
+                'e.email',
+                'm.municipio',
+                'd.departamento'
+            )
+            ->where('e.sw_activa', '1')
+            ->first();
+
+        // --- Manejo de LOGO en Base64 para evitar problemas de rutas en DomPDF ---
+        $logoBase64 = null;
+        $pathLogo = public_path('assets/images/simde_logo.png');
+        if (file_exists($pathLogo)) {
+            $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
+            $data = file_get_contents($pathLogo);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+
         $solicitudes = DB::table('hc_os_solicitudes as a')
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
             ->where('a.evolucion_id', $evolucion_id)
@@ -431,16 +458,36 @@ class ReportController extends Controller
                 'b.descripcion', 
                 'a.hc_os_solicitud_id',
                 'a.cantidad'
-                // 'a.observaciones as observacion'
             )
             ->get();
+
+        // Obtener el número de orden principal (el menor id de las solicitudes de la evolución)
+        $numero_orden = $solicitudes->min('hc_os_solicitud_id');
+
+        // Calcular edad
+        $edad = $header->fecha_nacimiento ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '';
+
+        // Diagnósticos
+        $diagnosticos = DB::table('hc_diagnosticos_ingreso as a')
+            ->join('diagnosticos as b', 'a.tipo_diagnostico_id', '=', 'b.diagnostico_id')
+            ->where('a.evolucion_id', $evolucion_id)
+            ->select('a.tipo_diagnostico_id as diagnostico_id', 'b.diagnostico_nombre')
+            ->get();
+        $diagnostico_principal = $diagnosticos->first() ? $diagnosticos->first()->diagnostico_id . ' - ' . $diagnosticos->first()->diagnostico_nombre : '';
 
         $html = view('orden', [
             'paciente' => $header, 
             'solicitudes' => $solicitudes, 
             'fecha' => $header->fecha, 
             'profesional' => $header->profesional,
-            'especialidad' => $header->especialidad
+            'especialidad' => $header->especialidad,
+            'empresa' => $empresa,
+            'logoBase64' => $logoBase64,
+            'edad' => $edad,
+            'diagnosticos' => $diagnosticos,
+            'diagnostico_principal' => $diagnostico_principal,
+            'numero_orden' => $numero_orden,
+            'fecha_impresion' => date('Y-m-d H:i:s')
         ])->render();
 
         $dompdf = new \Dompdf\Dompdf();
