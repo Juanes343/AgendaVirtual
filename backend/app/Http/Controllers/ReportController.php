@@ -291,16 +291,20 @@ class ReportController extends Controller
     private function getHeaderData($evolucion_id) {
         return DB::table('hc_evoluciones as a')
             ->join('ingresos as b', 'a.ingreso', '=', 'b.ingreso')
+            ->leftJoin('cuentas as cu', 'b.ingreso', '=', 'cu.ingreso') // Join a cuentas
             ->join('pacientes as p', function($join) {
                 $join->on('b.paciente_id', '=', 'p.paciente_id')
                      ->on('b.tipo_id_paciente', '=', 'p.tipo_id_paciente');
             })
+            // Joins para datos de Plan y Cliente
+            ->leftJoin('planes as pl', 'cu.plan_id', '=', 'pl.plan_id') // Usar cu.plan_id en vez de b.plan_id
+            ->leftJoin('terceros as cli', 'pl.tercero_id', '=', 'cli.tercero_id')
+            
             ->join('profesionales_usuarios as c', 'a.usuario_id', '=', 'c.usuario_id')
             ->join('profesionales as d', function($join) {
                 $join->on('c.tercero_id', '=', 'd.tercero_id')
                      ->on('c.tipo_tercero_id', '=', 'd.tipo_id_tercero');
             })
-            // Corrección: Usar la tabla intermedia 'profesionales_especialidades'
             ->leftJoin('profesionales_especialidades as pe', function($join) {
                 $join->on('d.tercero_id', '=', 'pe.tercero_id')
                      ->on('d.tipo_id_tercero', '=', 'pe.tipo_id_tercero');
@@ -311,10 +315,20 @@ class ReportController extends Controller
                 'p.paciente_id', 
                 'p.tipo_id_paciente', 
                 DB::raw("CONCAT(p.primer_nombre, ' ', p.primer_apellido) as nombre_completo"), 
-                'a.fecha as fecha', 
+                'p.fecha_nacimiento',
+                'p.sexo_id',
+                'a.fecha as fecha',
+                'a.evolucion_id',
+                'b.ingreso',
                 'd.nombre as profesional',
-                'd.tarjeta_profesional', // Útil para formula
-                'esp.descripcion as especialidad' // Útil para cabecera
+                'd.tercero_id as prof_id',
+                'd.tipo_id_tercero as prof_tipo_id',
+                'd.tarjeta_profesional', 
+                'esp.descripcion as especialidad',
+                'pl.plan_descripcion',
+                'cli.nombre_tercero as cliente_nombre',
+                'cu.tipo_afiliado_id',
+                'cu.rango' // Asumiendo que existe en ingresos
             )
             ->first();
     }
@@ -323,6 +337,43 @@ class ReportController extends Controller
     {
         $header = $this->getHeaderData($evolucion_id);
         if (!$header) return response()->json(['error' => 'No encontrado'], 404);
+
+        // --- Obtener datos de Empresa ---
+        $empresa = DB::table('empresas as e')
+            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
+            ->select(
+                'e.razon_social',
+                'e.id as nit',
+                'e.digito_verificacion',
+                'e.direccion',
+                'e.telefonos',
+                'e.website',
+                'e.email',
+                'm.municipio',
+                'd.departamento'
+            )
+            ->where('e.sw_activa', '1') // Asumiendo que hay una activa
+            ->first();
+
+        // --- Manejo de LOGO en Base64 para evitar problemas de rutas en DomPDF ---
+        $logoBase64 = null;
+        $pathLogo = public_path('assets/images/simde_logo.png');
+        if (file_exists($pathLogo)) {
+            $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
+            $data = file_get_contents($pathLogo);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+
+        // Calcular edad
+        $edad = \Carbon\Carbon::parse($header->fecha_nacimiento)->age;
+
+        // Diagnósticos (Corregido: Usar hc_diagnosticos_ingreso y seleccionar diagnostico_id correctamente)
+        $diagnosticos = DB::table('hc_diagnosticos_ingreso as a')
+            ->join('diagnosticos as b', 'a.tipo_diagnostico_id', '=', 'b.diagnostico_id')
+            ->where('a.evolucion_id', $evolucion_id)
+            ->select('a.tipo_diagnostico_id as diagnostico_id', 'b.diagnostico_nombre')
+            ->get();
 
         // Corrección: Usar hc_medicamentos_recetados_amb
         $medicamentos = DB::table('hc_medicamentos_recetados_amb as a')
@@ -333,6 +384,8 @@ class ReportController extends Controller
                 'a.codigo_producto as codigo_medicamento', 
                 'i.descripcion as producto', 
                 'b.cod_principio_activo as principio_activo',
+                // 'b.descripcion_comercial', // A veces el nombre comercial ayuda
+                'i.descripcion_abreviada',
                 'a.dosis', 
                 'a.unidad_dosificacion', 
                 'a.cantidadperiocidad as frecuencia', 
@@ -346,11 +399,13 @@ class ReportController extends Controller
 
         // Renderizado HTML
         $html = view('formula', [
-            'paciente' => $header, 
-            'medicamentos' => $medicamentos, 
-            'fecha' => $header->fecha, 
-            'profesional' => $header->profesional,
-            'registro_medico' => $header->tarjeta_profesional
+            'header' => $header, 
+            'empresa' => $empresa,
+            'logoBase64' => $logoBase64,
+            'edad' => $edad,
+            'medicamentos' => $medicamentos,
+            'diagnosticos' => $diagnosticos,
+            'fecha_impresion' => date('d/m/Y - h:i a')
         ])->render();
 
         $dompdf = new \Dompdf\Dompdf();
