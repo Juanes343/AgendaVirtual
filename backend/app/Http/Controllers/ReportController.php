@@ -210,11 +210,13 @@ class ReportController extends Controller
                 $dompdfF = new \Dompdf\Dompdf();
                 $dompdfF->set_option('isRemoteEnabled', true);
                 $dompdfF->loadHtml(view('formula', [
-                    'paciente' => $header, 
-                    'medicamentos' => $data->medicamentos, 
-                    'fecha' => $header->fecha, 
-                    'profesional' => $header->profesional,
-                    'registro_medico' => $header->tarjeta_profesional
+                    'header' => $header,
+                    'empresa' => $empresa ?? null,
+                    'logoBase64' => $logoBase64 ?? null,
+                    'edad' => isset($header->fecha_nacimiento) ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '',
+                    'medicamentos' => $data->medicamentos ?? [],
+                    'diagnosticos' => $data->diagnosticos ?? [],
+                    'fecha_impresion' => date('d/m/Y - h:i a')
                 ])->render());
                 $dompdfF->setPaper('A4', 'portrait');
                 $dompdfF->render();
@@ -231,7 +233,12 @@ class ReportController extends Controller
                     'solicitudes' => $data->solicitudes, 
                     'fecha' => $header->fecha, 
                     'profesional' => $header->profesional,
-                    'especialidad' => $header->especialidad
+                    'especialidad' => $header->especialidad,
+                    'empresa' => $empresa ?? null,
+                    'logoBase64' => $logoBase64 ?? null,
+                    'edad' => isset($header->fecha_nacimiento) ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '',
+                    'numero_orden' => isset($data->solicitudes) && count($data->solicitudes) > 0 ? collect($data->solicitudes)->min('hc_os_solicitud_id') : '',
+                    'fecha_impresion' => date('Y-m-d H:i:s')
                 ])->render());
                 $dompdfO->setPaper('A4', 'portrait');
                 $dompdfO->render();

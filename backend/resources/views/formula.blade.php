@@ -39,17 +39,17 @@
     <table class="header-container">
         <tr>
             <td class="logo-cell">
-                @if($logoBase64)
+                @if(isset($logoBase64) && $logoBase64)
                     <img src="{{ $logoBase64 }}" alt="Logo" class="logo-img">
                 @endif
             </td>
             <td class="info-cell">
-                @if($empresa)
-                    {{ $empresa->razon_social }}<br>
-                    NIT {{ $empresa->nit }}-{{ $empresa->digito_verificacion }}<br>
-                    {{ $empresa->direccion }} - {{ $empresa->municipio }}, {{ $empresa->departamento }}<br>
-                    Teléfono: {{ $empresa->telefonos }}<br>
-                    {{ $empresa->website }}
+                @if(isset($empresa) && $empresa)
+                    {{ $empresa->razon_social ?? '' }}<br>
+                    NIT {{ $empresa->nit ?? '' }}-{{ $empresa->digito_verificacion ?? '' }}<br>
+                    {{ $empresa->direccion ?? '' }} - {{ $empresa->municipio ?? '' }}, {{ $empresa->departamento ?? '' }}<br>
+                    Teléfono: {{ $empresa->telefonos ?? '' }}<br>
+                    {{ $empresa->website ?? '' }}
                 @else
                     CLÍNICA DE OFTALMOLOGÍA SANDIEGO S.A.<br>
                     NIT 900.191.362-8<br>
@@ -61,34 +61,34 @@
         </tr>
     </table>
 
-    <div class="doc-title">FORMULA MEDICA Nº {{ $header->evolucion_id }}</div>
+    <div class="doc-title">FORMULA MEDICA Nº {{ isset($header) && $header ? $header->evolucion_id : '' }}</div>
 
     <!-- Tabla de Información del Paciente -->
     <table class="table-datatable">
         <tr>
             <td class="header-label">NO. EVOLUCION</td>
-            <td width="35%">{{ $header->evolucion_id }}</td>
+            <td width="35%">{{ isset($header) && $header ? $header->evolucion_id : '' }}</td>
             <td class="header-label">FECHA FORMULA</td>
-            <td>{{ $header->fecha }}</td>
+            <td>{{ isset($header) && $header ? $header->fecha : '' }}</td>
         </tr>
         <tr>
             <td class="header-label">IDENTIFICACION</td>
-            <td>{{ $header->tipo_id_paciente }} {{ $header->paciente_id }}</td>
+            <td>{{ isset($header) && $header ? $header->tipo_id_paciente.' '.$header->paciente_id : '' }}</td>
             <td class="header-label">PACIENTE</td>
-            <td>{{ $header->nombre_completo }}</td>
+            <td>{{ isset($header) && $header ? $header->nombre_completo : '' }}</td>
         </tr>
         <tr>
             <td class="header-label">CLIENTE</td>
-            <td>{{ $header->cliente_nombre ?? 'PARTICULAR' }}</td>
+            <td>{{ isset($header) && $header ? ($header->cliente_nombre ?? 'PARTICULAR') : '' }}</td>
             <td class="header-label">EDAD / SEXO</td>
-            <td>{{ $edad }} Años / {{ $header->sexo_id }}</td>
+            <td>{{ isset($edad) ? $edad.' Años' : '' }} / {{ isset($header) && $header ? $header->sexo_id : '' }}</td>
         </tr>
         <tr>
             <td class="header-label">PLAN</td>
             <td colspan="3">
-                {{ $header->plan_descripcion }} 
-                <span style="font-weight:normal; margin-left: 20px;">TIPO AFILIADO: {{ $header->tipo_afiliado_id }}</span>
-                <span style="font-weight:normal; margin-left: 20px;">RANGO: {{ $header->rango }}</span>
+                {{ isset($header) && $header ? $header->plan_descripcion : '' }}
+                <span style="font-weight:normal; margin-left: 20px;">TIPO AFILIADO: {{ isset($header) && $header ? $header->tipo_afiliado_id : '' }}</span>
+                <span style="font-weight:normal; margin-left: 20px;">RANGO: {{ isset($header) && $header ? $header->rango : '' }}</span>
             </td>
         </tr>
     </table>
@@ -127,14 +127,17 @@
     <!-- Diagnósticos -->
     <div class="diagnosticos">
         <strong>DIAGNOSTICO(S):</strong><br>
-        @forelse($diagnosticos as $diag)
-            {{ $diag->diagnostico_id }} - {{ $diag->diagnostico_nombre }}<br>
-        @empty
+        @if(isset($diagnosticos) && $diagnosticos)
+            @forelse($diagnosticos as $diag)
+                {{ $diag->diagnostico_id }} - {{ $diag->diagnostico_nombre }}<br>
+            @empty
+                SIN DIAGNÓSTICOS REGISTRADOS
+            @endforelse
+            @if(count($diagnosticos) > 0)
+                <br><strong>DIAGNOSTICO PRINCIPAL:</strong> {{ $diagnosticos[0]->diagnostico_id }} - {{ $diagnosticos[0]->diagnostico_nombre }}
+            @endif
+        @else
             SIN DIAGNÓSTICOS REGISTRADOS
-        @endforelse
-        
-        @if(count($diagnosticos) > 0)
-            <br><strong>DIAGNOSTICO PRINCIPAL:</strong> {{ $diagnosticos[0]->diagnostico_id }} - {{ $diagnosticos[0]->diagnostico_nombre }}
         @endif
     </div>
 

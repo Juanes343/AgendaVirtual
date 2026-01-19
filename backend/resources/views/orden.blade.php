@@ -91,11 +91,19 @@
         @endif
       </td>
       <td class="info-cell">
-        {{ $empresa->razon_social ?? '' }}<br>
-        NIT {{ $empresa->nit ?? '' }}{{ !empty($empresa->digito_verificacion) ? '-'.$empresa->digito_verificacion : '' }}<br>
-        {{ $empresa->direccion ?? '' }} - {{ $empresa->municipio ?? '' }}, {{ $empresa->departamento ?? '' }}<br>
-        Teléfono: {{ $empresa->telefonos ?? '' }}<br>
-        {{ $empresa->website ?? '' }}
+        @if(isset($empresa) && $empresa)
+          {{ $empresa->razon_social ?? '' }}<br>
+          NIT {{ $empresa->nit ?? '' }}{{ !empty($empresa->digito_verificacion) ? '-'.$empresa->digito_verificacion : '' }}<br>
+          {{ $empresa->direccion ?? '' }} - {{ $empresa->municipio ?? '' }}, {{ $empresa->departamento ?? '' }}<br>
+          Teléfono: {{ $empresa->telefonos ?? '' }}<br>
+          {{ $empresa->website ?? '' }}
+        @else
+          CLÍNICA DE OFTALMOLOGÍA SANDIEGO S.A.<br>
+          NIT 900.191.362-8<br>
+          AVENIDA 0 # 11-140 CENTRO - CÚCUTA, NORTE DE SANTANDER<br>
+          Teléfono: 607-5960150<br>
+          https://clinicasandiego.com.co/
+        @endif
       </td>
     </tr>
   </table>
