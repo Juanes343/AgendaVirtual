@@ -189,6 +189,7 @@ export default function MedicalHistoryView() {
 function HistoryDetail({ ingresoId, onBack }) {
     const [details, setDetails] = useState({ medicamentos: [], solicitudes: [], incapacidades: [] }); // Ahora incluye incapacidades
     const [loading, setLoading] = useState(true);
+    const { user } = useUser();
 
     useEffect(() => {
         historyService.getDetail(ingresoId).then(data => { if(data.success) setDetails(data.data); setLoading(false); });
@@ -230,9 +231,31 @@ function HistoryDetail({ ingresoId, onBack }) {
                         </div>
                     ))}
                 </div>
-                <div className="bg-blue-950/30 p-2 text-center border-t border-blue-900/30">
+                <div className="bg-blue-950/30 p-2 text-center border-t border-blue-900/30 flex flex-col gap-2">
                     <button onClick={() => historyService.printFormula(evolucionId)} className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide">
                         <Printer size={14} /> Imprimir Fórmula Médica
+                    </button>
+                    <button
+                        onClick={() => {
+                            // Obtener datos necesarios para la URL legacy
+                            const tipoIdPaciente = user?.paciente?.tipo_id_paciente || 'CC';
+                            const pacienteId = user?.paciente?.paciente_id || '';
+                            // Buscar el ingreso asociado a este evolucionId
+                            let ingreso = '';
+                            const med = meds && meds.length > 0 ? meds[0] : null;
+                            if (med && med.ingreso) {
+                                ingreso = med.ingreso;
+                            } else if (details.medicamentos && details.medicamentos.length > 0) {
+                                // Fallback: buscar en el array general
+                                const found = details.medicamentos.find(m => m.evolucion_id === evolucionId);
+                                if (found && found.ingreso) ingreso = found.ingreso;
+                            }
+                            const url = `https://siis08.simde.com.co/SIIS_SANDIEGO/printer.php?tipo=app&modulo=Central_de_Autorizaciones&reporte=formula_medica_html&datos[sw_pos]=1&datos[tipo_id_paciente]=${tipoIdPaciente}&datos[paciente_id]=${pacienteId}&datos[evolucion_id]=${evolucionId}&datos[ingreso]=${ingreso}&opciones[rpt_name]=&opciones[pdf]=&opciones[rpt_dir]=cache&opciones[rpt_rewrite]=1`;
+                            window.open(url, '_blank');
+                        }}
+                        className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide"
+                    >
+                        <Printer size={14} /> Imprimir Medicamentos POS
                     </button>
                 </div>
             </div>
@@ -267,9 +290,18 @@ function HistoryDetail({ ingresoId, onBack }) {
                         </div>
                     ))}
                 </div>
-                <div className="bg-purple-950/20 p-2 text-center border-t border-blue-900/30">
+                <div className="bg-purple-950/20 p-2 text-center border-t border-blue-900/30 flex flex-col gap-2">
                      <button onClick={() => historyService.printOrder(evolucionId)} className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide">
                         <Printer size={14} /> Imprimir Orden
+                    </button>
+                    <button
+                        onClick={() => {
+                            const url = `https://siis08.simde.com.co/SIIS_SANDIEGO/solicitudes.php?evolucion=${evolucionId}`;
+                            window.open(url, '_blank');
+                        }}
+                        className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide"
+                    >
+                        <Printer size={14} /> Imprimir Solicitudes
                     </button>
                 </div>
             </div>
