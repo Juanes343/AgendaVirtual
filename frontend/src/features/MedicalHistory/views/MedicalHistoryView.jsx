@@ -250,7 +250,7 @@ function HistoryDetail({ ingresoId, onBack }) {
                                 const found = details.medicamentos.find(m => m.evolucion_id === evolucionId);
                                 if (found && found.ingreso) ingreso = found.ingreso;
                             }
-                            const url = `https://siis08.simde.com.co/SIIS_SANDIEGO/printer.php?tipo=app&modulo=Central_de_Autorizaciones&reporte=formula_medica_html&datos[sw_pos]=1&datos[tipo_id_paciente]=${tipoIdPaciente}&datos[paciente_id]=${pacienteId}&datos[evolucion_id]=${evolucionId}&datos[ingreso]=${ingreso}&opciones[rpt_name]=&opciones[pdf]=&opciones[rpt_dir]=cache&opciones[rpt_rewrite]=1`;
+                            const url = `https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/printer.php?tipo=app&modulo=Central_de_Autorizaciones&reporte=formula_medica_html&datos[sw_pos]=1&datos[tipo_id_paciente]=${tipoIdPaciente}&datos[paciente_id]=${pacienteId}&datos[evolucion_id]=${evolucionId}&datos[ingreso]=${ingreso}&opciones[rpt_name]=&opciones[pdf]=&opciones[rpt_dir]=cache&opciones[rpt_rewrite]=1`;
                             window.open(url, '_blank');
                         }}
                         className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide"
@@ -264,48 +264,69 @@ function HistoryDetail({ ingresoId, onBack }) {
 
     const renderSolicitudes = () => {
         if (details.solicitudes.length === 0) return null;
-        
         const grouped = details.solicitudes.reduce((acc, curr) => {
             (acc[curr.evolucion_id] = acc[curr.evolucion_id] || []).push(curr);
             return acc;
         }, {});
 
-        return Object.entries(grouped).map(([evolucionId, sols]) => (
-            <div key={`sol-${evolucionId}`} className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-6">
-                 <div className="bg-purple-900/20 px-4 py-3 border-b border-blue-900/30 flex justify-between items-center">
-                    <h4 className="font-bold text-purple-300 flex items-center gap-2 uppercase text-sm"><Stethoscope size={16} /> Órdenes y Solicitudes</h4>
-                     <span className="text-xs text-purple-400/50">Ref: {evolucionId}</span>
-                </div>
-                <div className="divide-y divide-blue-900/30">
-                    {sols.map((sol, i) => (
-                        <div key={i} className="p-4 hover:bg-white/5 transition-colors">
-                            <div className="flex flex-col gap-1">
-                                <div className="flex justify-between">
-                                    <span className="text-xs font-mono text-gray-500">{sol.cargo}</span>
-                                    <span className="text-xs text-gray-400">{sol.fecha_solicitud}</span>
+        return Object.entries(grouped).map(([evolucionId, sols]) => {
+            // Tomar datos del primer elemento del grupo para los parámetros
+            const sol = sols[0];
+            // Parámetros legacy
+            const tipoIdPaciente = user?.paciente?.tipo_id_paciente || 'CC';
+            const pacienteId = user?.paciente?.paciente_id || '';
+            const nombres = user?.paciente?.nombre_completo || '';
+            // Buscar ingreso asociado
+            let ingreso = '';
+            if (sol && sol.ingreso) {
+                ingreso = sol.ingreso;
+            } else if (details.solicitudes && details.solicitudes.length > 0) {
+                const found = details.solicitudes.find(s => s.evolucion_id === evolucionId);
+                if (found && found.ingreso) ingreso = found.ingreso;
+            }
+            // nroImpresionTabla: usar 0 por defecto (ajustar si tienes agrupación real)
+            const nroImpresionTabla = 0;
+            // Construir URL legacy (ajustada a devel74 y formato solicitado)
+            // Codificar nombres con + en vez de %20
+            function encodeLegacyName(str) {
+                return encodeURIComponent(str).replace(/%20/g, '+');
+            }
+            const url = `https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/printer.php?tipo=app&modulo=CentralImpresionHospitalizacion&reporte=solicitudesHTM&datos[TipoDocumento]=${tipoIdPaciente}&datos[Documento]=${pacienteId}&datos[Nombres]=${encodeLegacyName(nombres)}&datos[evolucion]=${evolucionId}&datos[nroImpresionTabla]=${nroImpresionTabla}&datos[mod]=central_autorizaciones&opciones[rpt_name]=&opciones[rpt_dir]=cache&opciones[rpt_rewrite]=1`;
+
+            return (
+                <div key={`sol-${evolucionId}`} className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-6">
+                    <div className="bg-purple-900/20 px-4 py-3 border-b border-blue-900/30 flex justify-between items-center">
+                        <h4 className="font-bold text-purple-300 flex items-center gap-2 uppercase text-sm"><Stethoscope size={16} /> Órdenes y Solicitudes</h4>
+                        <span className="text-xs text-purple-400/50">Ref: {evolucionId}</span>
+                    </div>
+                    <div className="divide-y divide-blue-900/30">
+                        {sols.map((sol, i) => (
+                            <div key={i} className="p-4 hover:bg-white/5 transition-colors">
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between">
+                                        <span className="text-xs font-mono text-gray-500">{sol.cargo}</span>
+                                        <span className="text-xs text-gray-400">{sol.fecha_solicitud}</span>
+                                    </div>
+                                    <p className="font-medium text-purple-100 text-sm">{sol.descripcion}</p>
+                                    {sol.observacion && <p className="text-xs text-gray-400 mt-1">Obs: {sol.observacion}</p>}
                                 </div>
-                                <p className="font-medium text-purple-100 text-sm">{sol.descripcion}</p>
-                                {sol.observacion && <p className="text-xs text-gray-400 mt-1">Obs: {sol.observacion}</p>}
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
+                    <div className="bg-purple-950/20 p-2 text-center border-t border-blue-900/30 flex flex-col gap-2">
+                        <button onClick={() => historyService.printOrder(evolucionId)} className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide">
+                            <Printer size={14} /> Imprimir Orden
+                        </button>
+                        <button
+                            onClick={() => { window.open(url, '_blank'); }}
+                            className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide"
+                        >
+                            <Printer size={14} /> Imprimir Solicitudes
+                        </button>
+                    </div>
                 </div>
-                <div className="bg-purple-950/20 p-2 text-center border-t border-blue-900/30 flex flex-col gap-2">
-                     <button onClick={() => historyService.printOrder(evolucionId)} className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide">
-                        <Printer size={14} /> Imprimir Orden
-                    </button>
-                    <button
-                        onClick={() => {
-                            const url = `https://siis08.simde.com.co/SIIS_SANDIEGO/solicitudes.php?evolucion=${evolucionId}`;
-                            window.open(url, '_blank');
-                        }}
-                        className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide"
-                    >
-                        <Printer size={14} /> Imprimir Solicitudes
-                    </button>
-                </div>
-            </div>
-        ));
+            );
+        });
     };
 
     // Obtener el primer evolucion_id disponible para el botón de impresión
@@ -318,7 +339,7 @@ function HistoryDetail({ ingresoId, onBack }) {
 
     const handlePrintEvolucion = () => {
         if (!primerEvolucionId) return;
-        const url = `https://siis08.simde.com.co/SIIS_SANDIEGO/reporteHC.php?evolucion=${primerEvolucionId}&pciones[rpt_name]=&opciones[pdf]=0&opciones[rpt_dir]=cache&opciones[rpt_rewrite]=1`;
+        const url = `https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/reporteHC.php?evolucion=${primerEvolucionId}&pciones[rpt_name]=&opciones[pdf]=0&opciones[rpt_dir]=cache&opciones[rpt_rewrite]=1`;
         window.open(url, '_blank');
     };
 
