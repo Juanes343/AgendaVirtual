@@ -276,12 +276,36 @@ function HistoryDetail({ ingresoId, onBack }) {
         ));
     };
 
+    // Obtener el primer evolucion_id disponible para el botón de impresión
+    let primerEvolucionId = null;
+    if (details.medicamentos.length > 0) {
+        primerEvolucionId = details.medicamentos[0].evolucion_id;
+    } else if (details.solicitudes.length > 0) {
+        primerEvolucionId = details.solicitudes[0].evolucion_id;
+    }
+
+    const handlePrintEvolucion = () => {
+        if (!primerEvolucionId) return;
+        const url = `https://siis08.simde.com.co/SIIS_SANDIEGO/reporteHC.php?evolucion=${primerEvolucionId}&pciones[rpt_name]=&opciones[pdf]=0&opciones[rpt_dir]=cache&opciones[rpt_rewrite]=1`;
+        window.open(url, '_blank');
+    };
+
     return (
         <div className="space-y-6 animate-fade-in-up">
             <button onClick={onBack} className="flex items-center gap-2 text-blue-300 hover:text-white transition-colors font-medium">
                 <ArrowLeft size={20} /> Regresar al Listado
             </button>
-            
+
+            {/* Botón para imprimir Historia Clínica Evolución */}
+            {primerEvolucionId && (
+                <button
+                    onClick={handlePrintEvolucion}
+                    className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:underline font-bold text-xs uppercase tracking-wide mb-4"
+                >
+                    <Printer size={16} /> Imprimir Historia Clínica Evolución
+                </button>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                      {/* Sección Medicamentos */}
