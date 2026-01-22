@@ -229,28 +229,6 @@ function HistoryDetail({ ingresoId, onBack }) {
                             <Mail size={14} /> Enviar al Correo
                         </button>
                     </div>
-                    <button
-                        onClick={() => {
-                            // Obtener datos necesarios para la URL legacy
-                            const tipoIdPaciente = user?.paciente?.tipo_id_paciente || 'CC';
-                            const pacienteId = user?.paciente?.paciente_id || '';
-                            // Buscar el ingreso asociado a este evolucionId
-                            let ingreso = '';
-                            const med = meds && meds.length > 0 ? meds[0] : null;
-                            if (med && med.ingreso) {
-                                ingreso = med.ingreso;
-                            } else if (details.medicamentos && details.medicamentos.length > 0) {
-                                // Fallback: buscar en el array general
-                                const found = details.medicamentos.find(m => m.evolucion_id === evolucionId);
-                                if (found && found.ingreso) ingreso = found.ingreso;
-                            }
-                            const url = `https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/printer.php?tipo=app&modulo=Central_de_Autorizaciones&reporte=formula_medica_html&datos[sw_pos]=1&datos[tipo_id_paciente]=${tipoIdPaciente}&datos[paciente_id]=${pacienteId}&datos[evolucion_id]=${evolucionId}&datos[ingreso]=${ingreso}&opciones[rpt_name]=&opciones[pdf]=&opciones[rpt_dir]=cache&opciones[rpt_rewrite]=1`;
-                            window.open(url, '_blank');
-                        }}
-                        className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide"
-                    >
-                        <Printer size={14} /> Imprimir Medicamentos POS
-                    </button>
                 </div>
             </div>
         ));
@@ -280,13 +258,7 @@ function HistoryDetail({ ingresoId, onBack }) {
             }
             // nroImpresionTabla: usar 0 por defecto (ajustar si tienes agrupación real)
             const nroImpresionTabla = 0;
-            // Construir URL legacy (ajustada a devel74 y formato solicitado)
-            // Codificar nombres con + en vez de %20
-            function encodeLegacyName(str) {
-                return encodeURIComponent(str).replace(/%20/g, '+');
-            }
-            const url = `https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/printer.php?tipo=app&modulo=CentralImpresionHospitalizacion&reporte=solicitudesHTM&datos[TipoDocumento]=${tipoIdPaciente}&datos[Documento]=${pacienteId}&datos[Nombres]=${encodeLegacyName(nombres)}&datos[evolucion]=${evolucionId}&datos[nroImpresionTabla]=${nroImpresionTabla}&datos[mod]=central_autorizaciones&opciones[rpt_name]=&opciones[rpt_dir]=cache&opciones[rpt_rewrite]=1`;
-
+            
             return (
                 <div key={`sol-${evolucionId}`} className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-6">
                     <div className="bg-purple-900/20 px-4 py-3 border-b border-blue-900/30 flex justify-between items-center">
@@ -316,12 +288,6 @@ function HistoryDetail({ ingresoId, onBack }) {
                                 <Mail size={14} /> Enviar al Correo
                             </button>
                         </div>
-                        <button
-                            onClick={() => { window.open(url, '_blank'); }}
-                            className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide"
-                        >
-                            <Printer size={14} /> Imprimir Solicitudes
-                        </button>
                     </div>
                 </div>
             );
@@ -337,9 +303,7 @@ function HistoryDetail({ ingresoId, onBack }) {
     }
 
     const handlePrintEvolucion = () => {
-        if (!primerEvolucionId) return;
-        const url = `https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/reporteHC.php?evolucion=${primerEvolucionId}&pciones[rpt_name]=&opciones[pdf]=0&opciones[rpt_dir]=cache&opciones[rpt_rewrite]=1`;
-        window.open(url, '_blank');
+        historyService.printHistoryComplete(ingresoId);
     };
 
     return (

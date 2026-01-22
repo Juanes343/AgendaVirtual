@@ -586,4 +586,55 @@ class ReportController extends Controller
 
         return $dompdf->stream('incapacidad_'.$evolucion_id.'.pdf');
     }
+
+    public function generateHistoryPdf($ingreso)
+    {
+        // 1. Obtener datos del ingreso 
+        $detailResponse = $this->getHistoryDetail($ingreso);
+        $data = $detailResponse->getData()->data; 
+
+        // 2. Cabecera (tomamos la última evolución para datos generales o la primera, depende de la lógica. Usaremos la última para fecha reciente)
+        $unaEvolucion = DB::table('hc_evoluciones')->where('ingreso', $ingreso)->orderBy('fecha', 'desc')->first();
+        if (!$unaEvolucion) return response()->json(['error' => 'No se encontraron registros para este ingreso'], 404);
+        
+        $header = $this->getHeaderData($unaEvolucion->evolucion_id);
+
+        // 3. Empresa
+        $empresa = DB::table('empresas as e')
+            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
+            ->select('e.razon_social', 'e.id as nit', 'e.digito_verificacion', 'e.direccion', 'e.telefonos', 'e.website', 'e.email', 'm.municipio', 'd.departamento')
+            ->where('e.sw_activa', '1')
+            ->first();
+
+        // 4. Logo
+        $logoBase64 = null;
+        $pathLogo = public_path('assets/images/simde_logo.png');
+        if (file_exists($pathLogo)) {
+            $typeImg = pathinfo($pathLogo, PATHINFO_EXTENSION);
+            $imgData = file_get_contents($pathLogo);
+            $logoBase64 = 'data:image/' . $typeImg . ';base64,' . base64_encode($imgData);
+        }
+
+        $html = view('reporte_completo', [
+            'paciente' => $header,
+            'medicamentos' => $data->medicamentos,
+            'solicitudes' => $data->solicitudes,
+            'incapacidades' => $data->incapacidades,
+            'fecha' => $header->fecha,
+            'profesional' => $header->profesional,
+            'especialidad' => $header->especialidad,
+            'ingreso' => $ingreso,
+            'empresa' => $empresa,
+            'logoBase64' => $logoBase64
+        ])->render();
+
+        $dompdf = new \Dompdf\Dompdf();
+        $dompdf->set_option('isRemoteEnabled', true);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $dompdf->stream('historia_clinica_'.$ingreso.'.pdf');
+    }
 }

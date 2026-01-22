@@ -36,6 +36,15 @@ const historyService = {
             })
             .catch(err => console.error("Error descargando PDF", err));
     },
+    printHistoryComplete: (ingresoId) => {
+        return api.get(`/medical-history/${ingresoId}/pdf-completo`, { responseType: 'blob' })
+            .then((response) => {
+                const file = new Blob([response.data], { type: 'application/pdf' });
+                const fileURL = URL.createObjectURL(file);
+                window.open(fileURL, '_blank');
+            })
+            .catch(err => console.error("Error descargando PDF", err));
+    },
     sendReportEmail: async (ingresoId, type = 'all', evolucionId = null) => {
         const response = await api.post(`/medical-history/${ingresoId}/send-email`, {
             type,
