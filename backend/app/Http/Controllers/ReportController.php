@@ -156,21 +156,54 @@ class ReportController extends Controller
      */
     public function sendHistoryEmail(Request $request, $ingreso) 
     {
+        $type = $request->input('type', 'all'); // 'all', 'formula', 'ordenes'
+        $evolucionIdFilter = $request->input('evolucion_id', null);
+
         // 1. Obtener datos del ingreso 
         $detailResponse = $this->getHistoryDetail($ingreso);
         $data = $detailResponse->getData()->data; 
 
-        // 2. Obtener datos cabecera (paciente/profesional) buscando alguna evolución del ingreso
-        $unaEvolucion = DB::table('hc_evoluciones')->where('ingreso', $ingreso)->orderBy('fecha', 'desc')->first();
-
-        if (!$unaEvolucion) {
-            return response()->json(['success' => false, 'message' => 'No se encontraron registros para este ingreso.'], 404);
+        // Filtrar datos si se especifica una evolución
+        if ($evolucionIdFilter) {
+            $data->medicamentos = array_values(array_filter($data->medicamentos, function($m) use ($evolucionIdFilter) {
+                return $m->evolucion_id == $evolucionIdFilter;
+            }));
+            $data->solicitudes = array_values(array_filter($data->solicitudes, function($s) use ($evolucionIdFilter) {
+                return $s->evolucion_id == $evolucionIdFilter;
+            }));
+            $data->incapacidades = array_values(array_filter($data->incapacidades, function($i) use ($evolucionIdFilter) {
+                return $i->evolucion_id == $evolucionIdFilter;
+            }));
         }
 
-        $header = $this->getHeaderData($unaEvolucion->evolucion_id);
+        // 2. Obtener datos cabecera (paciente/profesional) 
+        // Si hay filtro, usamos esa evolución para la cabecera. Si no, la última.
+        if ($evolucionIdFilter) {
+            $header = $this->getHeaderData($evolucionIdFilter);
+        } else {
+            $unaEvolucion = DB::table('hc_evoluciones')->where('ingreso', $ingreso)->orderBy('fecha', 'desc')->first();
+            if (!$unaEvolucion) return response()->json(['success' => false, 'message' => 'No se encontraron registros para este ingreso.'], 404);
+            $header = $this->getHeaderData($unaEvolucion->evolucion_id);
+        }
 
         if (!$header) {
              return response()->json(['success' => false, 'message' => 'Error obteniendo datos del paciente.'], 500);
+        }
+
+        // --- Obtener datos de Empresa y Logo (Faltaban en la versión anterior) ---
+        $empresa = DB::table('empresas as e')
+            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
+            ->select('e.razon_social', 'e.id as nit', 'e.digito_verificacion', 'e.direccion', 'e.telefonos', 'e.website', 'e.email', 'm.municipio', 'd.departamento')
+            ->where('e.sw_activa', '1')
+            ->first();
+
+        $logoBase64 = null;
+        $pathLogo = public_path('assets/images/simde_logo.png');
+        if (file_exists($pathLogo)) {
+            $typeImg = pathinfo($pathLogo, PATHINFO_EXTENSION);
+            $imgData = file_get_contents($pathLogo);
+            $logoBase64 = 'data:image/' . $typeImg . ';base64,' . base64_encode($imgData);
         }
 
         // Recuperar email del paciente
@@ -183,30 +216,36 @@ class ReportController extends Controller
         }
 
         try {
-            // 3. Generar PDF consolidado en memoria
-            $dompdf = new \Dompdf\Dompdf();
-            $dompdf->set_option('isRemoteEnabled', true);
-            
-            // Vista unificada
-            $html = view('reporte_completo', [
-                'paciente' => $header,
-                'medicamentos' => $data->medicamentos,
-                'solicitudes' => $data->solicitudes,
-                'incapacidades' => $data->incapacidades,
-                'fecha' => $header->fecha,
-                'profesional' => $header->profesional,
-                'especialidad' => $header->especialidad,
-                'ingreso' => $ingreso
-            ])->render();
-
-            $dompdf->loadHtml($html);
-            $dompdf->setPaper('A4', 'portrait');
-            $dompdf->render();
-            $pdfContentCompleto = $dompdf->output();
-
-            // 3.2 Generar PDF Formula (Si hay medicamentos)
+            $pdfContentCompleto = null;
             $pdfContentFormula = null;
-            if (!empty($data->medicamentos) && count($data->medicamentos) > 0) {
+            $pdfContentOrden = null;
+
+            // 3. Generar PDF consolidado en memoria (Solo si type == 'all')
+            if ($type === 'all') {
+                $dompdf = new \Dompdf\Dompdf();
+                $dompdf->set_option('isRemoteEnabled', true);
+                
+                $html = view('reporte_completo', [
+                    'paciente' => $header,
+                    'medicamentos' => $data->medicamentos,
+                    'solicitudes' => $data->solicitudes,
+                    'incapacidades' => $data->incapacidades,
+                    'fecha' => $header->fecha,
+                    'profesional' => $header->profesional,
+                    'especialidad' => $header->especialidad,
+                    'ingreso' => $ingreso,
+                    'empresa' => $empresa, // Pasar empresa por si la vista lo requiere
+                    'logoBase64' => $logoBase64
+                ])->render();
+
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'portrait');
+                $dompdf->render();
+                $pdfContentCompleto = $dompdf->output();
+            }
+
+            // 3.2 Generar PDF Formula (Si hay medicamentos y corresponde el tipo)
+            if (($type === 'all' || $type === 'formula') && !empty($data->medicamentos) && count($data->medicamentos) > 0) {
                 $dompdfF = new \Dompdf\Dompdf();
                 $dompdfF->set_option('isRemoteEnabled', true);
                 $dompdfF->loadHtml(view('formula', [
@@ -215,7 +254,7 @@ class ReportController extends Controller
                     'logoBase64' => $logoBase64 ?? null,
                     'edad' => isset($header->fecha_nacimiento) ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '',
                     'medicamentos' => $data->medicamentos ?? [],
-                    'diagnosticos' => $data->diagnosticos ?? [],
+                    'diagnosticos' => $data->diagnosticos ?? [], // Nota: GetHistoryDetail no devuelve diagnosticos actualmente en 'data', considerar agregarlo si es crítico.
                     'fecha_impresion' => date('d/m/Y - h:i a')
                 ])->render());
                 $dompdfF->setPaper('A4', 'portrait');
@@ -223,11 +262,18 @@ class ReportController extends Controller
                 $pdfContentFormula = $dompdfF->output();
             }
 
-            // 3.3 Generar PDF Ordenes (Si hay solicitudes)
-            $pdfContentOrden = null;
-            if (!empty($data->solicitudes) && count($data->solicitudes) > 0) {
+            // 3.3 Generar PDF Ordenes (Si hay solicitudes y corresponde el tipo)
+            if (($type === 'all' || $type === 'ordenes') && !empty($data->solicitudes) && count($data->solicitudes) > 0) {
                 $dompdfO = new \Dompdf\Dompdf();
                 $dompdfO->set_option('isRemoteEnabled', true);
+                
+                // Calcular numero_orden min
+                $numero_orden = '';
+                if(count($data->solicitudes) > 0) {
+                     $ids = array_map(function($s) { return $s->hc_os_solicitud_id; }, $data->solicitudes);
+                     $numero_orden = min($ids);
+                }
+
                 $dompdfO->loadHtml(view('orden', [
                     'paciente' => $header, 
                     'solicitudes' => $data->solicitudes, 
@@ -237,7 +283,7 @@ class ReportController extends Controller
                     'empresa' => $empresa ?? null,
                     'logoBase64' => $logoBase64 ?? null,
                     'edad' => isset($header->fecha_nacimiento) ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '',
-                    'numero_orden' => isset($data->solicitudes) && count($data->solicitudes) > 0 ? collect($data->solicitudes)->min('hc_os_solicitud_id') : '',
+                    'numero_orden' => $numero_orden,
                     'fecha_impresion' => date('Y-m-d H:i:s')
                 ])->render());
                 $dompdfO->setPaper('A4', 'portrait');
@@ -251,12 +297,14 @@ class ReportController extends Controller
                 'fecha' => $header->fecha,
                 'ingreso' => $ingreso,
                 'profesional' => $header->profesional
-            ], function($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden) {
+            ], function($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden, $type) {
                 $message->to($paciente->email)
                         ->subject('Reporte Historia Clínica - Ingreso #' . $ingreso);
                 
-                // Adjunto 1: Reporte Completo
-                $message->attachData($pdfContentCompleto, "Historia_Clinica_Completa_{$ingreso}.pdf", ['mime' => 'application/pdf']);
+                // Adjunto 1: Reporte Completo (Solo si existe)
+                if ($pdfContentCompleto) {
+                    $message->attachData($pdfContentCompleto, "Historia_Clinica_Completa_{$ingreso}.pdf", ['mime' => 'application/pdf']);
+                }
 
                 // Adjunto 2: Fórmula (Si existe)
                 if ($pdfContentFormula) {

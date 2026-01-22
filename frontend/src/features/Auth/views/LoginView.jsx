@@ -5,6 +5,7 @@ import { useUser } from '../../../contexts/UserContext/UserContext';
 import authService from '../services/authService';
 import doctorImg from '../../../assets/images/doctor_illustration.png';
 import logo from '../../../assets/images/sandi_virtual.png';
+import simdeLogo from '../../../assets/images/simde_logo.png'; // Added missing import
 
 const documentTypes = [
   { value: "CC", label: "Cédula de Ciudadanía" },
@@ -87,9 +88,9 @@ export default function LoginView() {
     };
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-y-auto font-sans text-foreground">
+        <div className="min-h-screen bg-background flex flex-col p-4 relative overflow-y-auto font-sans text-foreground">
             {/* Background pattern */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none">
+            <div className="fixed inset-0 opacity-10 pointer-events-none z-0">
                 <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                     <defs>
                         <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
@@ -101,10 +102,10 @@ export default function LoginView() {
             </div>
 
             {/* Glowing orb effect */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="fixed top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none z-0" />
+            <div className="fixed bottom-1/4 right-1/4 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none z-0" />
 
-            <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8 lg:gap-16 items-center relative z-10">
+            <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-16 items-center relative z-10 flex-grow py-8">
                 {/* Left side - Branding */}
                 <div className="space-y-6">
                    {/* Logo */}
@@ -126,62 +127,62 @@ export default function LoginView() {
                         </p>
                     </div>
 
-                    {/* Features */}
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                                <Calendar className="w-4 h-4 text-primary" />
+                    {/* Features & Doctor Illustration Section */}
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 py-6">
+                        {/* Features List */}
+                        <div className="space-y-5">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center">
+                                    <Calendar className="w-5 h-5 text-primary" />
+                                </div>
+                                <span className="text-foreground text-lg">
+                                    <strong>Agenda</strong> y gestiona tus citas
+                                </span>
                             </div>
-                            <span className="text-foreground">
-                                <strong>Agenda</strong> y gestiona tus citas
-                            </span>
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center">
+                                    <FileText className="w-5 h-5 text-primary" />
+                                </div>
+                                <span className="text-foreground text-lg">
+                                    <strong>Consulta</strong> tu historial médico
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                    <Bell className="w-5 h-5 text-blue-500" />
+                                </div>
+                                <span className="text-foreground text-lg">
+                                    <strong>Recibe</strong> recordatorios automáticos
+                                </span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                                <FileText className="w-4 h-4 text-primary" />
+
+                        {/* Doctor Image Area (Right side of features as requested) */}
+                        <div className="relative w-40 h-40 sm:w-48 sm:h-48 flex-shrink-0 mt-4 sm:mt-0 sm:mr-4">
+                            {/* Circle container */}
+                             <div className="w-full h-full rounded-full border-4 border-card/30 backdrop-blur-sm overflow-hidden shadow-[0_0_40px_rgba(59,130,246,0.2)] bg-gradient-to-t from-blue-900/40 to-transparent">
+                                <img src={doctorImg} alt="Doctor" className="w-full h-full object-cover object-top scale-110" />
                             </div>
-                            <span className="text-foreground">
-                                <strong>Consulta</strong> tu historial médico
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                                <Bell className="w-4 h-4 text-accent" />
-                            </div>
-                            <span className="text-foreground">
-                                <strong>Recibe</strong> recordatorios automáticos
-                            </span>
                         </div>
                     </div>
 
-                    {/* Footer: Manual & Doctor Image Side by Side */}
-                    <div className="flex items-end justify-between pt-4 pr-4">
-                        {/* Manual de Usuario Link - Left */}
-                        <a 
+                    {/* Manual de Usuario Link - Moved below */}
+                    <div className="pt-2">
+                         <a 
                             href={`${import.meta.env.VITE_API_URL}/manual`} 
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-card/30 backdrop-blur min-w-[120px] p-2 rounded-xl border border-white/5 flex items-center gap-3 group hover:bg-card/50 transition-all cursor-pointer"
+                            className="bg-card/20 backdrop-blur-sm p-3 rounded-2xl border border-white/5 inline-flex items-center gap-3 group hover:bg-card/40 transition-all cursor-pointer shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1"
                         >
-                            <div className="relative group-hover:-translate-y-1 transition-transform duration-300">
-                                <div className="absolute inset-0 bg-red-500/30 blur-md rounded-lg"></div>
-                                <div className="flex items-center justify-center w-8 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded shadow-lg relative border border-white/10">
-                                    <span className="text-white text-[8px] font-bold">PDF</span>
-                                    <div className="absolute top-0 right-0 border-t-[5px] border-r-[5px] border-t-white/30 border-r-transparent"></div>
-                                </div>
+                            <div className="flex items-center justify-center w-10 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-md relative border border-white/10 group-hover:scale-110 transition-transform">
+                                <span className="text-white text-[10px] font-bold">PDF</span>
+                                <div className="absolute top-0 right-0 border-t-[8px] border-r-[8px] border-t-white/30 border-r-transparent"></div>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider group-hover:text-primary transition-colors">Manual de</span>
-                                <span className="text-xs font-bold text-foreground">Usuario</span>
+                                <span className="text-[10px] font-bold text-blue-300 uppercase tracking-wider">Manual de</span>
+                                <span className="text-sm font-black text-white">Usuario</span>
                             </div>
                         </a>
-
-                        {/* Doctor illustration - Right (Moved as requested) */}
-                        <div className="hidden lg:block relative w-32 h-32">
-                             <div className="absolute bottom-0 right-0 w-full h-full bg-card/60 rounded-2xl border border-white/10 backdrop-blur-sm flex items-center justify-center overflow-hidden shadow-2xl">
-                                <img src={doctorImg} alt="Doctor" className="w-full h-full object-cover opacity-90 scale-105" />
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -316,6 +317,18 @@ export default function LoginView() {
                     </div>
                 </div>
             </div>
+
+             {/* Footer Global Reintegrado */}
+             <footer className="w-full max-w-7xl mx-auto px-4 py-12 relative z-10 flex flex-col items-center justify-center gap-6 mt-12 mb-8">
+                <img 
+                    src={simdeLogo} 
+                    alt="SIMDE SAS" 
+                    className="h-10 w-auto hover:scale-110 transition-transform duration-300 drop-shadow-xl" 
+                />
+                <p className="text-base text-muted-foreground font-semibold text-center tracking-wide">
+                    © {new Date().getFullYear()} SIMDE SAS. Todos los derechos reservados.
+                </p>
+            </footer>
 
             {/* Modal de Recuperación */}
             {isRecoverModalOpen && (

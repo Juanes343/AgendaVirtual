@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import historyService from '../services/historyService';
-import { Eye, Printer, ArrowLeft, FileText, Activity, Layers, Calendar, User, Search, Stethoscope, Pill, Mail, CheckCircle } from 'lucide-react';
+import { Eye, Printer, ArrowLeft, FileText, Activity, Layers, Calendar, User, Search, Stethoscope, Pill, Mail, CheckCircle, Send } from 'lucide-react';
 import { useUser } from '../../../contexts/UserContext/UserContext';
 import Swal from 'sweetalert2';
 
 export default function MedicalHistoryView() {
+    const location = useLocation();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedIngreso, setSelectedIngreso] = useState(null);
     const [activeTab, setActiveTab] = useState(1); // 1: Consulta Externa, 2: Apoyos Diagnósticos
     const { user } = useUser();
-    const [sendingEmail, setSendingEmail] = useState(null); // ID del ingreso que se está enviando
+
+    useEffect(() => {
+        setSelectedIngreso(null);
+    }, [location]);
 
     useEffect(() => { loadHistory(); }, []);
 
@@ -21,51 +26,7 @@ export default function MedicalHistoryView() {
         } catch (error) { console.error(error); } finally { setLoading(false); }
     };
 
-    const handleSendEmail = async (ingresoId, e) => {
-        e.stopPropagation(); // Evitar abrir detalles
-        
-        // Confirmación
-        const result = await Swal.fire({
-            title: '¿Enviar reporte por correo?',
-            text: `Se enviará el reporte detallado al correo registrado: ${user?.paciente?.email || 'N/A'}.`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Sí, enviar',
-            cancelButtonText: 'Cancelar',
-             background: '#1e293b',
-             color: '#fff'
-        });
 
-        if (!result.isConfirmed) return;
-
-        setSendingEmail(ingresoId);
-        try {
-            await historyService.sendReportEmail(ingresoId); 
-            
-            Swal.fire({
-                title: '¡Enviado!',
-                text: 'El reporte ha sido enviado exitosamente a tu correo.',
-                icon: 'success',
-                confirmButtonColor: '#10b981',
-                background: '#1e293b',
-                color: '#fff'
-            });
-
-        } catch (error) {
-            Swal.fire({
-                title: 'Error',
-                text: 'Hubo un problema al enviar el correo. Inténtalo de nuevo.',
-                icon: 'error',
-                background: '#1e293b',
-                color: '#fff'
-            });
-            console.error(error);
-        } finally {
-            setSendingEmail(null);
-        }
-    };
 
     if (selectedIngreso) {
         return <HistoryDetail ingresoId={selectedIngreso} onBack={() => setSelectedIngreso(null)} />;
@@ -154,20 +115,6 @@ export default function MedicalHistoryView() {
                             {/* Botón Acción */}
                             <div className="flex items-center gap-2 w-full md:w-auto">
                                 <button 
-                                    onClick={(e) => handleSendEmail(item.ingreso, e)}
-                                    disabled={sendingEmail === item.ingreso}
-                                    className="px-4 py-2.5 rounded-lg font-bold text-sm border border-gray-600 hover:border-blue-400 hover:text-blue-400 bg-transparent text-gray-400 transition-all flex items-center justify-center gap-2"
-                                    title="Enviar reporte por correo"
-                                >
-                                    {sendingEmail === item.ingreso ? (
-                                        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                    ) : (
-                                        <Mail size={18} />
-                                    )}
-                                    <span className="hidden sm:inline">Enviar</span>
-                                </button>
-
-                                <button 
                                     onClick={() => setSelectedIngreso(item.ingreso)} 
                                     className={`px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 flex-1 justify-center ${
                                         activeTab === 1 
@@ -189,11 +136,51 @@ export default function MedicalHistoryView() {
 function HistoryDetail({ ingresoId, onBack }) {
     const [details, setDetails] = useState({ medicamentos: [], solicitudes: [], incapacidades: [] }); // Ahora incluye incapacidades
     const [loading, setLoading] = useState(true);
+    const [sendingEmail, setSendingEmail] = useState(false);
     const { user } = useUser();
 
     useEffect(() => {
         historyService.getDetail(ingresoId).then(data => { if(data.success) setDetails(data.data); setLoading(false); });
     }, [ingresoId]);
+
+    const handleSendEmail = async (type = 'all', evolucionId = null) => {
+        let msg = `Se enviará el reporte completo`;
+        if (type === 'formula') msg = `Se enviará la fórmula médica`;
+        if (type === 'ordenes') msg = `Se enviarán las órdenes médicas`;
+
+        const result = await Swal.fire({
+            title: '¿Enviar reporte por correo?',
+            text: `${msg} al correo registrado: ${user?.paciente?.email || 'N/A'}.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sí, enviar',
+            cancelButtonText: 'Cancelar',
+             background: '#1e293b',
+             color: '#fff'
+        });
+
+        if (!result.isConfirmed) return;
+
+        setSendingEmail(true);
+        try {
+            await historyService.sendReportEmail(ingresoId, type, evolucionId); 
+            Swal.fire({
+                title: '¡Enviado!',
+                text: 'El reporte ha sido enviado exitosamente a tu correo.',
+                icon: 'success',
+                confirmButtonColor: '#10b981',
+                background: '#1e293b',
+                color: '#fff'
+            });
+        } catch (error) {
+            Swal.fire({ title: 'Error', text: 'Error enviando el correo.', icon: 'error', background: '#1e293b', color: '#fff' });
+            console.error(error);
+        } finally {
+            setSendingEmail(false);
+        }
+    };
 
     if(loading) return <div className="text-white text-center py-10">Cargando detalles...</div>;
 
@@ -232,9 +219,14 @@ function HistoryDetail({ ingresoId, onBack }) {
                     ))}
                 </div>
                 <div className="bg-blue-950/30 p-2 text-center border-t border-blue-900/30 flex flex-col gap-2">
-                    <button onClick={() => historyService.printFormula(evolucionId)} className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide">
-                        <Printer size={14} /> Imprimir Fórmula Médica
-                    </button>
+                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+                        <button onClick={() => historyService.printFormula(evolucionId)} className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide">
+                            <Printer size={14} /> Imprimir Fórmula
+                        </button>
+                        <button onClick={() => handleSendEmail('formula', evolucionId)} disabled={sendingEmail} className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide">
+                            <Mail size={14} /> Enviar al Correo
+                        </button>
+                    </div>
                     <button
                         onClick={() => {
                             // Obtener datos necesarios para la URL legacy
@@ -314,9 +306,14 @@ function HistoryDetail({ ingresoId, onBack }) {
                         ))}
                     </div>
                     <div className="bg-purple-950/20 p-2 text-center border-t border-blue-900/30 flex flex-col gap-2">
-                        <button onClick={() => historyService.printOrder(evolucionId)} className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide">
-                            <Printer size={14} /> Imprimir Orden
-                        </button>
+                        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+                            <button onClick={() => historyService.printOrder(evolucionId)} className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide">
+                                <Printer size={14} /> Imprimir Orden
+                            </button>
+                            <button onClick={() => handleSendEmail('ordenes', evolucionId)} disabled={sendingEmail} className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide">
+                                <Mail size={14} /> Enviar al Correo
+                            </button>
+                        </div>
                         <button
                             onClick={() => { window.open(url, '_blank'); }}
                             className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 mx-auto font-bold text-xs uppercase tracking-wide"
@@ -349,14 +346,24 @@ function HistoryDetail({ ingresoId, onBack }) {
                 <ArrowLeft size={20} /> Regresar al Listado
             </button>
 
-            {/* Botón para imprimir Historia Clínica Evolución */}
+            {/* Botones de Acción Global */}
             {primerEvolucionId && (
-                <button
-                    onClick={handlePrintEvolucion}
-                    className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:underline font-bold text-xs uppercase tracking-wide mb-4"
-                >
-                    <Printer size={16} /> Imprimir Historia Clínica Evolución
-                </button>
+                <div className="flex flex-wrap items-center gap-6 mb-4">
+                    <button
+                        onClick={handlePrintEvolucion}
+                        className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:underline font-bold text-xs uppercase tracking-wide"
+                    >
+                        <Printer size={16} /> Imprimir Historia Clínica Evolución
+                    </button>
+                    <button
+                        onClick={() => handleSendEmail('all')}
+                        disabled={sendingEmail}
+                        className={`flex items-center gap-2 font-bold text-xs uppercase tracking-wide transition-colors ${sendingEmail ? 'text-gray-500' : 'text-green-400 hover:text-green-300 hover:underline'}`}
+                    >
+                        {sendingEmail ? <Activity className="animate-spin" size={16} /> : <Send size={16} />} 
+                        Enviar Todo por Correo
+                    </button>
+                </div>
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

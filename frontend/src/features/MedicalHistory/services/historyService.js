@@ -36,8 +36,11 @@ const historyService = {
             })
             .catch(err => console.error("Error descargando PDF", err));
     },
-    sendReportEmail: async (ingresoId) => {
-        const response = await api.post(`/medical-history/${ingresoId}/send-email`);
+    sendReportEmail: async (ingresoId, type = 'all', evolucionId = null) => {
+        const response = await api.post(`/medical-history/${ingresoId}/send-email`, {
+            type,
+            evolucion_id: evolucionId
+        });
         return response.data;
     }
 };
