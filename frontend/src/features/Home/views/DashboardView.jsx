@@ -206,7 +206,8 @@ function InicioTab({ user, setActiveTab }) {
             <button
                key={card.id}
                onClick={() => setActiveTab(card.id)}
-               className={`group relative overflow-hidden bg-slate-900/30 border border-white/5 p-10 rounded-[2.5rem] ${card.border} transition-all hover:bg-slate-900/60 text-left flex flex-col justify-between h-80 shadow-lg`}
+               style={{ borderRadius: '2.5rem' }}
+               className={`group relative overflow-hidden bg-slate-900/30 border border-white/5 p-10 ${card.border} transition-all hover:bg-slate-900/60 text-left flex flex-col justify-between h-80 shadow-lg`}
             >
               <div className={`p-6 rounded-2xl ${card.bg} ${card.color} w-fit transition-transform group-hover:scale-125 ${card.id === 'datos' ? 'group-hover:-rotate-3' : 'group-hover:rotate-3'}`}>
                 <Icon className="w-11 h-11" />
