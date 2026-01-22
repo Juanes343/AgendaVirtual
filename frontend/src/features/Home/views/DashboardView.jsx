@@ -20,8 +20,19 @@ import ProfileView from "../../Profile/views/ProfileView";
 
 export default function DashboardView() {
   const [activeTab, setActiveTab] = useState("inicio");
+  const [viewKey, setViewKey] = useState(0); // Para forzar recarga de vistas
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout } = useUser();
+
+  const handleTabChange = (tabId) => {
+    if (activeTab === tabId) {
+       // Si clicamos la misma tab activa, forzamos recarga incrementando la key
+       setViewKey(prev => prev + 1);
+    } else {
+       setActiveTab(tabId);
+       setIsMobileMenuOpen(false);
+    }
+  };
 
   const tabs = [
     { id: "inicio", label: "Inicio", icon: Home },
@@ -88,7 +99,7 @@ export default function DashboardView() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                       activeTab === tab.id
                         ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
@@ -154,10 +165,7 @@ export default function DashboardView() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setIsMobileMenuOpen(false);
-                    }}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${
                       activeTab === tab.id
                         ? "bg-blue-600 text-white"
@@ -179,7 +187,7 @@ export default function DashboardView() {
         {activeTab === "inicio" && (
           <InicioTab user={user} setActiveTab={setActiveTab} />
         )}
-        {activeTab === "historial" && <MedicalHistoryView />}
+        {activeTab === "historial" && <MedicalHistoryView key={viewKey} />}
         {activeTab === "datos" && <ProfileView />}
         {activeTab === "diagnosticos" && <DiagnosticosTab />}
         {/* Nueva vista de agendamiento */}

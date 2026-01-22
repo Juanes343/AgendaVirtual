@@ -13,9 +13,11 @@ export default function MedicalHistoryView() {
     const [activeTab, setActiveTab] = useState(1); // 1: Consulta Externa, 2: Apoyos Diagnósticos
     const { user } = useUser();
 
+    // Effect para resetear la vista si la ubicación cambia (ej. clic en menú Historial Médico)
+    // Se usa location.key (que cambia en cada push) o location.pathname si se navega a la misma ruta
     useEffect(() => {
         setSelectedIngreso(null);
-    }, [location]);
+    }, [location.pathname, location.key]);
 
     useEffect(() => { loadHistory(); }, []);
 
@@ -342,29 +344,42 @@ function HistoryDetail({ ingresoId, onBack }) {
 
     return (
         <div className="space-y-6 animate-fade-in-up">
-            <button onClick={onBack} className="flex items-center gap-2 text-blue-300 hover:text-white transition-colors font-medium">
-                <ArrowLeft size={20} /> Regresar al Listado
-            </button>
+            {/* Header de Navegación del Detalle */}
+            <div className="flex items-center justify-between bg-blue-950/20 p-4 rounded-xl border border-blue-900/30 mb-6 backdrop-blur-sm">
+                <button 
+                    onClick={onBack} 
+                    className="flex items-center gap-3 px-4 py-2 bg-blue-600/10 hover:bg-blue-600 text-blue-300 hover:text-white rounded-lg border border-blue-500/30 transition-all duration-300 group font-semibold"
+                >
+                    <div className="p-1 rounded-full bg-blue-500/20 group-hover:bg-white/20 transition-colors">
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                    </div>
+                    <span>Regresar al Listado</span>
+                </button>
 
-            {/* Botones de Acción Global */}
-            {primerEvolucionId && (
-                <div className="flex flex-wrap items-center gap-6 mb-4">
-                    <button
-                        onClick={handlePrintEvolucion}
-                        className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:underline font-bold text-xs uppercase tracking-wide"
-                    >
-                        <Printer size={16} /> Imprimir Historia Clínica Evolución
-                    </button>
-                    <button
-                        onClick={() => handleSendEmail('all')}
-                        disabled={sendingEmail}
-                        className={`flex items-center gap-2 font-bold text-xs uppercase tracking-wide transition-colors ${sendingEmail ? 'text-gray-500' : 'text-green-400 hover:text-green-300 hover:underline'}`}
-                    >
-                        {sendingEmail ? <Activity className="animate-spin" size={16} /> : <Send size={16} />} 
-                        Enviar Todo por Correo
-                    </button>
-                </div>
-            )}
+                {/* Botones de Acción Global (Ahora integrados en el header) */}
+                {primerEvolucionId && (
+                    <div className="flex flex-wrap items-center gap-4">
+                        <button
+                            onClick={handlePrintEvolucion}
+                            className="flex items-center gap-2 px-4 py-2 bg-[#1e293b] hover:bg-blue-600 border border-blue-500/30 rounded-lg text-blue-400 hover:text-white font-semibold text-xs uppercase tracking-wide transition-all shadow-sm hover:shadow-blue-500/20"
+                        >
+                            <Printer size={16} /> <span className="hidden sm:inline">Imprimir Historia</span>
+                        </button>
+                        <button
+                            onClick={() => handleSendEmail('all')}
+                            disabled={sendingEmail}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-semibold text-xs uppercase tracking-wide transition-all shadow-sm ${
+                                sendingEmail 
+                                  ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed' 
+                                  : 'bg-green-600/10 hover:bg-green-600 border-green-500/30 hover:border-green-500 text-green-400 hover:text-white shadow-green-500/10 hover:shadow-green-500/30'
+                            }`}
+                        >
+                            {sendingEmail ? <Activity className="animate-spin" size={16} /> : <Send size={16} />} 
+                            <span className="hidden sm:inline">Enviar Todo</span>
+                        </button>
+                    </div>
+                )}
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
