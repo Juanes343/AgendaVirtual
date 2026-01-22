@@ -1,238 +1,323 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <title>Historia Clínica Completa</title>
     <style>
-        @page { margin: 20px 30px; }
-        body { font-family: Arial, sans-serif; font-size: 9px; color: #000; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
-        
-        .table-datatable td, .table-datatable th { border: 1px solid #000; padding: 3px 5px; vertical-align: middle; }
-        .table-datatable th { background-color: #f0f0f0; font-weight: bold; text-align: left; }
-        
-        .header-label { background-color: #f0f0f0; font-weight: bold; width: 15%; text-transform: uppercase;}
-        
-        .header-container { width: 100%; margin-bottom: 10px; border: none; }
-        .logo-cell { width: 20%; vertical-align: middle; text-align: left; border: none; }
-        .info-cell { text-align: center; font-size: 10px; font-weight: bold; border: none; }
-        .logo-img { max-width: 120px; max-height: 70px; }
-        
-        .doc-title { text-align: center; font-weight: bold; margin: 10px 0; font-size: 12px; background-color: #ddd; border: 1px solid #000; padding: 5px; }
-        
+        body { font-family: sans-serif; font-size: 11px; color: #333; }
+        .header-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+        .header-table td { vertical-align: top; }
+        .logo { max-width: 150px; }
+        .empresa-info { text-align: center; font-weight: bold; font-size: 14px; }
         .section-title { 
-            font-size: 10px; 
+            background-color: #f0f0f0; 
+            padding: 5px; 
             font-weight: bold; 
-            background-color: #e0e0e0; 
-            border: 1px solid #000; 
-            padding: 4px; 
-            margin-top: 10px; 
-            margin-bottom: 0px; 
-            text-transform: uppercase;
+            border: 1px solid #ccc; 
+            margin-top: 15px; 
+            margin-bottom: 5px;
         }
-
-        .content-block { border: 1px solid #000; border-top: none; padding: 5px; margin-bottom: 10px; }
-        
-        .footer-signature { margin-top: 40px; page-break-inside: avoid; }
-        .signature-box { width: 100%; }
-        .dist-line { border-top: 1px solid #000; width: 250px; margin-top: 40px; }
-        
-        .bioseguridad { font-size: 8px; text-align: justify; margin-top: 20px; border: 1px solid #ccc; padding: 5px; }
-        .print-footer { position: fixed; bottom: 0; left: 0; width: 100%; font-size: 8px; text-align: right; color: #555; }
+        .content-block { margin-bottom: 10px; padding: 5px; text-align: justify; }
+        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .data-table th, .data-table td { border: 1px solid #ccc; padding: 4px; text-align: left; font-size: 10px; }
+        .data-table th { background-color: #f9f9f9; }
+        .footer { margin-top: 30px; text-align: center; font-size: 10px; border-top: 1px solid #ccc; padding-top: 10px; }
+        .patient-info td { padding: 2px 5px; }
+        .label { font-weight: bold; }
     </style>
 </head>
 <body>
-    <!-- Encabezado con Logo y Datos Clínica -->
-    <table class="header-container">
+
+    <!-- Encabezado con Logo y Datos Empresa -->
+    <table class="header-table">
         <tr>
-            <td class="logo-cell">
-                @if(isset($logoBase64) && $logoBase64)
-                    <img src="{{ $logoBase64 }}" alt="Logo" class="logo-img">
+            <td width="20%">
+                @if($logoBase64)
+                    <img src="{{ $logoBase64 }}" class="logo" />
                 @endif
             </td>
-            <td class="info-cell">
-                <div style="font-size: 14px; margin-bottom: 5px;">HISTORIA CLINICA</div>
-                @if(isset($empresa) && $empresa)
-                    {{ $empresa->razon_social ?? '' }}<br>
-                    NIT {{ $empresa->nit ?? '' }}-{{ $empresa->digito_verificacion ?? '' }}<br>
-                    {{ $empresa->direccion ?? '' }} - {{ $empresa->municipio ?? '' }}<br>
-                    Tel: {{ $empresa->telefonos ?? '' }}
-                @else
-                    CLÍNICA DE OFTALMOLOGÍA SANDIEGO S.A.<br>
-                    NIT 900.191.362-8
-                @endif
+            <td width="60%" class="empresa-info">
+                {{ $empresa->nombre ?? 'NOMBRE DE LA EMPRESA' }}<br>
+                <span style="font-size: 11px; font-weight: normal;">
+                    NIT: {{ $empresa->nit ?? '' }}<br>
+                    {{ $empresa->direccion ?? '' }} - {{ $empresa->telefono ?? '' }}
+                </span>
+            </td>
+            <td width="20%" style="text-align: right; font-size: 10px;">
+                <strong>Fecha Impresión:</strong><br>
+                {{ date('Y-m-d H:i') }}
             </td>
         </tr>
     </table>
 
-    <div class="doc-title">RESUMEN DE ATENCIÓN - INGRESO #{{ $ingreso }}</div>
-
-    <!-- DATOS DEL PACIENTE (Replicando estructura ResumenHC) -->
-    <table class="table-datatable">
+    <!-- Datos del Paciente -->
+    <div class="section-title">DATOS DEL PACIENTE</div>
+    <table class="header-table patient-info">
         <tr>
-            <td class="header-label">PACIENTE:</td>
-            <td colspan="3">{{ isset($paciente) ? $paciente->nombre_completo : '' }}</td>
-            <td class="header-label">IDENTIFICACIÓN:</td>
-            <td>{{ isset($paciente) ? $paciente->tipo_id_paciente.' '.$paciente->paciente_id : '' }}</td>
+            <td width="15%" class="label">Identificación:</td>
+            <td width="35%">{{ $paciente->identificacion }}</td>
+            <td width="15%" class="label">Paciente:</td>
+            <td width="35%">{{ $paciente->nombre_paciente }}</td>
         </tr>
         <tr>
-            <td class="header-label">FECHA NAC.:</td>
-            <td>{{ isset($paciente) ? $paciente->fecha_nacimiento : '' }}</td>
-            <td class="header-label" width="10%">EDAD:</td>
-            <td>
-                @if(isset($paciente->fecha_nacimiento))
-                    {{ \Carbon\Carbon::parse($paciente->fecha_nacimiento)->age }} Años
-                @endif
-            </td>
-            <td class="header-label">SEXO:</td>
-            <td>{{ isset($paciente) ? $paciente->sexo_id : '' }}</td>
-        </tr>
-    </table>
-
-    <!-- DATOS DE AFILIACIÓN -->
-    <table class="table-datatable">
-        <tr>
-            <td class="header-label" width="15%">CLIENTE:</td>
-            <td width="35%">{{ isset($paciente) ? ($paciente->cliente_nombre ?? 'PARTICULAR') : '' }}</td>
-            <td class="header-label" width="15%">PLAN:</td>
-            <td>{{ isset($paciente) ? $paciente->plan_descripcion : '' }}</td>
+            <td class="label">Edad:</td>
+            <td>{{ $paciente->edad }}</td>
+            <td class="label">Sexo:</td>
+            <td>{{ $paciente->sexo }}</td>
         </tr>
         <tr>
-            <td class="header-label">TIPO AFILIADO:</td>
-            <td>{{ isset($paciente) ? $paciente->tipo_afiliado_id : '' }}</td>
-            <td class="header-label">RANGO:</td>
-            <td>{{ isset($paciente) ? $paciente->rango : '' }}</td>
+            <td class="label">Dirección:</td>
+            <td>{{ $paciente->direccion }}</td>
+            <td class="label">Teléfono:</td>
+            <td>{{ $paciente->telefono }}</td>
+        </tr>
+        <tr>
+            <td class="label">Aseguradora:</td>
+            <td>{{ $paciente->nombre_aseguradora }}</td>
+            <td class="label">Ingreso:</td>
+            <td>{{ $ingreso }} - {{ $fecha }}</td>
         </tr>
     </table>
 
-    <!-- DATOS DE ATENCIÓN -->
-    <table class="table-datatable">
-        <tr>
-            <td class="header-label">FECHA ATENCIÓN:</td>
-            <td>{{ isset($paciente) ? $paciente->fecha : '' }}</td>
-            <td class="header-label">PROFESIONAL:</td>
-            <td>{{ isset($paciente) ? $paciente->profesional : '' }}</td>
-        </tr>
-        <tr>
-            <td class="header-label">ESPECIALIDAD:</td>
-            <td colspan="3">{{ isset($paciente) ? $paciente->especialidad : '' }}</td>
-        </tr>
-    </table>
+    <!-- Motivo de Consulta y Enfermedad Actual -->
+    @if(!empty($paciente->motivo_consulta))
+    <div class="section-title">MOTIVO DE CONSULTA</div>
+    <div class="content-block">{{ $paciente->motivo_consulta }}</div>
+    @endif
 
-    <!-- CONTENIDO MÉDICO -->
+    @if(!empty($paciente->enfermedad_actual))
+    <div class="section-title">ENFERMEDAD ACTUAL</div>
+    <div class="content-block">{{ $paciente->enfermedad_actual }}</div>
+    @endif
     
-    <!-- 1. MEDICAMENTOS -->
-    @if(isset($medicamentos) && count($medicamentos) > 0)
-        <div class="section-title">MEDICAMENTOS FORMULADOS</div>
-        <table class="table-datatable">
-            <thead>
-                <tr>
-                    <th width="30%">Medicamento</th>
-                    <th>Principio Activo</th>
-                    <th>Dosis / Frecuencia / Vía</th>
-                    <th width="8%">Cant.</th>
-                    <th width="8%">Días</th>
-                    <th>Observación</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($medicamentos as $med)
-                <tr>
-                    <td>
-                        <b>{{ $med->producto }}</b><br>
-                        <span style="font-size:8px; color:#555;">{{ $med->codigo_medicamento }}</span>
-                    </td>
-                    <td>{{ $med->principio_activo }}</td>
-                    <td>
-                        {{ $med->dosis }} {{ $med->unidad_dosificacion }}<br>
-                        Cada {{ $med->frecuencia }}<br>
-                        Vía: {{ $med->via_administracion_id ?? 'Oral' }}
-                    </td>
-                    <td align="center">{{ $med->cantidad }}</td>
-                    <td align="center">{{ $med->tiempo_tratamiento }}</td>
-                    <td>{{ $med->observacion }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
+    @if(!empty($paciente->revis_sistemas))
+    <div class="section-title">REVISIÓN POR SISTEMAS</div>
+    <div class="content-block">{{ $paciente->revis_sistemas }}</div>
     @endif
 
-    <!-- 2. ORDENES Y SOLICITUDES -->
-    @if(isset($solicitudes) && count($solicitudes) > 0)
-        <div class="section-title">ÓRDENES Y AYUDAS DIAGNÓSTICAS</div>
-        <table class="table-datatable">
-            <thead>
-                <tr>
-                    <th width="15%">Código</th>
-                    <th>Descripción Procedimiento/Servicio</th>
-                    <th width="10%">Cantidad</th>
-                    <th width="15%">Fecha Solicitud</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($solicitudes as $sol)
-                <tr>
-                    <td>{{ $sol->cargo }}</td>
-                    <td>{{ $sol->descripcion }}</td>
-                    <td align="center">{{ $sol->cantidad }}</td>
-                    <td align="center">{{ $sol->fecha_solicitud }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
+    @if(!empty($paciente->antecedentes_personales) || !empty($paciente->antecedentes_familiares))
+    <div class="section-title">ANTECEDENTES</div>
+    <div class="content-block">
+        @if(!empty($paciente->antecedentes_personales))
+        <strong>Personales:</strong> {{ $paciente->antecedentes_personales }}<br>
+        @endif
+        @if(!empty($paciente->antecedentes_familiares))
+        <strong>Familiares:</strong> {{ $paciente->antecedentes_familiares }}
+        @endif
+    </div>
     @endif
 
-    <!-- 3. INCAPACIDADES -->
-    @if(isset($incapacidades) && count($incapacidades) > 0)
-        <div class="section-title">INCAPACIDADES MÉDICAS</div>
-        <table class="table-datatable">
-            <thead>
-                <tr>
-                    <th>Diagnóstico</th>
-                    <th width="15%">Fecha Inicio</th>
-                    <th width="10%">Días</th>
-                    <th>Observación</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($incapacidades as $inc)
-                <tr>
-                    <td>{{ $inc->diagnostico_id }} - {{ $inc->diagnostico_nombre }}</td>
-                    <td align="center">{{ $inc->fecha_inicio }}</td>
-                    <td align="center">{{ $inc->dias_de_incapacidad }}</td>
-                    <td>{{ $inc->observacion_incapacidad }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
+    <!-- Examen Físico (Si existiera en el futuro, por ahora placeholder si hay datos) -->
+    @if(!empty($paciente->examen_fisico))
+    <div class="section-title">EXAMEN FÍSICO</div>
+    <div class="content-block">{{ $paciente->examen_fisico }}</div>
     @endif
 
-    <!-- FIRMAS -->
-    <div class="footer-signature">
-        <table border="0" width="100%">
+    <!-- SUBMÓDULOS DINÁMICOS (Incluyendo MotivoConsulta detallado) -->
+    @if(isset($submodulos) && count($submodulos) > 0)
+        @foreach($submodulos as $nombre => $registros)
+            
+            @if($nombre == 'MotivoConsulta')
+                <div class="section-title">MOTIVO DE CONSULTA Y ENFERMEDAD ACTUAL (Detalle)</div>
+                @foreach($registros as $row)
+                <div class="content-block" style="border-bottom: 1px dotted #ccc; padding-bottom: 5px; margin-bottom: 5px;">
+                    @if(!empty($row->fecha_registro))
+                        <strong>Fecha Registro:</strong> {{ $row->fecha_registro }} 
+                        @if(!empty($row->usuario_id)) - Usu: {{ $row->usuario_id }} @endif <br>
+                    @endif
+
+                    @if(!empty($row->descripcion))
+                        <strong>MOTIVO DE CONSULTA:</strong><br>
+                        {!! nl2br(e($row->descripcion)) !!}<br>
+                    @endif
+                    
+                    @if(!empty($row->motivo_diagnostico_id))
+                        <span style="font-size: 10px; color: #555;"><strong>Diagnóstico Motivo:</strong> {{ $row->motivo_diagnostico_id }} - {{ $row->diagnostico_motivo ?? '' }}</span><br>
+                    @endif
+                    <br>
+                    
+                    @if(!empty($row->enfermedadactual))
+                        <strong>ENFERMEDAD ACTUAL:</strong><br>
+                        {!! nl2br(e($row->enfermedadactual)) !!}<br>
+                    @endif
+
+                    @if(!empty($row->enfermedad_diagnostico_id))
+                        <span style="font-size: 10px; color: #555;"><strong>Diagnóstico Enfermedad:</strong> {{ $row->enfermedad_diagnostico_id }} - {{ $row->diagnostico_enfermedad ?? '' }}</span><br>
+                    @endif
+                </div>
+                @endforeach
+            
+            @elseif(strpos($nombre, 'PlanTerapeutico') !== false)
+                <!-- Bloque Específico para Plan Terapéutico -->
+                <div class="section-title">RESUMEN DEL PLAN TERAPEUTICO</div>
+                <div class="content-block">
+                @foreach($registros as $row)
+                    @foreach((array)$row as $key => $val)
+                        @if(!in_array($key, ['evolucion_id', 'ingreso', 'usuario_id', 'fecha_registro', 'hc_plan_terapeutico_id'])) 
+                            @if(!empty($val))
+                                <strong>{{ ucfirst(str_replace('_', ' ', $key)) }}:</strong> {!! nl2br(e($val)) !!}<br>
+                            @endif
+                        @endif
+                    @endforeach
+                    <hr style="border: 0; border-top: 1px dashed #eee;">
+                @endforeach
+                </div>
+
+            @else
+                <!-- Otros Submódulos Genéricos -->
+                <div class="section-title">{{ strtoupper(preg_replace('/(?<!^)[A-Z]/', ' $0', $nombre)) }}</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <!-- Cabeceras dinámicas basadas en el primer registro -->
+                            @foreach(array_keys((array)$registros[0]) as $col)
+                                @if(!in_array($col, ['evolucion_id', 'ingreso', 'usuario_id'])) <!-- Ocultar columnas internas -->
+                                    <th>{{ ucfirst(str_replace('_', ' ', $col)) }}</th>
+                                @endif
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($registros as $reg)
+                        <tr>
+                            @foreach((array)$reg as $key => $val)
+                                @if(!in_array($key, ['evolucion_id', 'ingreso', 'usuario_id']))
+                                    <td>{{ $val }}</td>
+                                @endif
+                            @endforeach
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+        @endforeach
+    @endif
+
+    <!-- Diagnósticos -->
+    @if(count($diagnosticos) > 0)
+    <div class="section-title">DIAGNÓSTICOS</div>
+    <table class="data-table">
+        <thead>
             <tr>
-                <td width="50%" valign="top">
-                    <!-- Espacio Firma -->
-                     <br><br>
-                    <div class="dist-line"></div>
-                    <b>PROFESIONAL:</b> {{ isset($paciente) ? $paciente->profesional : '' }}<br>
-                    <b>REGISTRO MÉDICO:</b> {{ isset($paciente) ? $paciente->tarjeta_profesional : '' }}<br>
-                    <b>ESPECIALIDAD:</b> {{ isset($paciente) ? $paciente->especialidad : '' }}
-                </td>
-                <td width="50%" valign="top">
-                    <!-- Espacio Firma Paciente (Opccional) -->
-                </td>
+                <th width="15%">CIE10</th>
+                <th width="65%">Descripción</th>
+                <th width="20%">Tipo</th>
             </tr>
-        </table>
+        </thead>
+        <tbody>
+            @foreach($diagnosticos as $diag)
+            <tr>
+                <td>{{ $diag->codigo }}</td>
+                <td>{{ $diag->nombre }}</td>
+                <td>{{ $diag->tipo_diagnostico == 'P' ? 'Principal' : 'Relacionado' }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    @endif
+
+    <!-- Análisis y Plan -->
+    @if(!empty($paciente->analisis))
+    <div class="section-title">ANÁLISIS</div>
+    <div class="content-block">{{ $paciente->analisis }}</div>
+    @endif
+
+    @if(!empty($paciente->plan))
+    <div class="section-title">PLAN DE MANEJO</div>
+    <div class="content-block">{{ $paciente->plan }}</div>
+    @endif
+
+    <!-- Medicamentos -->
+    @if(count($medicamentos) > 0)
+    <div class="section-title">MEDICAMENTOS FORMULADOS</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Medicamento</th>
+                <th width="15%">Cantidad</th>
+                <th width="40%">Posología</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($medicamentos as $med)
+            <tr>
+                <td>{{ $med->nombre_medicamento }}</td>
+                <td>{{ $med->cantidad }}</td>
+                <td>{{ $med->posologia }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    @endif
+
+    <!-- Solicitudes/Examenes -->
+    @if(count($solicitudes) > 0)
+    <div class="section-title">SOLICITUDES DE SERVICIOS</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Cantidad</th>
+                <th>Observación</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($solicitudes as $sol)
+            <tr>
+                <td width="15%">{{ $sol->codigo }}</td>
+                <td width="40%">{{ $sol->nombre_examen }}</td>
+                <td width="10%">{{ $sol->cantidad }}</td>
+                <td width="35%">{{ $sol->observacion ?? '' }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    @endif
+
+    <!-- Incapacidades -->
+    @if(count($incapacidades) > 0)
+    <div class="section-title">INCAPACIDADES</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Fecha Inicio</th>
+                <th>Días</th>
+                <th>Diagnóstico</th>
+                <th>Observación</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($incapacidades as $inc)
+            <tr>
+                <td>{{ $inc->fecha_inicio }}</td>
+                <td>{{ $inc->dias }}</td>
+                <td>{{ $inc->codigo_diagnostico }}</td>
+                <td>{{ $inc->observacion }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    @endif
+
+    <!-- Notas de Evolución / Notas Médicas -->
+    @if(count($notas) > 0)
+    <div class="section-title">NOTAS DE EVOLUCIÓN / MÉDICAS</div>
+    @foreach($notas as $nota)
+        <div style="border-bottom: 1px dashed #ccc; padding: 5px 0;">
+            <strong>Fecha:</strong> {{ $nota->fecha_nota }} - <strong>Autor:</strong> {{ $nota->nombre_usuario ?? 'Médico' }}<br>
+            <div style="margin-top: 3px; white-space: pre-wrap;">{{ $nota->nota }}</div>
+        </div>
+    @endforeach
+    @endif
+
+    <!-- Footer / Firma -->
+    <div class="footer">
+        <br><br>
+        <strong>{{ $profesional->nombre_completo ?? 'Profesional de la Salud' }}</strong><br>
+        {{ $especialidad->nombre ?? 'Medicina General' }}<br>
+        Registro Médico: {{ $profesional->registro_medico ?? '' }}
     </div>
 
-    <!-- BIOSEGURIDAD (Texto Legal del Legacy) -->
-    <div class="bioseguridad">
-        <b>BIOSEGURIDAD COVID-19:</b> La atención brindada al usuario cumple con los lineamientos de bioseguridad dados por el Ministerio de Salud en cuanto al uso adecuado de elementos de protección personal, lavado de manos y medidas de higiene en general.
-    </div>
-
-    <div class="print-footer">
-        Impreso por: Agenda Virtual | Fecha: {{ date('Y-m-d H:i A') }}
-    </div>
 </body>
 </html>
