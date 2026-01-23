@@ -746,45 +746,85 @@ class ReportController extends Controller
 
     public function generateHistoryPdf($ingreso)
     {
-        $url = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php";
+        try {
+            $url = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php";
 
-        $resp = Http::withHeaders([
-            'X-Legacy-Token' => env('LEGACY_HC_TOKEN'),
-        ])->get($url, [
-            'ingreso' => $ingreso,
-        ]);
+            $resp = Http::withHeaders([
+                'X-Legacy-Token' => env('LEGACY_HC_TOKEN'),
+            ])->get($url, [
+                'ingreso' => (int)$ingreso,
+            ]);
 
-        if (!$resp->ok()) {
+            if (!$resp->ok()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo obtener HTML legacy',
+                    'detail'  => $resp->body(),
+                ], 500);
+            }
+
+            $payload = $resp->json();
+            if (empty($payload['success']) || empty($payload['html'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Legacy no devolvió HTML válido',
+                    'payload' => $payload,
+                ], 500);
+            }
+
+            $htmlLegacy = (string)$payload['html'];
+
+            // ---- LIMPIEZA (evita about:blank y cosas que wkhtmltopdf intenta cargar) ----
+            // Quita scripts (JS no sirve en PDF y suele causar about:blank)
+            $htmlLegacy = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $htmlLegacy);
+
+            // Quita iframes/frames por seguridad y porque suelen disparar about:blank
+            $htmlLegacy = preg_replace('#<iframe\b[^>]*>.*?</iframe>#is', '', $htmlLegacy);
+            $htmlLegacy = preg_replace('#<frame\b[^>]*>.*?</frame>#is', '', $htmlLegacy);
+
+            // Corrige href="" / href='about:blank' si existieran
+            $htmlLegacy = str_ireplace(['href="about:blank"', "href='about:blank'"], 'href="#"', $htmlLegacy);
+
+            // Base URL del legacy (para images/, css/, etc.)
+            $baseUrl = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/";
+
+            // ---- PDF con Snappy ----
+            $pdf = app('snappy.pdf.wrapper');
+
+            $pdf->loadView('reportes.hc_legacy', [
+                'html'    => $htmlLegacy,
+                'baseUrl' => $baseUrl,
+                'ingreso' => (int)$ingreso,
+            ]);
+
+            // Opciones clave
+            $pdf->setOption('encoding', 'utf-8');
+            $pdf->setOption('enable-local-file-access', true);
+
+            // Evita que falle por recursos que no carguen (css/js/imagenes)
+            $pdf->setOption('load-error-handling', 'ignore');
+            $pdf->setOption('load-media-error-handling', 'ignore');
+
+            // Recomendadas para estabilidad
+            $pdf->setOption('disable-smart-shrinking', true);
+            $pdf->setOption('no-stop-slow-scripts', true);
+
+            // Márgenes
+            $pdf->setOption('page-size', 'A4');
+            $pdf->setOption('margin-top', 10);
+            $pdf->setOption('margin-right', 10);
+            $pdf->setOption('margin-bottom', 10);
+            $pdf->setOption('margin-left', 10);
+
+            return $pdf->inline("historia_clinica_{$ingreso}.pdf");
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se pudo obtener HTML legacy',
-                'detail' => $resp->body()
+                'message' => 'Error generando PDF historia legacy',
+                'detail'  => $e->getMessage(),
             ], 500);
         }
-
-        $payload = $resp->json();
-        if (empty($payload['success']) || empty($payload['html'])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Legacy no devolvió HTML válido',
-                'payload' => $payload
-            ], 500);
-        }
-
-        $html = $payload['html'];
-
-        $dompdf = new \Dompdf\Dompdf();
-        $dompdf->set_option('isRemoteEnabled', true);
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-
-        return response($dompdf->output(), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => "inline; filename=historia_clinica_{$ingreso}.pdf",
-        ]);
     }
-
 
 
 
@@ -910,7 +950,7 @@ class ReportController extends Controller
         return response($html);
     }
 
-        public function pdfHistoriaLegacy(Request $request)
+    public function pdfHistoriaLegacy(Request $request)
     {
         $ingreso = (int) $request->query('ingreso');
 
