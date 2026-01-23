@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Http;
 // use Barryvdh\DomPDF\Facade\Pdf; 
 
 class ReportController extends Controller
@@ -26,18 +27,18 @@ class ReportController extends Controller
      */
     public function getMedicalHistory(Request $request)
     {
-        $user = $request->user(); 
-        $pacienteId = $user->paciente_id; 
+        $user = $request->user();
+        $pacienteId = $user->paciente_id;
         $tipoDoc = $user->tipo_documento;
-        
+
         // Agrupar por Ingreso para evitar duplicados de evoluciones
         // Se toma la fecha máxima y el profesional asociado a esa fecha (aproximación)
         $historial = DB::table('hc_evoluciones as a')
             ->join('ingresos as b', 'a.ingreso', '=', 'b.ingreso')
             ->join('profesionales_usuarios as c', 'a.usuario_id', '=', 'c.usuario_id')
-            ->join('profesionales as d', function($join) {
+            ->join('profesionales as d', function ($join) {
                 $join->on('c.tercero_id', '=', 'd.tercero_id')
-                     ->on('c.tipo_tercero_id', '=', 'd.tipo_id_tercero');
+                    ->on('c.tipo_tercero_id', '=', 'd.tipo_id_tercero');
             })
             ->leftJoin('cups', 'a.cargo_cita', '=', 'cups.cargo')
             ->leftJoin('tipos_consulta as tc', 'a.tipo_consulta_id', '=', 'tc.tipo_consulta_id')
@@ -52,25 +53,25 @@ class ReportController extends Controller
             ->where('b.paciente_id', $pacienteId)
             ->where('b.tipo_id_paciente', $tipoDoc)
             // Filtro: Solo mostrar ingresos que tengan Medicamentos, Solicitudes o Incapacidades
-            ->where(function($q) {
-                $q->whereExists(function($sub) {
+            ->where(function ($q) {
+                $q->whereExists(function ($sub) {
                     $sub->select(DB::raw(1))
                         ->from('hc_medicamentos_recetados_amb as med')
                         ->join('hc_evoluciones as evo_m', 'med.evolucion_id', '=', 'evo_m.evolucion_id')
                         ->whereColumn('evo_m.ingreso', 'b.ingreso');
                 })
-                ->orWhereExists(function($sub) {
-                    $sub->select(DB::raw(1))
-                        ->from('hc_os_solicitudes as sol')
-                        ->join('hc_evoluciones as evo_s', 'sol.evolucion_id', '=', 'evo_s.evolucion_id')
-                        ->whereColumn('evo_s.ingreso', 'b.ingreso');
-                })
-                ->orWhereExists(function($sub) {
-                    $sub->select(DB::raw(1))
-                        ->from('hc_incapacidades as inc')
-                        ->join('hc_evoluciones as evo_i', 'inc.evolucion_id', '=', 'evo_i.evolucion_id')
-                        ->whereColumn('evo_i.ingreso', 'b.ingreso');
-                });
+                    ->orWhereExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('hc_os_solicitudes as sol')
+                            ->join('hc_evoluciones as evo_s', 'sol.evolucion_id', '=', 'evo_s.evolucion_id')
+                            ->whereColumn('evo_s.ingreso', 'b.ingreso');
+                    })
+                    ->orWhereExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('hc_incapacidades as inc')
+                            ->join('hc_evoluciones as evo_i', 'inc.evolucion_id', '=', 'evo_i.evolucion_id')
+                            ->whereColumn('evo_i.ingreso', 'b.ingreso');
+                    });
             })
             ->groupBy('a.ingreso', 'b.estado')
             ->orderBy('fecha', 'desc')
@@ -98,15 +99,15 @@ class ReportController extends Controller
             ->select(
                 'e.evolucion_id',
                 'e.fecha',
-                'a.codigo_producto as codigo_medicamento', 
-                'i.descripcion as nombre_medicamento', 
+                'a.codigo_producto as codigo_medicamento',
+                'i.descripcion as nombre_medicamento',
                 'b.cod_principio_activo as principio_activo',
-                'a.dosis', 
-                'a.unidad_dosificacion', 
-                'a.cantidadperiocidad as frecuencia', 
+                'a.dosis',
+                'a.unidad_dosificacion',
+                'a.cantidadperiocidad as frecuencia',
                 'a.dias_tratamiento',
-                'a.dias_tratamiento as tiempo_tratamiento', 
-                'a.cantidad', 
+                'a.dias_tratamiento as tiempo_tratamiento',
+                'a.cantidad',
                 'a.observacion',
                 DB::raw("CONCAT(a.dosis, ' ', a.unidad_dosificacion, ' - ', a.cantidadperiocidad, ' (', a.dias_tratamiento, ' dias)') as posologia")
             )
@@ -119,12 +120,12 @@ class ReportController extends Controller
             ->where('e.ingreso', $ingreso)
             ->select(
                 'e.evolucion_id',
-                'a.fecha_solicitud as fecha_solicitud', 
-                'a.cargo as codigo', 
-                'b.descripcion as nombre_examen', 
+                'a.fecha_solicitud as fecha_solicitud',
+                'a.cargo as codigo',
+                'b.descripcion as nombre_examen',
                 'a.hc_os_solicitud_id',
                 'a.cantidad',
-                //'a.observaciones as observacion'
+                DB::raw("'' as observacion")
             )
             ->get();
 
@@ -160,18 +161,18 @@ class ReportController extends Controller
 
         // 5. Notas Medicas
         $notas = DB::table('notas_medicas as a')
-             ->leftJoin('system_usuarios as u', 'a.usuario_id', '=', 'u.usuario_id')
-             ->where('a.ingreso', $ingreso)
-             ->select(
-                 'a.ingreso', 
-                 'a.nota_medica as nota', 
-                 'a.fecha_registro as fecha_nota', 
-                 'a.usuario_id', 
-                 'a.evolucion_id',
-                 'u.nombre as nombre_usuario'
-             )
-             ->orderBy('a.fecha_registro', 'asc')
-             ->get();
+            ->leftJoin('system_usuarios as u', 'a.usuario_id', '=', 'u.usuario_id')
+            ->where('a.ingreso', $ingreso)
+            ->select(
+                'a.ingreso',
+                'a.nota_medica as nota',
+                'a.fecha_registro as fecha_nota',
+                'a.usuario_id',
+                'a.evolucion_id',
+                'u.nombre as nombre_usuario'
+            )
+            ->orderBy('a.fecha_registro', 'asc')
+            ->get();
 
         return response()->json([
             'success' => true,
@@ -189,32 +190,32 @@ class ReportController extends Controller
      * Envía un correo con el reporte detallado del historial médico.
      * @param int $ingreso
      */
-    public function sendHistoryEmail(Request $request, $ingreso) 
+    public function sendHistoryEmail(Request $request, $ingreso)
     {
         $type = $request->input('type', 'all'); // 'all', 'formula', 'ordenes'
         $evolucionIdFilter = $request->input('evolucion_id', null);
 
         // 1. Obtener datos del ingreso 
         $detailResponse = $this->getHistoryDetail($ingreso);
-        $data = $detailResponse->getData()->data; 
+        $data = $detailResponse->getData()->data;
 
         // Filtrar datos si se especifica una evolución
         if ($evolucionIdFilter) {
-            $data->medicamentos = array_values(array_filter($data->medicamentos, function($m) use ($evolucionIdFilter) {
+            $data->medicamentos = array_values(array_filter($data->medicamentos, function ($m) use ($evolucionIdFilter) {
                 return $m->evolucion_id == $evolucionIdFilter;
             }));
-            $data->solicitudes = array_values(array_filter($data->solicitudes, function($s) use ($evolucionIdFilter) {
+            $data->solicitudes = array_values(array_filter($data->solicitudes, function ($s) use ($evolucionIdFilter) {
                 return $s->evolucion_id == $evolucionIdFilter;
             }));
-            $data->incapacidades = array_values(array_filter($data->incapacidades, function($i) use ($evolucionIdFilter) {
+            $data->incapacidades = array_values(array_filter($data->incapacidades, function ($i) use ($evolucionIdFilter) {
                 return $i->evolucion_id == $evolucionIdFilter;
             }));
             // Opcional: filtrar diagnosticos si estan ligados a evolución (en hc_diagnosticos_ingreso sí lo estan)
-            $data->diagnosticos = array_values(array_filter($data->diagnosticos, function($d) use ($evolucionIdFilter) {
-                return $d->evolucion_id == $evolucionIdFilter; 
+            $data->diagnosticos = array_values(array_filter($data->diagnosticos, function ($d) use ($evolucionIdFilter) {
+                return $d->evolucion_id == $evolucionIdFilter;
             }));
-            $data->notas = array_values(array_filter($data->notas, function($n) use ($evolucionIdFilter) {
-                return $n->evolucion_id == $evolucionIdFilter; 
+            $data->notas = array_values(array_filter($data->notas, function ($n) use ($evolucionIdFilter) {
+                return $n->evolucion_id == $evolucionIdFilter;
             }));
         }
 
@@ -229,7 +230,7 @@ class ReportController extends Controller
             if (!$unaEvolucion) return response()->json(['success' => false, 'message' => 'No se encontraron registros para este ingreso.'], 404);
             $header = $this->getHeaderData($unaEvolucion->evolucion_id);
         }
-        
+
         // Agregar info extra de la evolución al header, si existe
         if ($header && $unaEvolucion) {
             $header->motivo_consulta = $unaEvolucion->motivo_consulta ?? '';
@@ -239,7 +240,7 @@ class ReportController extends Controller
         }
 
         if (!$header) {
-             return response()->json(['success' => false, 'message' => 'Error obteniendo datos del paciente.'], 500);
+            return response()->json(['success' => false, 'message' => 'Error obteniendo datos del paciente.'], 500);
         }
 
         // --- Obtener datos de Empresa y Logo (Faltaban en la versión anterior) ---
@@ -264,7 +265,7 @@ class ReportController extends Controller
             ->first();
 
         if (!$paciente || empty($paciente->email)) {
-             return response()->json(['success' => false, 'message' => 'El paciente no tiene un correo electrónico registrado.'], 400);
+            return response()->json(['success' => false, 'message' => 'El paciente no tiene un correo electrónico registrado.'], 400);
         }
 
         try {
@@ -276,7 +277,7 @@ class ReportController extends Controller
             if ($type === 'all') {
                 $dompdf = new \Dompdf\Dompdf();
                 $dompdf->set_option('isRemoteEnabled', true);
-                
+
                 $html = view('reporte_completo', [
                     'paciente' => $header,
                     'medicamentos' => $data->medicamentos,
@@ -320,18 +321,20 @@ class ReportController extends Controller
             if (($type === 'all' || $type === 'ordenes') && !empty($data->solicitudes) && count($data->solicitudes) > 0) {
                 $dompdfO = new \Dompdf\Dompdf();
                 $dompdfO->set_option('isRemoteEnabled', true);
-                
+
                 // Calcular numero_orden min
                 $numero_orden = '';
-                if(count($data->solicitudes) > 0) {
-                     $ids = array_map(function($s) { return $s->hc_os_solicitud_id; }, $data->solicitudes);
-                     $numero_orden = min($ids);
+                if (count($data->solicitudes) > 0) {
+                    $ids = array_map(function ($s) {
+                        return $s->hc_os_solicitud_id;
+                    }, $data->solicitudes);
+                    $numero_orden = min($ids);
                 }
 
                 $dompdfO->loadHtml(view('orden', [
-                    'paciente' => $header, 
-                    'solicitudes' => $data->solicitudes, 
-                    'fecha' => $header->fecha, 
+                    'paciente' => $header,
+                    'solicitudes' => $data->solicitudes,
+                    'fecha' => $header->fecha,
                     'profesional' => $header->profesional,
                     'especialidad' => $header->especialidad,
                     'empresa' => $empresa ?? null,
@@ -351,10 +354,10 @@ class ReportController extends Controller
                 'fecha' => $header->fecha,
                 'ingreso' => $ingreso,
                 'profesional' => $header->profesional
-            ], function($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden, $type) {
+            ], function ($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden, $type) {
                 $message->to($paciente->email)
-                        ->subject('Reporte Historia Clínica - Ingreso #' . $ingreso);
-                
+                    ->subject('Reporte Historia Clínica - Ingreso #' . $ingreso);
+
                 // Adjunto 1: Reporte Completo (Solo si existe)
                 if ($pdfContentCompleto) {
                     $message->attachData($pdfContentCompleto, "Historia_Clinica_Completa_{$ingreso}.pdf", ['mime' => 'application/pdf']);
@@ -372,59 +375,60 @@ class ReportController extends Controller
             });
 
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Reporte enviado correctamente a ' . $this->maskEmail($paciente->email)
             ]);
-
         } catch (\Exception $e) {
             Log::error("Error enviando reporte email: " . $e->getMessage());
             return response()->json([
-                'success' => false, 
-                'message' => 'Error al enviar el correo.', 
+                'success' => false,
+                'message' => 'Error al enviar el correo.',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
-    private function maskEmail($email) {
+    private function maskEmail($email)
+    {
         $parts = explode('@', $email);
-        if(count($parts) < 2) return $email;
+        if (count($parts) < 2) return $email;
         $name = $parts[0];
         $len = strlen($name);
         $visibleLen = floor($len / 2);
         $maskedName = substr($name, 0, $visibleLen) . str_repeat('*', ($len - $visibleLen));
         return $maskedName . '@' . $parts[1];
     }
-    
+
     // Helper privado
-    private function getHeaderData($evolucion_id) {
-        return DB::table('hc_evoluciones as a')
+    private function getHeaderData($evolucion_id)
+    {
+        $header = DB::table('hc_evoluciones as a')
             ->join('ingresos as b', 'a.ingreso', '=', 'b.ingreso')
             ->leftJoin('cuentas as cu', 'b.ingreso', '=', 'cu.ingreso') // Join a cuentas
-            ->join('pacientes as p', function($join) {
+            ->join('pacientes as p', function ($join) {
                 $join->on('b.paciente_id', '=', 'p.paciente_id')
-                     ->on('b.tipo_id_paciente', '=', 'p.tipo_id_paciente');
+                    ->on('b.tipo_id_paciente', '=', 'p.tipo_id_paciente');
             })
             // Joins para datos de Plan y Cliente
             ->leftJoin('planes as pl', 'cu.plan_id', '=', 'pl.plan_id') // Usar cu.plan_id en vez de b.plan_id
             ->leftJoin('terceros as cli', 'pl.tercero_id', '=', 'cli.tercero_id')
-            
+
             ->join('profesionales_usuarios as c', 'a.usuario_id', '=', 'c.usuario_id')
-            ->join('profesionales as d', function($join) {
+            ->join('profesionales as d', function ($join) {
                 $join->on('c.tercero_id', '=', 'd.tercero_id')
-                     ->on('c.tipo_tercero_id', '=', 'd.tipo_id_tercero');
+                    ->on('c.tipo_tercero_id', '=', 'd.tipo_id_tercero');
             })
-            ->leftJoin('profesionales_especialidades as pe', function($join) {
+            ->leftJoin('profesionales_especialidades as pe', function ($join) {
                 $join->on('d.tercero_id', '=', 'pe.tercero_id')
-                     ->on('d.tipo_id_tercero', '=', 'pe.tipo_id_tercero');
+                    ->on('d.tipo_id_tercero', '=', 'pe.tipo_id_tercero');
             })
-            ->leftJoin('especialidades as esp', 'pe.especialidad', '=', 'esp.especialidad') 
+            ->leftJoin('especialidades as esp', 'pe.especialidad', '=', 'esp.especialidad')
             ->where('a.evolucion_id', $evolucion_id)
             ->select(
-                'p.paciente_id', 
-                'p.tipo_id_paciente', 
-                DB::raw("CONCAT(COALESCE(p.primer_nombre,''), ' ', COALESCE(p.segundo_nombre,''), ' ', COALESCE(p.primer_apellido,''), ' ', COALESCE(p.segundo_apellido,'')) as nombre_paciente"), 
+                'p.paciente_id',
+                'p.tipo_id_paciente',
                 DB::raw("CONCAT(p.tipo_id_paciente, ' ', p.paciente_id) as identificacion"),
+                DB::raw("CONCAT(COALESCE(p.primer_nombre,''), ' ', COALESCE(p.segundo_nombre,''), ' ', COALESCE(p.primer_apellido,''), ' ', COALESCE(p.segundo_apellido,'')) as nombre_paciente"),
                 'p.fecha_nacimiento',
                 'p.sexo_id as sexo',
                 'p.residencia_direccion as direccion',
@@ -436,7 +440,7 @@ class ReportController extends Controller
                 'd.tercero_id as prof_id',
                 'd.tipo_id_tercero as prof_tipo_id',
                 'd.tarjeta_profesional',
-                'd.tarjeta_profesional as registro_medico', 
+                'd.tarjeta_profesional as registro_medico',
                 'esp.descripcion as especialidad',
                 'pl.plan_descripcion',
                 'cli.nombre_tercero as nombre_aseguradora',
@@ -444,6 +448,14 @@ class ReportController extends Controller
                 'cu.rango' // Asumiendo que existe en ingresos
             )
             ->first();
+
+        if ($header && !empty($header->fecha_nacimiento)) {
+            $header->edad = \Carbon\Carbon::parse($header->fecha_nacimiento)->age . ' Años';
+        } else if ($header) {
+            $header->edad = '';
+        }
+
+        return $header;
     }
 
     public function generateFormulaPdf($evolucion_id)
@@ -490,21 +502,21 @@ class ReportController extends Controller
 
         // Corrección: Usar hc_medicamentos_recetados_amb
         $medicamentos = DB::table('hc_medicamentos_recetados_amb as a')
-            ->join('inventarios_productos as i', 'a.codigo_producto', '=', 'i.codigo_producto') 
+            ->join('inventarios_productos as i', 'a.codigo_producto', '=', 'i.codigo_producto')
             ->leftJoin('medicamentos as b', 'a.codigo_producto', '=', 'b.codigo_medicamento')
             ->where('a.evolucion_id', $evolucion_id)
             ->select(
-                'a.codigo_producto as codigo_medicamento', 
-                'i.descripcion as producto', 
+                'a.codigo_producto as codigo_medicamento',
+                'i.descripcion as producto',
                 'b.cod_principio_activo as principio_activo',
                 // 'b.descripcion_comercial', // A veces el nombre comercial ayuda
                 'i.descripcion_abreviada',
-                'a.dosis', 
-                'a.unidad_dosificacion', 
-                'a.cantidadperiocidad as frecuencia', 
+                'a.dosis',
+                'a.unidad_dosificacion',
+                'a.cantidadperiocidad as frecuencia',
                 'a.dias_tratamiento',
-                'a.dias_tratamiento as tiempo_tratamiento', 
-                'a.cantidad', 
+                'a.dias_tratamiento as tiempo_tratamiento',
+                'a.cantidad',
                 'a.observacion',
                 'a.via_administracion_id'
             )
@@ -512,7 +524,7 @@ class ReportController extends Controller
 
         // Renderizado HTML
         $html = view('formula', [
-            'header' => $header, 
+            'header' => $header,
             'empresa' => $empresa,
             'logoBase64' => $logoBase64,
             'edad' => $edad,
@@ -527,7 +539,7 @@ class ReportController extends Controller
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
 
-        return $dompdf->stream('formula_'.$evolucion_id.'.pdf');
+        return $dompdf->stream('formula_' . $evolucion_id . '.pdf');
     }
 
     public function generateOrderPdf($evolucion_id)
@@ -566,9 +578,9 @@ class ReportController extends Controller
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
             ->where('a.evolucion_id', $evolucion_id)
             ->select(
-                'a.fecha_solicitud as fecha_solicitud', 
-                'a.cargo', 
-                'b.descripcion', 
+                'a.fecha_solicitud as fecha_solicitud',
+                'a.cargo',
+                'b.descripcion',
                 'a.hc_os_solicitud_id',
                 'a.cantidad'
             )
@@ -589,9 +601,9 @@ class ReportController extends Controller
         $diagnostico_principal = $diagnosticos->first() ? $diagnosticos->first()->diagnostico_id . ' - ' . $diagnosticos->first()->diagnostico_nombre : '';
 
         $html = view('orden', [
-            'paciente' => $header, 
-            'solicitudes' => $solicitudes, 
-            'fecha' => $header->fecha, 
+            'paciente' => $header,
+            'solicitudes' => $solicitudes,
+            'fecha' => $header->fecha,
             'profesional' => $header->profesional,
             'especialidad' => $header->especialidad,
             'empresa' => $empresa,
@@ -609,7 +621,7 @@ class ReportController extends Controller
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
 
-        return $dompdf->stream('ordenes_'.$evolucion_id.'.pdf');
+        return $dompdf->stream('ordenes_' . $evolucion_id . '.pdf');
     }
 
     public function generateIncapacidadPdf($evolucion_id)
@@ -630,9 +642,9 @@ class ReportController extends Controller
             ->get();
 
         $html = view('incapacidad', [
-            'paciente' => $header, 
-            'incapacidades' => $incapacidades, 
-            'fecha' => $header->fecha, 
+            'paciente' => $header,
+            'incapacidades' => $incapacidades,
+            'fecha' => $header->fecha,
             'profesional' => $header->profesional
         ])->render();
 
@@ -642,93 +654,116 @@ class ReportController extends Controller
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
 
-        return $dompdf->stream('incapacidad_'.$evolucion_id.'.pdf');
+        return $dompdf->stream('incapacidad_' . $evolucion_id . '.pdf');
     }
+
+    // public function generateHistoryPdf($ingreso)
+    // {
+    //     // 1. Obtener datos del ingreso 
+    //     $detailResponse = $this->getHistoryDetail($ingreso);
+    //     $data = $detailResponse->getData()->data;
+
+    //     // 2. Cabecera (tomamos la última evolución para datos generales o la primera, depende de la lógica. Usaremos la última para fecha reciente)
+    //     $unaEvolucion = DB::table('hc_evoluciones')->where('ingreso', $ingreso)->orderBy('fecha', 'desc')->first();
+    //     if (!$unaEvolucion) return response()->json(['error' => 'No se encontraron registros para este ingreso'], 404);
+
+    //     $header = $this->getHeaderData($unaEvolucion->evolucion_id);
+
+    //     // Agregar info extra de la evolución al header, si existe
+    //     if ($header && $unaEvolucion) {
+    //         $header->motivo_consulta = $unaEvolucion->motivo_consulta ?? '';
+    //         $header->enfermedad_actual = $unaEvolucion->enfermedad_actual ?? '';
+    //         $header->revis_sistemas = $unaEvolucion->revis_sistemas ?? '';
+    //         $header->examen_fisico = $unaEvolucion->examen_fisico ?? '';
+    //         $header->analisis = $unaEvolucion->analisis ?? '';
+    //         $header->plan = $unaEvolucion->plan ?? ($unaEvolucion->conducta ?? '');
+
+    //         // -- NUEVO: Intentar obtener Motivo y Enfermedad desde el submódulo hc_motivo_consulta si la tabla evoluciones no lo tiene --
+    //         $motivoData = DB::table('hc_motivo_consulta')->where('evolucion_id', $unaEvolucion->evolucion_id)->first();
+    //         if ($motivoData) {
+    //             // Si encontramos datos en el submódulo, prevalecen o complementan
+    //             if (!empty($motivoData->descripcion)) {
+    //                 $header->motivo_consulta = $motivoData->descripcion;
+    //             }
+    //             if (!empty($motivoData->enfermedadactual)) {
+    //                 $header->enfermedad_actual = $motivoData->enfermedadactual;
+    //             }
+    //         }
+    //     }
+
+    //     // 3. Empresa
+    //     $empresa = DB::table('empresas as e')
+    //         ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+    //         ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
+    //         ->select('e.razon_social', 'e.id as nit', 'e.digito_verificacion', 'e.direccion', 'e.telefonos', 'e.website', 'e.email', 'm.municipio', 'd.departamento')
+    //         ->where('e.sw_activa', '1')
+    //         ->first();
+
+    //     // 4. Logo
+    //     $logoBase64 = null;
+    //     $pathLogo = public_path('assets/images/simde_logo.png');
+    //     if (file_exists($pathLogo)) {
+    //         $typeImg = pathinfo($pathLogo, PATHINFO_EXTENSION);
+    //         $imgData = file_get_contents($pathLogo);
+    //         $logoBase64 = 'data:image/' . $typeImg . ';base64,' . base64_encode($imgData);
+    //     }
+
+    //     // 5. Obtener datos de todos los submodulos asociados a la evolución
+    //     $submodulosData = $this->getSubmodulesContent($unaEvolucion->evolucion_id);
+
+    //     $html = view('reporte_completo', [
+    //         'paciente' => $header,
+    //         'medicamentos' => $data->medicamentos,
+    //         'solicitudes' => $data->solicitudes,
+    //         'incapacidades' => $data->incapacidades,
+    //         'diagnosticos' => $data->diagnosticos ?? [],
+    //         'notas' => $data->notas ?? [],
+    //         'submodulos' => $submodulosData,
+    //         'fecha' => $header->fecha,
+    //         'profesional' => $header->profesional,
+    //         'especialidad' => $header->especialidad,
+    //         'ingreso' => $ingreso,
+    //         'empresa' => $empresa,
+    //         'logoBase64' => $logoBase64
+    //     ])->render();
+
+    //     $dompdf = new \Dompdf\Dompdf();
+    //     $dompdf->set_option('isRemoteEnabled', true);
+    //     $dompdf->loadHtml($html);
+    //     $dompdf->setPaper('A4', 'portrait');
+    //     $dompdf->render();
+
+    //     return $dompdf->stream('historia_clinica_' . $ingreso . '.pdf');
+    // }
 
     public function generateHistoryPdf($ingreso)
     {
-        // 1. Obtener datos del ingreso 
-        $detailResponse = $this->getHistoryDetail($ingreso);
-        $data = $detailResponse->getData()->data; 
+        $url = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php";
 
-        // 2. Cabecera (tomamos la última evolución para datos generales o la primera, depende de la lógica. Usaremos la última para fecha reciente)
-        $unaEvolucion = DB::table('hc_evoluciones')->where('ingreso', $ingreso)->orderBy('fecha', 'desc')->first();
-        if (!$unaEvolucion) return response()->json(['error' => 'No se encontraron registros para este ingreso'], 404);
-        
-        $header = $this->getHeaderData($unaEvolucion->evolucion_id);
-
-        if ($header) {
-            // Calcular Edad
-            $header->edad = $header->fecha_nacimiento ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age . ' Años' : '';
-            
-            // Campos opcionales para evitar undefined property
-            $header->motivo_consulta = '';
-            $header->enfermedad_actual = '';
-            $header->revis_sistemas = '';
-            $header->examen_fisico = '';
-            $header->analisis = '';
-            $header->plan = '';
-            $header->antecedentes_personales = '';
-            $header->antecedentes_familiares = '';
-        }
-        
-        // Agregar info extra de la evolución al header, si existe
-        if ($header && $unaEvolucion) {
-            $header->motivo_consulta = $unaEvolucion->motivo_consulta ?? '';
-            $header->enfermedad_actual = $unaEvolucion->enfermedad_actual ?? '';
-            $header->revis_sistemas = $unaEvolucion->revis_sistemas ?? '';
-            $header->examen_fisico = $unaEvolucion->examen_fisico ?? '';
-            $header->analisis = $unaEvolucion->analisis ?? '';
-            $header->plan = $unaEvolucion->plan ?? ($unaEvolucion->conducta ?? ''); 
-
-            // -- NUEVO: Intentar obtener Motivo y Enfermedad desde el submódulo hc_motivo_consulta si la tabla evoluciones no lo tiene --
-            $motivoData = DB::table('hc_motivo_consulta')->where('evolucion_id', $unaEvolucion->evolucion_id)->first();
-            if ($motivoData) {
-                // Si encontramos datos en el submódulo, prevalecen o complementan
-                if (!empty($motivoData->descripcion)) {
-                    $header->motivo_consulta = $motivoData->descripcion;
-                }
-                if (!empty($motivoData->enfermedadactual)) {
-                    $header->enfermedad_actual = $motivoData->enfermedadactual;
-                }
-            }
-        }
-
-        // 3. Empresa
-        $empresa = DB::table('empresas as e')
-            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
-            ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
-            ->select('e.razon_social', 'e.id as nit', 'e.digito_verificacion', 'e.direccion', 'e.telefonos', 'e.website', 'e.email', 'm.municipio', 'd.departamento')
-            ->where('e.sw_activa', '1')
-            ->first();
-
-        // 4. Logo
-        $logoBase64 = null;
-        $pathLogo = public_path('assets/images/simde_logo.png');
-        if (file_exists($pathLogo)) {
-            $typeImg = pathinfo($pathLogo, PATHINFO_EXTENSION);
-            $imgData = file_get_contents($pathLogo);
-            $logoBase64 = 'data:image/' . $typeImg . ';base64,' . base64_encode($imgData);
-        }
-
-        // 5. Obtener datos de todos los submodulos asociados a la evolución
-        $submodulosData = $this->getSubmodulesContent($unaEvolucion->evolucion_id);
-
-        $html = view('reporte_completo', [
-            'paciente' => $header,
-            'medicamentos' => $data->medicamentos,
-            'solicitudes' => $data->solicitudes,
-            'incapacidades' => $data->incapacidades,
-            'diagnosticos' => $data->diagnosticos ?? [],
-            'notas' => $data->notas ?? [],
-            'submodulos' => $submodulosData,
-            'fecha' => $header->fecha,
-            'profesional' => $header->profesional,
-            'especialidad' => $header->especialidad,
+        $resp = Http::withHeaders([
+            'X-Legacy-Token' => env('LEGACY_HC_TOKEN'),
+        ])->get($url, [
             'ingreso' => $ingreso,
-            'empresa' => $empresa,
-            'logoBase64' => $logoBase64
-        ])->render();
+        ]);
+
+        if (!$resp->ok()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo obtener HTML legacy',
+                'detail' => $resp->body()
+            ], 500);
+        }
+
+        $payload = $resp->json();
+        if (empty($payload['success']) || empty($payload['html'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Legacy no devolvió HTML válido',
+                'payload' => $payload
+            ], 500);
+        }
+
+        $html = $payload['html'];
 
         $dompdf = new \Dompdf\Dompdf();
         $dompdf->set_option('isRemoteEnabled', true);
@@ -736,8 +771,14 @@ class ReportController extends Controller
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
 
-        return $dompdf->stream('historia_clinica_'.$ingreso.'.pdf');
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "inline; filename=historia_clinica_{$ingreso}.pdf",
+        ]);
     }
+
+
+
 
     /**
      * Recupera el contenido dinámico de los submódulos asociados a una evolución.
@@ -747,12 +788,26 @@ class ReportController extends Controller
     {
         $data = [];
 
-        // 1. Obtener lista de submodulos para esta evolución desde hc_evoluciones_submodulos
-        $submodulosList = DB::table('hc_evoluciones_submodulos')
-            ->where('evolucion_id', $evolucion_id)
-            ->distinct() 
-            ->get(['submodulo']);
-            
+        // 1. Obtener el hc_modulo de la evolución
+        $evoluta = DB::table('hc_evoluciones')->where('evolucion_id', $evolucion_id)->first();
+        $hc_modulo = $evoluta ? $evoluta->hc_modulo : '';
+
+        // 2. Replicar la Query del Legacy (Union entre existentes y persistentes)
+        // Parte A: Submódulos guardados en esta evolución
+        $queryEvoluciones = DB::table('hc_evoluciones_submodulos as A')
+            ->select('A.submodulo')
+            ->where('A.evolucion_id', $evolucion_id);
+
+        // Parte B: Submódulos del sistema persistentes (sw_print_persist = '1')
+        $querySystem = DB::table('system_hc_submodulos as A')
+            ->join('historias_clinicas_templates as T', 'A.submodulo', '=', 'T.submodulo')
+            ->select('A.submodulo')
+            ->where('A.sw_print_persist', '1')
+            ->where('T.hc_modulo', $hc_modulo);
+
+        // Usamos union para combinar y traer únicos, el distinct ayuda a prevenir duplicados si existen en ambos lados
+        $submodulosList = $queryEvoluciones->union($querySystem)->get();
+
         // Mapa de correcciones manuales para nombres de tabla que no siguen la convención estándar
         $manualMap = [
             'MotivoConsulta' => 'hc_motivo_consulta',
@@ -774,7 +829,7 @@ class ReportController extends Controller
 
         foreach ($submodulosList as $reg) {
             $nombreSubmodulo = $reg->submodulo;
-            
+
             if (in_array($nombreSubmodulo, $ignoredModules)) {
                 continue;
             }
@@ -809,7 +864,7 @@ class ReportController extends Controller
                     }
                     continue; // Skip standard logic
                 }
-                
+
                 // CASO ESPECIAL: Plan Terapeutico (Si requiere joins, añadir aqui. Por ahora consulta simple)
                 // ...
 
@@ -819,23 +874,31 @@ class ReportController extends Controller
                         $data[$nombreSubmodulo] = $registros;
                     }
                 } elseif ($tableName) {
-                     // Fallback check: a veces schema cache falla o case logic. 
-                     // Podemos intentar query directo con catch, pero Schema::hasTable es lo correcto en Laravel.
-                     // Intentamos variante sin guiones bajos extra
-                     $cleanName = 'hc_' . strtolower(str_replace('_', '', $nombreSubmodulo));
-                     if (Schema::hasTable($cleanName)) {
+                    // Fallback check: a veces schema cache falla o case logic. 
+                    // Podemos intentar query directo con catch, pero Schema::hasTable es lo correcto en Laravel.
+                    // Intentamos variante sin guiones bajos extra
+                    $cleanName = 'hc_' . strtolower(str_replace('_', '', $nombreSubmodulo));
+                    if (Schema::hasTable($cleanName)) {
                         $registros = DB::table($cleanName)->where('evolucion_id', $evolucion_id)->get();
                         if ($registros->count() > 0) {
                             $data[$nombreSubmodulo] = $registros;
                         }
-                     }
+                    }
                 }
             } catch (\Exception $e) {
                 // Log::error("Error buscando modulo $nombreSubmodulo: " . $e->getMessage());
                 // Silenciosamente continuar
             }
         }
-        
+
         return $data;
+    }
+
+    public function testLegacy($ingreso)
+    {
+        $svc = new \App\Services\LegacyHCReportService();
+        $html = $svc->generarHistoriaCompleta($ingreso);
+
+        return response($html);
     }
 }

@@ -268,7 +268,7 @@
                 <td width="15%">{{ $sol->codigo }}</td>
                 <td width="40%">{{ $sol->nombre_examen }}</td>
                 <td width="10%">{{ $sol->cantidad }}</td>
-                <td width="35%">{{ $sol->observacion ?? '' }}</td>
+                <td width="35%">{{ $sol->observacion }}</td>
             </tr>
             @endforeach
         </tbody>
