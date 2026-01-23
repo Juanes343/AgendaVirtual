@@ -100,7 +100,9 @@ class ReportController extends Controller
                 'e.evolucion_id',
                 'e.fecha',
                 'a.codigo_producto as codigo_medicamento',
-                'i.descripcion as nombre_medicamento',
+                'a.codigo_producto as codigo', // Alias adicional para compatibilidad vistas
+                'i.descripcion as producto',
+                'i.descripcion as nombre_medicamento', // Alias adicional para compatibilidad vistas
                 'b.cod_principio_activo as principio_activo',
                 'a.dosis',
                 'a.unidad_dosificacion',
@@ -121,8 +123,10 @@ class ReportController extends Controller
             ->select(
                 'e.evolucion_id',
                 'a.fecha_solicitud as fecha_solicitud',
-                'a.cargo as codigo',
-                'b.descripcion as nombre_examen',
+                'a.cargo as cargo',
+                'a.cargo as codigo', // Alias adicional para compatibilidad vistas
+                'b.descripcion as descripcion',
+                'b.descripcion as nombre_examen', // Alias adicional para compatibilidad vistas
                 'a.hc_os_solicitud_id',
                 'a.cantidad',
                 DB::raw("'' as observacion")
@@ -152,7 +156,9 @@ class ReportController extends Controller
             ->select(
                 'e.evolucion_id',
                 'a.tipo_diagnostico_id as codigo',
+                'a.tipo_diagnostico_id as diagnostico_id', // Alias adicional para PDF formula
                 'd.diagnostico_nombre as nombre',
+                'd.diagnostico_nombre as diagnostico_nombre', // Alias adicional para PDF formula
                 'a.sw_principal as tipo_diagnostico',
                 'e.fecha' // Para ordenar
             )
@@ -428,9 +434,11 @@ class ReportController extends Controller
                 'p.paciente_id',
                 'p.tipo_id_paciente',
                 DB::raw("CONCAT(p.tipo_id_paciente, ' ', p.paciente_id) as identificacion"),
-                DB::raw("CONCAT(COALESCE(p.primer_nombre,''), ' ', COALESCE(p.segundo_nombre,''), ' ', COALESCE(p.primer_apellido,''), ' ', COALESCE(p.segundo_apellido,'')) as nombre_paciente"),
+                DB::raw("CONCAT(COALESCE(p.primer_nombre,''), ' ', COALESCE(p.segundo_nombre,''), ' ', COALESCE(p.primer_apellido,''), ' ', COALESCE(p.segundo_apellido,'')) as nombre_completo"),
+                DB::raw("CONCAT(COALESCE(p.primer_nombre,''), ' ', COALESCE(p.segundo_nombre,''), ' ', COALESCE(p.primer_apellido,''), ' ', COALESCE(p.segundo_apellido,'')) as nombre_paciente"), // Alias adicional para compatibilidad vistas
                 'p.fecha_nacimiento',
-                'p.sexo_id as sexo',
+                'p.sexo_id',
+                'p.sexo_id as sexo', // Alias adicional para compatibilidad vistas reportes
                 'p.residencia_direccion as direccion',
                 'p.residencia_telefono as telefono',
                 'a.fecha as fecha',
@@ -900,5 +908,36 @@ class ReportController extends Controller
         $html = $svc->generarHistoriaCompleta($ingreso);
 
         return response($html);
+    }
+
+        public function pdfHistoriaLegacy(Request $request)
+    {
+        $ingreso = (int) $request->query('ingreso');
+
+        // 1) Llamar al WS legacy
+        $resp = Http::get(
+            'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php',
+            ['ingreso' => $ingreso]
+        )->json();
+
+        if (empty($resp['success'])) {
+            abort(500, $resp['detail'] ?? 'Error generando');
+        }
+
+        $htmlLegacy = $resp['html'];
+
+        // 2) Render Blade + PDF
+        $baseUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/';
+
+        $pdf = app('snappy.pdf.wrapper');
+        $pdf->loadView('reportes.hc_legacy', [
+            'html' => $htmlLegacy,
+            'baseUrl' => $baseUrl,
+        ]);
+
+        $pdf->setOption('enable-local-file-access', true);
+        $pdf->setOption('encoding', 'utf-8');
+
+        return $pdf->download("HC_{$ingreso}.pdf");
     }
 }
