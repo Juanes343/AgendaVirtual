@@ -322,7 +322,8 @@ class ReportController extends Controller
                 $dompdf = new \Dompdf\Dompdf();
                 $dompdf->set_option('isRemoteEnabled', true);
 
-                $html = view('reporte_completo', [
+                $html = view('reportes.hc_legacy', [ // CAMBIADO de 'reporte_completo' a 'reportes.hc_legacy'
+                    'header' => $header, 
                     'paciente' => $header,
                     'medicamentos' => $data->medicamentos,
                     'solicitudes' => $data->solicitudes,
@@ -334,7 +335,8 @@ class ReportController extends Controller
                     'especialidad' => $header->especialidad,
                     'ingreso' => $ingreso,
                     'empresa' => $empresa, // Pasar empresa por si la vista lo requiere
-                    'logoBase64' => $logoBase64
+                    'logoBase64' => $logoBase64,
+                    'baseUrl' => config('app.url') // Agregamos baseUrl para la vista legacy
                 ])->render();
 
                 $dompdf->loadHtml($html);
