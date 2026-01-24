@@ -321,9 +321,8 @@ function HistoryDetail({ ingresoId, onBack }) {
 
   // Helper para agrupar medicamentos por 'evolucion_id' (aunque suelen venir juntos, por si acaso hay multiples evoluciones en un ingreso)
   const renderMedicamentos = () => {
-    if (details.medicamentos.length === 0) return null;
+    if (!details.medicamentos || details.medicamentos.length === 0) return null;
 
-    // Agrupar por ID de evolución para botón de imprimir único por bloque
     const grouped = details.medicamentos.reduce((acc, curr) => {
       (acc[curr.evolucion_id] = acc[curr.evolucion_id] || []).push(curr);
       return acc;
@@ -332,58 +331,67 @@ function HistoryDetail({ ingresoId, onBack }) {
     return Object.entries(grouped).map(([evolucionId, meds]) => (
       <div
         key={`med-${evolucionId}`}
-        className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-6"
+        className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-5"
       >
-        <div className="bg-blue-900/20 px-4 py-3 border-b border-blue-900/30 flex justify-between items-center">
-          <h4 className="font-bold text-blue-300 flex items-center gap-2 uppercase text-lg">
-            <Pill size={20} /> Medicamentos Formulados
+        {/* Header */}
+        <div className="bg-blue-900/20 px-4 py-2 border-b border-blue-900/30 flex justify-between items-center">
+          <h4 className="font-bold text-blue-300 flex items-center gap-2 uppercase text-base">
+            <Pill size={18} /> Medicamentos Formulados
           </h4>
-          <span className="text-base text-blue-400 font-semibold">
+          <span className="text-sm text-blue-400 font-semibold">
             Ref: {evolucionId}
           </span>
         </div>
+
+        {/* Items */}
         <div className="divide-y divide-blue-900/30">
           {meds.map((med, i) => (
-            <div key={i} className="p-5 hover:bg-white/5 transition-colors">
-              <div className="flex justify-between items-start gap-4">
-                <div className="w-full">
-                  <p className="font-bold text-blue-100 text-xl">
-                    {med.producto}
-                  </p>
-                  <p className="text-base text-gray-300 mt-1 mb-3 italic">
-                    {med.principio_activo}
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-base text-gray-200">
-                    <span className="bg-blue-500/10 px-3 py-1.5 rounded border border-blue-500/20">
-                      Dosis:{" "}
-                      <span className="font-bold text-white">
-                        {med.dosis} {med.unidad_dosificacion}
-                      </span>
+            <div key={i} className="p-3 hover:bg-white/5 transition-colors">
+              {/* ✅ UNA SOLA LÍNEA: Producto + Principio Activo */}
+              <div className="flex items-center gap-2 w-full">
+                <span className="text-sm font-bold text-blue-100 flex-1 min-w-0 truncate">
+                  {med.producto}
+                  {med.principio_activo ? (
+                    <span className="font-normal text-gray-300 italic">
+                      {" "}
+                      — {med.principio_activo}
                     </span>
-                    <span className="bg-blue-500/10 px-3 py-1.5 rounded border border-blue-500/20">
-                      Frec:{" "}
-                      <span className="font-bold text-white">
-                        {med.frecuencia}
-                      </span>
-                    </span>
-                    <span className="bg-blue-500/10 px-3 py-1.5 rounded border border-blue-500/20">
-                      Cant:{" "}
-                      <span className="font-bold text-white">
-                        {med.cantidad}
-                      </span>
-                    </span>
-                  </div>
-                  {med.observacion && (
-                    <p className="text-base text-yellow-500/90 mt-3 font-medium">
-                      Nota: {med.observacion}
-                    </p>
-                  )}
-                </div>
+                  ) : null}
+                </span>
               </div>
+
+              {/* Chips compactos */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2 text-sm text-gray-200">
+                <span className="bg-blue-500/10 px-3 py-1 rounded border border-blue-500/20">
+                  Dosis:{" "}
+                  <span className="font-bold text-white">
+                    {med.dosis} {med.unidad_dosificacion}
+                  </span>
+                </span>
+
+                <span className="bg-blue-500/10 px-3 py-1 rounded border border-blue-500/20">
+                  Frec:{" "}
+                  <span className="font-bold text-white">{med.frecuencia}</span>
+                </span>
+
+                <span className="bg-blue-500/10 px-3 py-1 rounded border border-blue-500/20">
+                  Cant:{" "}
+                  <span className="font-bold text-white">{med.cantidad}</span>
+                </span>
+              </div>
+
+              {/* Nota compacta */}
+              {!!med.observacion && (
+                <div className="text-xs text-yellow-500/90 mt-2 font-medium line-clamp-2">
+                  Nota: {med.observacion}
+                </div>
+              )}
             </div>
           ))}
         </div>
-        <div className="bg-blue-950/30 p-2 text-center border-t border-blue-900/30 flex flex-col gap-2">
+
+        {/* Footer acciones */}
+        <div className="bg-blue-950/30 p-2 text-center border-t border-blue-900/30">
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
             <button
               onClick={() => historyService.printFormula(evolucionId)}
@@ -391,6 +399,7 @@ function HistoryDetail({ ingresoId, onBack }) {
             >
               <Printer size={14} /> Imprimir Fórmula
             </button>
+
             <button
               onClick={() => handleSendEmail("formula", evolucionId)}
               disabled={sendingEmail}

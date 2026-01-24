@@ -208,7 +208,7 @@
 
                     <!-- Derecha -->
                     <td style="width:15%; font-weight:bold;">DOSIS:</td>
-                    <td style="width:35%;">{{ $med->dosis }} {{ $med->unidad_dosificacion }} cada {{ $med->frecuencia }}</td>
+                    <td style="width:35%;">{{ $med->dosis }} {{ $med->unidad_dosificacion }} {{ $med->frecuencia }}</td>
                 </tr>
 
                 <tr>

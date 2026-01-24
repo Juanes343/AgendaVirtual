@@ -127,6 +127,14 @@ class ReportController extends Controller
             ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
             ->join('inventarios_productos as i', 'a.codigo_producto', '=', 'i.codigo_producto')
             ->leftJoin('medicamentos as b', 'a.codigo_producto', '=', 'b.codigo_medicamento') // Opcional para principio activo
+            ->leftJoin('inv_med_cod_principios_activos as pa', 'b.cod_principio_activo', '=', 'pa.cod_principio_activo') // NUEVO
+
+            // NUEVO: frecuencia real desde hc_posologia_horario_op1
+            ->leftJoin('hc_posologia_horario_op1 as ph', function ($join) {
+                $join->on('ph.evolucion_id', '=', 'a.evolucion_id')
+                    ->on('ph.codigo_producto', '=', 'a.codigo_producto');
+            })
+
             ->where('e.ingreso', $ingreso)
             ->select(
                 'e.evolucion_id',
@@ -136,6 +144,7 @@ class ReportController extends Controller
                 'i.descripcion as producto',
                 'i.descripcion as nombre_medicamento', // Alias adicional para compatibilidad vistas
                 'b.cod_principio_activo as principio_activo',
+                'pa.descripcion as principio_activo', // NUEVO
                 'a.dosis',
                 'a.unidad_dosificacion',
                 'a.cantidadperiocidad as frecuencia',
@@ -143,11 +152,34 @@ class ReportController extends Controller
                 'a.dias_tratamiento as tiempo_tratamiento',
                 'a.cantidad',
                 'a.observacion',
-                DB::raw("CONCAT(a.dosis, ' ', a.unidad_dosificacion, ' - ', a.cantidadperiocidad, ' (', a.dias_tratamiento, ' dias)') as posologia")
+                //  FRECUENCIA
+                DB::raw("MIN(ph.periocidad_id) as periocidad_id"),
+                DB::raw("MIN(ph.tiempo) as tiempo_frecuencia"),
+                DB::raw("
+                        CASE
+                        WHEN MIN(ph.periocidad_id) IS NOT NULL AND MIN(ph.tiempo) IS NOT NULL
+                        THEN CONCAT('cada ', MIN(ph.periocidad_id), ' ', MIN(ph.tiempo))
+                        ELSE CAST(a.cantidadperiocidad AS TEXT)
+                        END as frecuencia
+                    ")
+            )->groupBy(
+                'e.evolucion_id',
+                'e.fecha',
+                'a.codigo_producto',
+                'i.descripcion',
+                'b.cod_principio_activo',
+                'pa.descripcion',
+                'a.dosis',
+                'a.unidad_dosificacion',
+                'a.dias_tratamiento',
+                'a.cantidad',
+                'a.observacion',
+                'a.cantidadperiocidad'
             )
             ->get();
 
-        // 2. Solicitudes / Ordenes
+        
+            // 2. Solicitudes / Ordenes
         $solicitudes = DB::table('hc_os_solicitudes as a')
             ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
@@ -323,7 +355,7 @@ class ReportController extends Controller
                 $dompdf->set_option('isRemoteEnabled', true);
 
                 $html = view('reportes.hc_legacy', [ // CAMBIADO de 'reporte_completo' a 'reportes.hc_legacy'
-                    'header' => $header, 
+                    'header' => $header,
                     'paciente' => $header,
                     'medicamentos' => $data->medicamentos,
                     'solicitudes' => $data->solicitudes,
@@ -554,24 +586,64 @@ class ReportController extends Controller
 
         // Medicamentos
         $medicamentos = DB::table('hc_medicamentos_recetados_amb as a')
+            ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
             ->join('inventarios_productos as i', 'a.codigo_producto', '=', 'i.codigo_producto')
-            ->leftJoin('medicamentos as b', 'a.codigo_producto', '=', 'b.codigo_medicamento')
-            ->leftJoin('hc_vias_administracion as v', 'a.via_administracion_id', '=', 'v.via_administracion_id') // ✅ JOIN
-            ->where('a.evolucion_id', $evolucion_id)
+            ->leftJoin('medicamentos as b', 'a.codigo_producto', '=', 'b.codigo_medicamento') // Opcional para principio activo
+            ->leftJoin('inv_med_cod_principios_activos as pa', 'b.cod_principio_activo', '=', 'pa.cod_principio_activo') // NUEVO
+            ->leftJoin('hc_vias_administracion as v', 'a.via_administracion_id', '=', 'v.via_administracion_id')
+            // NUEVO: frecuencia real desde hc_posologia_horario_op1
+            ->leftJoin('hc_posologia_horario_op1 as ph', function ($join) {
+                $join->on('ph.evolucion_id', '=', 'a.evolucion_id')
+                    ->on('ph.codigo_producto', '=', 'a.codigo_producto');
+            })
+
+            ->where('e.evolucion_id', $evolucion_id)
             ->select(
+                'e.evolucion_id',
+                'e.fecha',
                 'a.codigo_producto as codigo_medicamento',
+                'a.codigo_producto as codigo', // Alias adicional para compatibilidad vistas
                 'i.descripcion as producto',
+                'i.descripcion as nombre_medicamento', // Alias adicional para compatibilidad vistas
                 'b.cod_principio_activo as principio_activo',
+                'pa.descripcion as principio_activo', // NUEVO
                 'a.dosis',
                 'a.unidad_dosificacion',
                 'a.cantidadperiocidad as frecuencia',
+                'a.dias_tratamiento',
                 'a.dias_tratamiento as tiempo_tratamiento',
                 'a.cantidad',
                 'a.observacion',
                 'a.via_administracion_id',
-                'v.nombre as via_administracion_nombre' // ✅ nombre real (OFTALMICA)
+                'v.nombre as via_administracion_nombre',
+                //  FRECUENCIA
+                DB::raw("MIN(ph.periocidad_id) as periocidad_id"),
+                DB::raw("MIN(ph.tiempo) as tiempo_frecuencia"),
+                DB::raw("
+                        CASE
+                        WHEN MIN(ph.periocidad_id) IS NOT NULL AND MIN(ph.tiempo) IS NOT NULL
+                        THEN CONCAT('cada ', MIN(ph.periocidad_id), ' ', MIN(ph.tiempo))
+                        ELSE CAST(a.cantidadperiocidad AS TEXT)
+                        END as frecuencia
+                    ")
+            )->groupBy(
+                'e.evolucion_id',
+                'e.fecha',
+                'a.codigo_producto',
+                'i.descripcion',
+                'b.cod_principio_activo',
+                'pa.descripcion',
+                'a.dosis',
+                'a.unidad_dosificacion',
+                'a.dias_tratamiento',
+                'a.cantidad',
+                'a.observacion',
+                'a.via_administracion_id',
+                'v.nombre',
+                'a.cantidadperiocidad'
             )
             ->get();
+
 
 
         // ============================
