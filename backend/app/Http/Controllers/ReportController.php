@@ -23,6 +23,38 @@ class ReportController extends Controller
     }
 
     /**
+     * Obtiene los archivos adjuntos generales del paciente
+     */
+    public function getAttachments(Request $request)
+    {
+        $user = $request->user();
+        
+        // Usamos los campos del usuario virtual autenticado
+        $tipo_id = $user->tipo_documento;
+        $paciente_id = $user->paciente_id;
+
+        $attachments = DB::select("
+            SELECT 
+                a.*, 
+                TO_CHAR(a.fecha_registro,'DD/MM/YYYY') AS fecha_registro, 
+                SU.nombre as usuario 
+            FROM 
+                hc_archivos_adjuntos a, 
+                system_usuarios SU 
+            WHERE 
+                a.tipo_id_paciente = ? 
+                AND a.paciente_id = ? 
+                AND a.usuario_id = SU.usuario_id
+            ORDER BY a.fecha_registro DESC
+        ", [$tipo_id, $paciente_id]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $attachments
+        ]);
+    }
+
+    /**
      * Obtiene el historial de atenciones del paciente (Agrupado por Ingreso)
      */
     public function getMedicalHistory(Request $request)
@@ -122,7 +154,8 @@ class ReportController extends Controller
             ->where('e.ingreso', $ingreso)
             ->select(
                 'e.evolucion_id',
-                'a.fecha_solicitud as fecha_solicitud',
+                // 'a.fecha_solicitud as fecha_solicitud',
+                DB::raw("DATE(a.fecha_solicitud) as fecha_solicitud"),
                 'a.cargo as cargo',
                 'a.cargo as codigo', // Alias adicional para compatibilidad vistas
                 'b.descripcion as descripcion',

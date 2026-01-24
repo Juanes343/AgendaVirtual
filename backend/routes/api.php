@@ -34,6 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Módulo de Historia Clínica y Reportes
     Route::get('/medical-history', [\App\Http\Controllers\ReportController::class, 'getMedicalHistory']);
+    Route::get('/medical-history/attachments', [\App\Http\Controllers\ReportController::class, 'getAttachments']);
     Route::get('/medical-history/{ingreso}', [\App\Http\Controllers\ReportController::class, 'getHistoryDetail']);
     
     // Generación de PDFs (Siguen por evolución ID para precisión, o podemos cambiar a ingreso si se requiriera)

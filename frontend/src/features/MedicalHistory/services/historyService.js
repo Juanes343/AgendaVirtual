@@ -9,6 +9,10 @@ const historyService = {
         const response = await api.get(`/medical-history/${ingresoId}`);
         return response.data;
     },
+    getAttachments: async () => {
+        const response = await api.get('/medical-history/attachments');
+        return response.data;
+    },
     printFormula: (evolucionId) => {
         return api.get(`/medical-history/${evolucionId}/pdf-formula`, { responseType: 'blob' })
             .then((response) => {
