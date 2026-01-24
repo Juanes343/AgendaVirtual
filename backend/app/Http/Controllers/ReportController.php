@@ -137,12 +137,17 @@ class ReportController extends Controller
         $incapacidades = DB::table('hc_incapacidades as a')
             ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
             ->join('diagnosticos as d', 'a.diagnostico_id', '=', 'd.diagnostico_id')
+            ->leftJoin('hc_tipos_incapacidad as ti', 'a.tipo_incapacidad_id', '=', 'ti.tipo_incapacidad_id')
             ->where('e.ingreso', $ingreso)
             ->select(
                 'e.evolucion_id',
                 'a.fecha_inicio',
+                'a.dias_de_incapacidad',
                 'a.dias_de_incapacidad as dias',
+                'a.observacion_incapacidad',
                 'a.observacion_incapacidad as observacion',
+                'a.sw_prorroga',
+                'ti.descripcion as tipo_incapacidad',
                 'd.diagnostico_nombre',
                 'd.diagnostico_id as codigo_diagnostico'
             )
@@ -637,23 +642,56 @@ class ReportController extends Controller
         $header = $this->getHeaderData($evolucion_id);
         if (!$header) return response()->json(['error' => 'No encontrado'], 404);
 
+        // Obtener datos de la empresa
+        $empresa = DB::table('empresas as e')
+            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
+            ->select(
+                'e.razon_social',
+                'e.id as nit',
+                'e.digito_verificacion',
+                'e.direccion',
+                'e.telefonos',
+                'e.website',
+                'e.email',
+                'm.municipio',
+                'd.departamento'
+            )
+            ->where('e.sw_activa', '1')
+            ->first();
+
+        // Manejo de LOGO
+        $logoBase64 = null;
+        $pathLogo = public_path('assets/images/simde_logo.png');
+        if (file_exists($pathLogo)) {
+            $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
+            $data = file_get_contents($pathLogo);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+
         $incapacidades = DB::table('hc_incapacidades as a')
             ->join('diagnosticos as d', 'a.diagnostico_id', '=', 'd.diagnostico_id')
+            ->leftJoin('hc_tipos_incapacidad as ti', 'a.tipo_incapacidad_id', '=', 'ti.tipo_incapacidad_id') 
             ->where('a.evolucion_id', $evolucion_id)
             ->select(
                 'a.fecha_inicio',
                 'a.dias_de_incapacidad',
                 'a.observacion_incapacidad',
+                'a.sw_prorroga',
                 'd.diagnostico_nombre',
-                'd.diagnostico_id'
+                'd.diagnostico_id as codigo_diagnostico',
+                'ti.descripcion as tipo_incapacidad'
             )
             ->get();
 
         $html = view('incapacidad', [
             'paciente' => $header,
             'incapacidades' => $incapacidades,
-            'fecha' => $header->fecha,
-            'profesional' => $header->profesional
+            'empresa' => $empresa,
+            'logoBase64' => $logoBase64,
+            'profesional' => $header,
+            'fecha' => date('Y-m-d'),
+            'fecha_impresion' => date('Y-m-d H:i')
         ])->render();
 
         $dompdf = new \Dompdf\Dompdf();

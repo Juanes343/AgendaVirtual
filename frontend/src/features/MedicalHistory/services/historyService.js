@@ -27,7 +27,7 @@ const historyService = {
             })
             .catch(err => console.error("Error descargando PDF", err));
     },
-    printIncapacity: (evolucionId) => {
+    printIncapacidad: (evolucionId) => {
         return api.get(`/medical-history/${evolucionId}/pdf-incapacidad`, { responseType: 'blob' })
             .then((response) => {
                 const file = new Blob([response.data], { type: 'application/pdf' });

@@ -294,6 +294,45 @@ function HistoryDetail({ ingresoId, onBack }) {
         });
     };
 
+    const renderIncapacidades = () => {
+        if (!details.incapacidades || details.incapacidades.length === 0) return null;
+        
+        const grouped = details.incapacidades.reduce((acc, curr) => {
+            (acc[curr.evolucion_id] = acc[curr.evolucion_id] || []).push(curr);
+            return acc;
+        }, {});
+
+        return Object.entries(grouped).map(([evolucionId, incs]) => (
+            <div key={`inc-${evolucionId}`} className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-6">
+                <div className="bg-amber-900/20 px-4 py-3 border-b border-blue-900/30 flex justify-between items-center">
+                    <h4 className="font-bold text-amber-300 flex items-center gap-2 uppercase text-sm"><Activity size={16} /> Incapacidad Médica</h4>
+                    <span className="text-xs text-amber-400/50">Ref: {evolucionId}</span>
+                </div>
+                <div className="divide-y divide-blue-900/30">
+                    {incs.map((inc, i) => (
+                        <div key={i} className="p-4 hover:bg-white/5 transition-colors">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex justify-between">
+                                    <span className="text-xs font-mono text-gray-500">{inc.dias_de_incapacidad} Día(s)</span>
+                                    <span className="text-xs text-gray-400">Inicio: {inc.fecha_inicio}</span>
+                                </div>
+                                <p className="font-medium text-amber-100 text-sm">{inc.diagnostico_nombre}</p>
+                                {inc.observacion_incapacidad && <p className="text-xs text-gray-400 mt-1">Obs: {inc.observacion_incapacidad}</p>}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="bg-amber-950/20 p-2 text-center border-t border-blue-900/30 flex flex-col gap-2">
+                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+                        <button onClick={() => historyService.printIncapacidad && historyService.printIncapacidad(evolucionId)} className="text-amber-400 hover:text-amber-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide">
+                            <Printer size={14} /> Imprimir Incapacidad
+                        </button>
+                    </div>
+                </div>
+            </div>
+        ));
+    };
+
     // Obtener el primer evolucion_id disponible para el botón de impresión
     let primerEvolucionId = null;
     if (details.medicamentos.length > 0) {
@@ -345,7 +384,7 @@ function HistoryDetail({ ingresoId, onBack }) {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
                 <div>
                      {/* Sección Medicamentos */}
                      {renderMedicamentos()}
@@ -354,9 +393,13 @@ function HistoryDetail({ ingresoId, onBack }) {
                      {/* Sección Solicitudes */}
                      {renderSolicitudes()}
                 </div>
+                <div>
+                     {/* Sección Incapacidades */}
+                     {renderIncapacidades()}
+                </div>
             </div>
 
-            {details.medicamentos.length === 0 && details.solicitudes.length === 0 && (
+            {details.medicamentos.length === 0 && details.solicitudes.length === 0 && details.incapacidades.length === 0 && (
                  <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
                     <p className="text-gray-400">No hay registros de formulaciones u órdenes para este ingreso.</p>
                  </div>
