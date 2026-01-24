@@ -524,41 +524,56 @@ function HistoryDetail({ ingresoId, onBack }) {
     return Object.entries(grouped).map(([evolucionId, incs]) => (
       <div
         key={`inc-${evolucionId}`}
-        className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-6"
+        className="bg-[#1e293b]/50 backdrop-blur-md rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-6"
       >
-        <div className="bg-amber-900/20 px-4 py-3 border-b border-blue-900/30 flex justify-between items-center">
-          <h4 className="font-bold text-amber-300 flex items-center gap-2 uppercase text-lg">
-            <Activity size={20} /> Incapacidad Médica
+        {/* Header */}
+        <div className="bg-amber-900/20 px-4 py-2.5 border-b border-blue-900/30 flex justify-between items-center">
+          <h4 className="font-bold text-amber-300 flex items-center gap-2 uppercase text-base">
+            <Activity size={18} /> Incapacidad Médica
           </h4>
-          <span className="text-base text-amber-400 font-semibold">
+          <span className="text-sm text-amber-400 font-semibold">
             Ref: {evolucionId}
           </span>
         </div>
+
+        {/* Items */}
         <div className="divide-y divide-blue-900/30">
           {incs.map((inc, i) => (
-            <div key={i} className="p-5 hover:bg-white/5 transition-colors">
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-base font-mono text-gray-300 font-bold">
+            <div
+              key={i}
+              className="px-4 py-3 hover:bg-white/5 transition-colors"
+            >
+              {/* LINEA ÚNICA (DÍAS + INICIO) */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-gray-200 font-semibold whitespace-nowrap">
+                  <span className="font-mono">
                     {inc.dias_de_incapacidad} Día(s)
                   </span>
-                  <span className="text-base text-gray-300 font-medium">
+                  <span className="text-gray-500">•</span>
+                  <span className="text-gray-300 font-medium">
                     Inicio: {inc.fecha_inicio}
                   </span>
                 </div>
-                <p className="font-bold text-amber-100 text-xl">
-                  {inc.diagnostico_nombre}
-                </p>
-                {inc.observacion_incapacidad && (
-                  <p className="text-base text-gray-300 mt-1 font-medium italic">
-                    Obs: {inc.observacion_incapacidad}
-                  </p>
-                )}
               </div>
+
+              {/* Diagnóstico (1 línea) */}
+              <p className="mt-1 font-bold text-amber-100 text-base leading-tight truncate">
+                {inc.diagnostico_nombre}
+              </p>
+
+              {/* Observación */}
+              {inc.observacion_incapacidad && (
+                <p className="mt-1 text-sm text-gray-300 italic leading-snug">
+                  <span className="font-semibold">Obs:</span>{" "}
+                  {inc.observacion_incapacidad}
+                </p>
+              )}
             </div>
           ))}
         </div>
-        <div className="bg-amber-950/20 p-2 text-center border-t border-blue-900/30 flex flex-col gap-2">
+
+        {/* Footer acciones */}
+        <div className="bg-amber-950/20 px-3 py-2 border-t border-blue-900/30">
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
             <button
               onClick={() =>
@@ -568,6 +583,18 @@ function HistoryDetail({ ingresoId, onBack }) {
               className="text-amber-400 hover:text-amber-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide"
             >
               <Printer size={14} /> Imprimir Incapacidad
+            </button>
+
+            <button
+              onClick={() => handleSendEmail("incapacidad", evolucionId)}
+              disabled={sendingEmail}
+              className={`flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide ${
+                sendingEmail
+                  ? "text-gray-500 cursor-not-allowed"
+                  : "text-amber-400 hover:text-amber-300 hover:underline"
+              }`}
+            >
+              <Mail size={14} /> Enviar al Correo
             </button>
           </div>
         </div>
