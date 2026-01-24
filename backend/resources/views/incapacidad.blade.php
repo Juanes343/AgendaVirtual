@@ -9,33 +9,35 @@
         .header-table td { vertical-align: top; }
         .logo { max-width: 150px; }
         .company-info { text-align: center; font-weight: bold; font-size: 14px; text-transform: uppercase; }
-        .title-box { 
-            text-align: center; 
-            font-weight: bold; 
-            font-size: 14px; 
-            border: 1px solid #000; 
-            padding: 5px; 
+        .title-box {
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+            border: 1px solid #000;
+            padding: 5px;
             margin-bottom: 15px;
             background-color: #f0f0f0;
         }
-        .section-header { 
-            font-weight: bold; 
-            border-bottom: 1px solid #000; 
-            margin-bottom: 5px; 
+        .section-header {
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            margin-bottom: 5px;
             margin-top: 15px;
             font-size: 12px;
         }
         .data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11px; }
         .data-table td { border: 1px solid #000; padding: 4px; }
         .label { font-weight: bold; background-color: #f9fafb; width: 18%; }
+
         .signature-box { margin-top: 50px; width: 100%; }
-        .sign-line { 
-            border-top: 1px solid #000; 
-            width: 80%; 
+        .sign-line {
+            border-top: 1px solid #000;
+            width: 80%;
             margin-bottom: 5px;
             padding-top: 5px;
             font-weight: bold;
         }
+        .firma-img { max-height: 60px; display:block; margin-bottom:5px; }
     </style>
 </head>
 <body>
@@ -50,7 +52,7 @@
             </td>
             <td class="company-info">
                 {{ $empresa->razon_social ?? '' }}<br>
-                NIT: {{ $empresa->nit ?? '' }}<br>
+                NIT: {{ $empresa->nit ?? '' }}{{ !empty($empresa->digito_verificacion) ? '-'.$empresa->digito_verificacion : '' }}<br>
                 {{ $empresa->municipio ?? '' }}
             </td>
             <td width="20%" style="text-align: right; font-size: 10px;">
@@ -93,7 +95,6 @@
     <div class="section-header">Información Sobre la Incapacidad:</div>
     @foreach($incapacidades as $inc)
         @php
-            // Calcular fecha fin
             $inicio = \Carbon\Carbon::parse($inc->fecha_inicio);
             $fin = $inicio->copy()->addDays($inc->dias_de_incapacidad - 1);
         @endphp
@@ -127,12 +128,13 @@
     <table class="signature-box">
         <tr>
             <td width="50%" valign="bottom">
-                @if(isset($profesional->firma_base64))
-                     <img src="{{ $profesional->firma_base64 }}" style="max-height: 60px; display:block; margin-bottom:5px;">
+                @if(!empty($firmaBase64))
+                    <img src="{{ $firmaBase64 }}" class="firma-img">
                 @endif
-                <div class="sign-line">{{ $profesional->profesional ?? '' }}</div>
-                <div>{{ $profesional->especialidad ?? 'Médico General' }}</div>
-                <div>Reg. Médico: {{ $profesional->registro_medico ?? '' }}</div>
+
+                <div class="sign-line">{{ $paciente->profesional ?? '' }}</div>
+                <div>{{ $paciente->especialidad ?? 'Médico General' }}</div>
+                <div>Reg. Médico: {{ $paciente->registro_medico ?? $paciente->tarjeta_profesional ?? '' }}</div>
             </td>
             <td width="50%" align="right" valign="bottom">
                 <div style="font-size: 10px;">Generado el: {{ $fecha_impresion ?? '' }}</div>

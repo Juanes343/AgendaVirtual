@@ -28,7 +28,7 @@ class ReportController extends Controller
     public function getAttachments(Request $request)
     {
         $user = $request->user();
-        
+
         // Usamos los campos del usuario virtual autenticado
         $tipo_id = $user->tipo_documento;
         $paciente_id = $user->paciente_id;
@@ -444,19 +444,18 @@ class ReportController extends Controller
     }
 
     // Helper privado
+
     private function getHeaderData($evolucion_id)
     {
         $header = DB::table('hc_evoluciones as a')
             ->join('ingresos as b', 'a.ingreso', '=', 'b.ingreso')
-            ->leftJoin('cuentas as cu', 'b.ingreso', '=', 'cu.ingreso') // Join a cuentas
+            ->leftJoin('cuentas as cu', 'b.ingreso', '=', 'cu.ingreso')
             ->join('pacientes as p', function ($join) {
                 $join->on('b.paciente_id', '=', 'p.paciente_id')
                     ->on('b.tipo_id_paciente', '=', 'p.tipo_id_paciente');
             })
-            // Joins para datos de Plan y Cliente
-            ->leftJoin('planes as pl', 'cu.plan_id', '=', 'pl.plan_id') // Usar cu.plan_id en vez de b.plan_id
+            ->leftJoin('planes as pl', 'cu.plan_id', '=', 'pl.plan_id')
             ->leftJoin('terceros as cli', 'pl.tercero_id', '=', 'cli.tercero_id')
-
             ->join('profesionales_usuarios as c', 'a.usuario_id', '=', 'c.usuario_id')
             ->join('profesionales as d', function ($join) {
                 $join->on('c.tercero_id', '=', 'd.tercero_id')
@@ -473,127 +472,48 @@ class ReportController extends Controller
                 'p.tipo_id_paciente',
                 DB::raw("CONCAT(p.tipo_id_paciente, ' ', p.paciente_id) as identificacion"),
                 DB::raw("CONCAT(COALESCE(p.primer_nombre,''), ' ', COALESCE(p.segundo_nombre,''), ' ', COALESCE(p.primer_apellido,''), ' ', COALESCE(p.segundo_apellido,'')) as nombre_completo"),
-                DB::raw("CONCAT(COALESCE(p.primer_nombre,''), ' ', COALESCE(p.segundo_nombre,''), ' ', COALESCE(p.primer_apellido,''), ' ', COALESCE(p.segundo_apellido,'')) as nombre_paciente"), // Alias adicional para compatibilidad vistas
+                DB::raw("CONCAT(COALESCE(p.primer_nombre,''), ' ', COALESCE(p.segundo_nombre,''), ' ', COALESCE(p.primer_apellido,''), ' ', COALESCE(p.segundo_apellido,'')) as nombre_paciente"),
                 'p.fecha_nacimiento',
                 'p.sexo_id',
-                'p.sexo_id as sexo', // Alias adicional para compatibilidad vistas reportes
+                'p.sexo_id as sexo',
                 'p.residencia_direccion as direccion',
                 'p.residencia_telefono as telefono',
-                'a.fecha as fecha',
+
+                DB::raw("DATE(a.fecha) as fecha"),
                 'a.evolucion_id',
                 'b.ingreso',
+
                 'd.nombre as profesional',
                 'd.tercero_id as prof_id',
                 'd.tipo_id_tercero as prof_tipo_id',
                 'd.tarjeta_profesional',
                 'd.tarjeta_profesional as registro_medico',
+                'd.firma', // ✅ FIRMA DEL PROFESIONAL
+
                 'esp.descripcion as especialidad',
                 'pl.plan_descripcion',
-                'cli.nombre_tercero as nombre_aseguradora',
+                'cli.nombre_tercero as cliente_nombre',
                 'cu.tipo_afiliado_id',
-                'cu.rango' // Asumiendo que existe en ingresos
+                'cu.rango'
             )
             ->first();
 
         if ($header && !empty($header->fecha_nacimiento)) {
             $header->edad = \Carbon\Carbon::parse($header->fecha_nacimiento)->age . ' Años';
-        } else if ($header) {
+        } elseif ($header) {
             $header->edad = '';
         }
 
         return $header;
     }
 
+
     public function generateFormulaPdf($evolucion_id)
     {
         $header = $this->getHeaderData($evolucion_id);
         if (!$header) return response()->json(['error' => 'No encontrado'], 404);
 
-        // --- Obtener datos de Empresa ---
-        $empresa = DB::table('empresas as e')
-            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
-            ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
-            ->select(
-                'e.razon_social',
-                'e.id as nit',
-                'e.digito_verificacion',
-                'e.direccion',
-                'e.telefonos',
-                'e.website',
-                'e.email',
-                'm.municipio',
-                'd.departamento'
-            )
-            ->where('e.sw_activa', '1') // Asumiendo que hay una activa
-            ->first();
-
-        // --- Manejo de LOGO en Base64 para evitar problemas de rutas en DomPDF ---
-        $logoBase64 = null;
-        $pathLogo = public_path('assets/images/simde_logo.png');
-        if (file_exists($pathLogo)) {
-            $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
-            $data = file_get_contents($pathLogo);
-            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
-        }
-
-        // Calcular edad
-        $edad = \Carbon\Carbon::parse($header->fecha_nacimiento)->age;
-
-        // Diagnósticos (Corregido: Usar hc_diagnosticos_ingreso y seleccionar diagnostico_id correctamente)
-        $diagnosticos = DB::table('hc_diagnosticos_ingreso as a')
-            ->join('diagnosticos as b', 'a.tipo_diagnostico_id', '=', 'b.diagnostico_id')
-            ->where('a.evolucion_id', $evolucion_id)
-            ->select('a.tipo_diagnostico_id as diagnostico_id', 'b.diagnostico_nombre')
-            ->get();
-
-        // Corrección: Usar hc_medicamentos_recetados_amb
-        $medicamentos = DB::table('hc_medicamentos_recetados_amb as a')
-            ->join('inventarios_productos as i', 'a.codigo_producto', '=', 'i.codigo_producto')
-            ->leftJoin('medicamentos as b', 'a.codigo_producto', '=', 'b.codigo_medicamento')
-            ->where('a.evolucion_id', $evolucion_id)
-            ->select(
-                'a.codigo_producto as codigo_medicamento',
-                'i.descripcion as producto',
-                'b.cod_principio_activo as principio_activo',
-                // 'b.descripcion_comercial', // A veces el nombre comercial ayuda
-                'i.descripcion_abreviada',
-                'a.dosis',
-                'a.unidad_dosificacion',
-                'a.cantidadperiocidad as frecuencia',
-                'a.dias_tratamiento',
-                'a.dias_tratamiento as tiempo_tratamiento',
-                'a.cantidad',
-                'a.observacion',
-                'a.via_administracion_id'
-            )
-            ->get();
-
-        // Renderizado HTML
-        $html = view('formula', [
-            'header' => $header,
-            'empresa' => $empresa,
-            'logoBase64' => $logoBase64,
-            'edad' => $edad,
-            'medicamentos' => $medicamentos,
-            'diagnosticos' => $diagnosticos,
-            'fecha_impresion' => date('d/m/Y - h:i a')
-        ])->render();
-
-        $dompdf = new \Dompdf\Dompdf();
-        $dompdf->set_option('isRemoteEnabled', true); // Permitir imagenes
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-
-        return $dompdf->stream('formula_' . $evolucion_id . '.pdf');
-    }
-
-    public function generateOrderPdf($evolucion_id)
-    {
-        $header = $this->getHeaderData($evolucion_id);
-        if (!$header) return response()->json(['error' => 'No encontrado'], 404);
-
-        // --- Obtener datos de Empresa ---
+        // --- Empresa ---
         $empresa = DB::table('empresas as e')
             ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
             ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
@@ -611,7 +531,7 @@ class ReportController extends Controller
             ->where('e.sw_activa', '1')
             ->first();
 
-        // --- Manejo de LOGO en Base64 para evitar problemas de rutas en DomPDF ---
+        // --- LOGO Base64 ---
         $logoBase64 = null;
         $pathLogo = public_path('assets/images/simde_logo.png');
         if (file_exists($pathLogo)) {
@@ -620,6 +540,126 @@ class ReportController extends Controller
             $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
         }
 
+        // Calcular edad
+        $edad = $header->fecha_nacimiento ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '';
+
+        // Diagnósticos
+        $diagnosticos = DB::table('hc_diagnosticos_ingreso as a')
+            ->join('diagnosticos as b', 'a.tipo_diagnostico_id', '=', 'b.diagnostico_id')
+            ->where('a.evolucion_id', $evolucion_id)
+            ->select('a.tipo_diagnostico_id as diagnostico_id', 'b.diagnostico_nombre')
+            ->get();
+
+        // Medicamentos
+        $medicamentos = DB::table('hc_medicamentos_recetados_amb as a')
+            ->join('inventarios_productos as i', 'a.codigo_producto', '=', 'i.codigo_producto')
+            ->leftJoin('medicamentos as b', 'a.codigo_producto', '=', 'b.codigo_medicamento')
+            ->leftJoin('hc_vias_administracion as v', 'a.via_administracion_id', '=', 'v.via_administracion_id') // ✅ JOIN
+            ->where('a.evolucion_id', $evolucion_id)
+            ->select(
+                'a.codigo_producto as codigo_medicamento',
+                'i.descripcion as producto',
+                'b.cod_principio_activo as principio_activo',
+                'a.dosis',
+                'a.unidad_dosificacion',
+                'a.cantidadperiocidad as frecuencia',
+                'a.dias_tratamiento as tiempo_tratamiento',
+                'a.cantidad',
+                'a.observacion',
+                'a.via_administracion_id',
+                'v.nombre as via_administracion_nombre' // ✅ nombre real (OFTALMICA)
+            )
+            ->get();
+
+
+        // ============================
+        // ✅ FIRMA PROFESIONAL Base64
+        // ============================
+        $firmaBase64 = null;
+
+        if (!empty($header->firma)) {
+            // En BD: "CC*7458529.jpg"
+            // En disco/url suele estar: "CC%2A7458529.jpg"
+            $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
+
+            // 1) Intentar por FILESYSTEM (si backend comparte disco con legacy)
+            $firmaPath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+
+            if (file_exists($firmaPath)) {
+                $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
+                $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
+                $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
+            } else {
+                // 2) Fallback por URL (si NO comparten disco)
+                $firmaUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+
+                try {
+                    $imgResp = Http::timeout(8)->get($firmaUrl);
+                    if ($imgResp->ok()) {
+                        $contentType = $imgResp->header('Content-Type') ?: 'image/jpeg';
+                        $firmaBase64 = 'data:' . $contentType . ';base64,' . base64_encode($imgResp->body());
+                    }
+                } catch (\Throwable $e) {
+                    // si falla, queda null
+                }
+            }
+        }
+
+        // Render HTML
+        $html = view('formula', [
+            'header' => $header,
+            'empresa' => $empresa,
+            'logoBase64' => $logoBase64,
+            'firmaBase64' => $firmaBase64, // ✅ NUEVO
+            'edad' => $edad,
+            'medicamentos' => $medicamentos,
+            'diagnosticos' => $diagnosticos,
+            'fecha_impresion' => date('d/m/Y - h:i a')
+        ])->render();
+
+        $dompdf = new \Dompdf\Dompdf();
+        $dompdf->set_option('isRemoteEnabled', true);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $dompdf->stream('formula_' . $evolucion_id . '.pdf');
+    }
+
+
+    public function generateOrderPdf($evolucion_id)
+    {
+        $header = $this->getHeaderData($evolucion_id);
+        if (!$header) return response()->json(['error' => 'No encontrado'], 404);
+
+        // --- Empresa ---
+        $empresa = DB::table('empresas as e')
+            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
+            ->select(
+                'e.razon_social',
+                'e.id as nit',
+                'e.digito_verificacion',
+                'e.direccion',
+                'e.telefonos',
+                'e.website',
+                'e.email',
+                'm.municipio',
+                'd.departamento'
+            )
+            ->where('e.sw_activa', '1')
+            ->first();
+
+        // --- LOGO Base64 ---
+        $logoBase64 = null;
+        $pathLogo = public_path('assets/images/simde_logo.png');
+        if (file_exists($pathLogo)) {
+            $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
+            $data = file_get_contents($pathLogo);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+
+        // --- Solicitudes ---
         $solicitudes = DB::table('hc_os_solicitudes as a')
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
             ->where('a.evolucion_id', $evolucion_id)
@@ -632,20 +672,54 @@ class ReportController extends Controller
             )
             ->get();
 
-        // Obtener el número de orden principal (el menor id de las solicitudes de la evolución)
         $numero_orden = $solicitudes->min('hc_os_solicitud_id');
-
-        // Calcular edad
         $edad = $header->fecha_nacimiento ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '';
 
-        // Diagnósticos
+        // --- Diagnósticos ---
         $diagnosticos = DB::table('hc_diagnosticos_ingreso as a')
             ->join('diagnosticos as b', 'a.tipo_diagnostico_id', '=', 'b.diagnostico_id')
             ->where('a.evolucion_id', $evolucion_id)
             ->select('a.tipo_diagnostico_id as diagnostico_id', 'b.diagnostico_nombre')
             ->get();
-        $diagnostico_principal = $diagnosticos->first() ? $diagnosticos->first()->diagnostico_id . ' - ' . $diagnosticos->first()->diagnostico_nombre : '';
 
+        $diagnostico_principal = $diagnosticos->first()
+            ? $diagnosticos->first()->diagnostico_id . ' - ' . $diagnosticos->first()->diagnostico_nombre
+            : '';
+
+        // ============================
+        // ✅ FIRMA PROFESIONAL Base64
+        // ============================
+        $firmaBase64 = null;
+
+        if (!empty($header->firma)) {
+            // En BD: "CC*7458529.jpg"
+            // En disco suele estar: "CC%2A7458529.jpg"
+            $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
+
+            // 1) Intentar por FILESYSTEM (si backend comparte disco con legacy)
+            $firmaPath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+
+            if (file_exists($firmaPath)) {
+                $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
+                $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
+                $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
+            } else {
+                // 2) Fallback por URL (si NO comparten disco)
+                $firmaUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+
+                try {
+                    $imgResp = Http::timeout(8)->get($firmaUrl);
+                    if ($imgResp->ok()) {
+                        $contentType = $imgResp->header('Content-Type') ?: 'image/jpeg';
+                        $firmaBase64 = 'data:' . $contentType . ';base64,' . base64_encode($imgResp->body());
+                    }
+                } catch (\Throwable $e) {
+                    // si falla, se queda null
+                }
+            }
+        }
+
+        // --- Render Vista ---
         $html = view('orden', [
             'paciente' => $header,
             'solicitudes' => $solicitudes,
@@ -654,10 +728,13 @@ class ReportController extends Controller
             'especialidad' => $header->especialidad,
             'empresa' => $empresa,
             'logoBase64' => $logoBase64,
+            'firmaBase64' => $firmaBase64, // ✅ NUEVO
             'edad' => $edad,
             'diagnosticos' => $diagnosticos,
             'diagnostico_principal' => $diagnostico_principal,
             'numero_orden' => $numero_orden,
+            'tarjeta_profesional' => $header->tarjeta_profesional,
+            'prof_id' => $header->prof_id,
             'fecha_impresion' => date('Y-m-d H:i:s')
         ])->render();
 
@@ -670,12 +747,13 @@ class ReportController extends Controller
         return $dompdf->stream('ordenes_' . $evolucion_id . '.pdf');
     }
 
+
     public function generateIncapacidadPdf($evolucion_id)
     {
         $header = $this->getHeaderData($evolucion_id);
         if (!$header) return response()->json(['error' => 'No encontrado'], 404);
 
-        // Obtener datos de la empresa
+        // --- Empresa ---
         $empresa = DB::table('empresas as e')
             ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
             ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
@@ -693,7 +771,7 @@ class ReportController extends Controller
             ->where('e.sw_activa', '1')
             ->first();
 
-        // Manejo de LOGO
+        // --- LOGO Base64 ---
         $logoBase64 = null;
         $pathLogo = public_path('assets/images/simde_logo.png');
         if (file_exists($pathLogo)) {
@@ -702,9 +780,10 @@ class ReportController extends Controller
             $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
         }
 
+        // --- Incapacidades ---
         $incapacidades = DB::table('hc_incapacidades as a')
             ->join('diagnosticos as d', 'a.diagnostico_id', '=', 'd.diagnostico_id')
-            ->leftJoin('hc_tipos_incapacidad as ti', 'a.tipo_incapacidad_id', '=', 'ti.tipo_incapacidad_id') 
+            ->leftJoin('hc_tipos_incapacidad as ti', 'a.tipo_incapacidad_id', '=', 'ti.tipo_incapacidad_id')
             ->where('a.evolucion_id', $evolucion_id)
             ->select(
                 'a.fecha_inicio',
@@ -717,12 +796,45 @@ class ReportController extends Controller
             )
             ->get();
 
+        // ============================
+        // ✅ FIRMA PROFESIONAL Base64
+        // ============================
+        $firmaBase64 = null;
+
+        // IMPORTANTE: esto requiere que en getHeaderData selecciones d.firma
+        if (!empty($header->firma)) {
+            $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
+
+            // 1) Intentar por FILESYSTEM (si backend comparte disco con legacy)
+            $firmaPath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+
+            if (file_exists($firmaPath)) {
+                $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
+                $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
+                $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
+            } else {
+                // 2) Fallback por URL (si NO comparten disco)
+                $firmaUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+
+                try {
+                    $imgResp = Http::timeout(8)->get($firmaUrl);
+                    if ($imgResp->ok()) {
+                        $contentType = $imgResp->header('Content-Type') ?: 'image/jpeg';
+                        $firmaBase64 = 'data:' . $contentType . ';base64,' . base64_encode($imgResp->body());
+                    }
+                } catch (\Throwable $e) {
+                    // si falla, queda null
+                }
+            }
+        }
+
+        // Render HTML
         $html = view('incapacidad', [
             'paciente' => $header,
             'incapacidades' => $incapacidades,
             'empresa' => $empresa,
             'logoBase64' => $logoBase64,
-            'profesional' => $header,
+            'firmaBase64' => $firmaBase64, // ✅ NUEVO
             'fecha' => date('Y-m-d'),
             'fecha_impresion' => date('Y-m-d H:i')
         ])->render();
@@ -736,84 +848,6 @@ class ReportController extends Controller
         return $dompdf->stream('incapacidad_' . $evolucion_id . '.pdf');
     }
 
-    // public function generateHistoryPdf($ingreso)
-    // {
-    //     // 1. Obtener datos del ingreso 
-    //     $detailResponse = $this->getHistoryDetail($ingreso);
-    //     $data = $detailResponse->getData()->data;
-
-    //     // 2. Cabecera (tomamos la última evolución para datos generales o la primera, depende de la lógica. Usaremos la última para fecha reciente)
-    //     $unaEvolucion = DB::table('hc_evoluciones')->where('ingreso', $ingreso)->orderBy('fecha', 'desc')->first();
-    //     if (!$unaEvolucion) return response()->json(['error' => 'No se encontraron registros para este ingreso'], 404);
-
-    //     $header = $this->getHeaderData($unaEvolucion->evolucion_id);
-
-    //     // Agregar info extra de la evolución al header, si existe
-    //     if ($header && $unaEvolucion) {
-    //         $header->motivo_consulta = $unaEvolucion->motivo_consulta ?? '';
-    //         $header->enfermedad_actual = $unaEvolucion->enfermedad_actual ?? '';
-    //         $header->revis_sistemas = $unaEvolucion->revis_sistemas ?? '';
-    //         $header->examen_fisico = $unaEvolucion->examen_fisico ?? '';
-    //         $header->analisis = $unaEvolucion->analisis ?? '';
-    //         $header->plan = $unaEvolucion->plan ?? ($unaEvolucion->conducta ?? '');
-
-    //         // -- NUEVO: Intentar obtener Motivo y Enfermedad desde el submódulo hc_motivo_consulta si la tabla evoluciones no lo tiene --
-    //         $motivoData = DB::table('hc_motivo_consulta')->where('evolucion_id', $unaEvolucion->evolucion_id)->first();
-    //         if ($motivoData) {
-    //             // Si encontramos datos en el submódulo, prevalecen o complementan
-    //             if (!empty($motivoData->descripcion)) {
-    //                 $header->motivo_consulta = $motivoData->descripcion;
-    //             }
-    //             if (!empty($motivoData->enfermedadactual)) {
-    //                 $header->enfermedad_actual = $motivoData->enfermedadactual;
-    //             }
-    //         }
-    //     }
-
-    //     // 3. Empresa
-    //     $empresa = DB::table('empresas as e')
-    //         ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
-    //         ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
-    //         ->select('e.razon_social', 'e.id as nit', 'e.digito_verificacion', 'e.direccion', 'e.telefonos', 'e.website', 'e.email', 'm.municipio', 'd.departamento')
-    //         ->where('e.sw_activa', '1')
-    //         ->first();
-
-    //     // 4. Logo
-    //     $logoBase64 = null;
-    //     $pathLogo = public_path('assets/images/simde_logo.png');
-    //     if (file_exists($pathLogo)) {
-    //         $typeImg = pathinfo($pathLogo, PATHINFO_EXTENSION);
-    //         $imgData = file_get_contents($pathLogo);
-    //         $logoBase64 = 'data:image/' . $typeImg . ';base64,' . base64_encode($imgData);
-    //     }
-
-    //     // 5. Obtener datos de todos los submodulos asociados a la evolución
-    //     $submodulosData = $this->getSubmodulesContent($unaEvolucion->evolucion_id);
-
-    //     $html = view('reporte_completo', [
-    //         'paciente' => $header,
-    //         'medicamentos' => $data->medicamentos,
-    //         'solicitudes' => $data->solicitudes,
-    //         'incapacidades' => $data->incapacidades,
-    //         'diagnosticos' => $data->diagnosticos ?? [],
-    //         'notas' => $data->notas ?? [],
-    //         'submodulos' => $submodulosData,
-    //         'fecha' => $header->fecha,
-    //         'profesional' => $header->profesional,
-    //         'especialidad' => $header->especialidad,
-    //         'ingreso' => $ingreso,
-    //         'empresa' => $empresa,
-    //         'logoBase64' => $logoBase64
-    //     ])->render();
-
-    //     $dompdf = new \Dompdf\Dompdf();
-    //     $dompdf->set_option('isRemoteEnabled', true);
-    //     $dompdf->loadHtml($html);
-    //     $dompdf->setPaper('A4', 'portrait');
-    //     $dompdf->render();
-
-    //     return $dompdf->stream('historia_clinica_' . $ingreso . '.pdf');
-    // }
 
     public function generateHistoryPdf($ingreso)
     {

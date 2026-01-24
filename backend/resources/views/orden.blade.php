@@ -8,13 +8,11 @@
     body { font-family: Arial, sans-serif; font-size: 9px; color: #000; }
     table { width: 100%; border-collapse: collapse; }
 
-    /* Encabezado estilo fórmula */
     .header-container { width: 100%; margin-bottom: 10px; }
     .logo-cell { width: 15%; vertical-align: middle; }
     .info-cell { text-align: center; font-size: 10px; font-weight: bold; }
     .logo-img { max-width: 100px; max-height: 60px; }
 
-    /* Título tipo “FORMULA MEDICA” */
     .doc-title {
       text-align: center;
       font-weight: bold;
@@ -26,7 +24,6 @@
       text-transform: uppercase;
     }
 
-    /* Tablas con borde negro */
     .table-datatable td, .table-datatable th {
       border: 1px solid #000;
       padding: 4px;
@@ -34,13 +31,11 @@
     }
     .header-label { background-color: #f0f0f0; font-weight: bold; width: 15%; }
 
-    /* Sección tipo bloque (como medicamentos) */
     .block {
       border: 1px solid #000;
       margin-top: 5px;
     }
 
-    /* Tabla de servicios */
     .serv-table th {
       background-color: #f0f0f0;
       font-weight: bold;
@@ -54,7 +49,6 @@
       font-size: 9px;
     }
 
-    /* Observaciones/Diagnósticos (bloque inferior) */
     .box {
       margin-top: 12px;
       font-size: 9px;
@@ -62,12 +56,12 @@
       padding: 5px;
     }
 
-    /* Firma */
     .footer-signature { margin-top: 50px; }
     .signature-line { border-top: 1px solid #000; width: 350px; padding-top: 5px; }
     .prof-info { font-weight: bold; line-height: 1.3; font-size: 9px; }
 
-    /* Pie de impresión */
+    .firma-img { max-width: 220px; max-height: 80px; display:block; }
+
     .print-footer {
       position: fixed;
       bottom: 0;
@@ -82,16 +76,16 @@
 
 <body>
 
-  <!-- Encabezado con Logo y Datos Clínica -->
+  <!-- Encabezado -->
   <table class="header-container">
     <tr>
       <td class="logo-cell">
-        @if(isset($logoBase64) && $logoBase64)
+        @if(!empty($logoBase64))
           <img src="{{ $logoBase64 }}" alt="Logo" class="logo-img">
         @endif
       </td>
       <td class="info-cell">
-        @if(isset($empresa) && $empresa)
+        @if(!empty($empresa))
           {{ $empresa->razon_social ?? '' }}<br>
           NIT {{ $empresa->nit ?? '' }}{{ !empty($empresa->digito_verificacion) ? '-'.$empresa->digito_verificacion : '' }}<br>
           {{ $empresa->direccion ?? '' }} - {{ $empresa->municipio ?? '' }}, {{ $empresa->departamento ?? '' }}<br>
@@ -108,12 +102,10 @@
     </tr>
   </table>
 
-  <!-- Título -->
   <div class="doc-title">
-    SOLICITUD DE SERVICIOS Nº {{ $numero_orden ?? ($header->evolucion_id ?? '') }}
+    SOLICITUD DE SERVICIOS Nº {{ $numero_orden ?? ($paciente->evolucion_id ?? '') }}
   </div>
 
-  <!-- Tabla Información (mismo estilo) -->
   <table class="table-datatable">
     <tr>
       <td class="header-label">FECHA</td>
@@ -157,7 +149,6 @@
     </tr>
   </table>
 
-  <!-- Servicios (bloque similar a medicamentos) -->
   <div class="block">
     <table class="serv-table">
       <thead>
@@ -185,7 +176,6 @@
     </table>
   </div>
 
-  <!-- Observación -->
   @if(!empty($observaciones))
     <div class="box">
       <strong>OBSERVACIÓN:</strong><br>
@@ -193,7 +183,6 @@
     </div>
   @endif
 
-  <!-- Diagnóstico(s) + principal -->
   @if(!empty($diagnosticos) && count($diagnosticos) > 0)
     <div class="box">
       <strong>DIAGNOSTICO(S):</strong><br>
@@ -201,7 +190,7 @@
         {{ $diag->diagnostico_id ?? '' }} - {{ $diag->diagnostico_nombre ?? '' }}<br>
       @endforeach
 
-      @if(isset($diagnostico_principal) && $diagnostico_principal)
+      @if(!empty($diagnostico_principal))
         <br><strong>DIAGNOSTICO PRINCIPAL:</strong> {{ $diagnostico_principal }}
       @else
         <br><strong>DIAGNOSTICO PRINCIPAL:</strong>
@@ -214,9 +203,16 @@
     </div>
   @endif
 
-  <!-- Firma -->
+  <!-- FIRMA -->
   <div class="footer-signature">
-    <br><br><br>
+    @if(!empty($firmaBase64))
+      <div style="margin-bottom:5px;">
+        <img src="{{ $firmaBase64 }}" alt="Firma" class="firma-img">
+      </div>
+    @else
+      <br><br><br>
+    @endif
+
     <div class="signature-line">
       <div class="prof-info">
         PROFESIONAL: {{ $profesional ?? '' }}<br>
