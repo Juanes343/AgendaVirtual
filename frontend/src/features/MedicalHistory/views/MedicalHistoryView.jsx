@@ -79,7 +79,8 @@ export default function MedicalHistoryView() {
              try {
                 const res = await historyService.getSurgeries(ing);
                 if (res.success && Array.isArray(res.data)) {
-                    allSurgeries = [...allSurgeries, ...res.data];
+                    const surgeriesWithIngreso = res.data.map(s => ({...s, ingreso: ing}));
+                    allSurgeries = [...allSurgeries, ...surgeriesWithIngreso];
                 }
              } catch(e) { } 
         }
@@ -251,6 +252,15 @@ export default function MedicalHistoryView() {
                         </div>
       
                         <div className="flex items-center gap-2 w-full md:w-auto">
+                              {/* Botón Imprimir Historia Completa */}
+                              <button
+                                onClick={() => historyService.printHistoryComplete(item.ingreso)}
+                                className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600"
+                                title="Imprimir Historia Clínica del Ingreso"
+                              >
+                                <FileText size={16} /> Historia
+                              </button>
+
                           <button
                             onClick={() => historyService.printNotaOperatoria(item.hc_nota_operatoria_cirugia_id)}
                             className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white"
