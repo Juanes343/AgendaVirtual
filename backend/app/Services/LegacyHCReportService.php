@@ -44,6 +44,19 @@ class LegacyHCReportService
             );
         }
 
+        // LIMPIEZA CRÍTICA PARA WKHTMLTOPDF
+        
+        // ESTRATEGIA: Convertir error 403 (Forbidden Directory) en 404 (File Not Found)
+        // El error ocurre cuando el src apunta al directorio raíz de imagenes sin especificar archivo.
+        // WKHTMLTOPDF falla con 403 pero suele ignorar 404.
+        // Reemplazamos "images/firmas_profesionales/" por "images/firmas_profesionales/no_existe.jpg"
+        
+        $html = str_replace('images/firmas_profesionales/"', 'images/firmas_profesionales/pixel_dummy.png"', $html);
+        $html = str_replace("images/firmas_profesionales/'", "images/firmas_profesionales/pixel_dummy.png'", $html);
+        
+        // También atrapamos si viene con espacio
+        $html = str_replace('images/firmas_profesionales/ "', 'images/firmas_profesionales/pixel_dummy.png"', $html);
+
         return $html;
     }
 

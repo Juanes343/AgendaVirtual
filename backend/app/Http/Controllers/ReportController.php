@@ -964,6 +964,19 @@ class ReportController extends Controller
             // Corrige href="" / href='about:blank' si existieran
             $htmlLegacy = str_ireplace(['href="about:blank"', "href='about:blank'"], 'href="#"', $htmlLegacy);
 
+            // FIX: WKHTMLTOPDF falla con 403 si encuentra src=".../images/firmas_profesionales/" (directorio sin archivo)
+            // Esto sucede si el legacy retorna la ruta sin nombre de imagen.
+            // Lo reemplazamos por un pixel transparente en Base64 para evitar la petición de red fallida.
+            $htmlLegacy = preg_replace(
+                '/src\s*=\s*(["\'])(?:(?!\1).)*\/images\/firmas_profesionales\/\s*\1/i',
+                'src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="',
+                $htmlLegacy
+            );
+            
+            // Refuerzo con str_replace para casos simples
+            $htmlLegacy = str_replace('images/firmas_profesionales/"', 'images/firmas_profesionales/pixel_dummy.png"', $htmlLegacy);
+            $htmlLegacy = str_replace("images/firmas_profesionales/'", "images/firmas_profesionales/pixel_dummy.png'", $htmlLegacy);
+
             // Base URL del legacy (para images/, css/, etc.)
             $baseUrl = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/";
 
