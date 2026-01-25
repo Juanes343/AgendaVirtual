@@ -964,33 +964,8 @@ class ReportController extends Controller
             // Corrige href="" / href='about:blank' si existieran
             $htmlLegacy = str_ireplace(['href="about:blank"', "href='about:blank'"], 'href="#"', $htmlLegacy);
 
-            // ---- CORRECCIÓN DE IMÁGENES Y RECURSOS RELATIVOS ----
-            $remoteUrl  = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/';
-            $remoteUrl2 = 'http://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/';
-            
-            // Usar file:// explícitamente para rutas locales
-            $localPath  = 'file:///var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/';
-            
-            // 1. Reemplazamos URLs absolutas por file://
-            $htmlLegacy = str_replace($remoteUrl,  $localPath, $htmlLegacy);
-            $htmlLegacy = str_replace($remoteUrl2, $localPath, $htmlLegacy);
-            
-            // 2. Reemplazamos src="images/..." relativos por file:// si quedaron
-            // Aseguramos que apunten a la ruta local absoluta
-            $htmlLegacy = str_replace('src="images/', 'src="' . $localPath, $htmlLegacy);
-            $htmlLegacy = str_replace("src='images/", "src='" . $localPath, $htmlLegacy);
-
-            // ---- CORRECCIÓN DE ERRORES "PATH IS A DIRECTORY" ----
-            // Eliminar tags img donde el src termina en barra "/" (es un directorio, no una imagen)
-            // Esto sucede cuando el legacy retorna rutas tipo ".../firmas_profesionales/" sin nombre de archivo
-            $htmlLegacy = preg_replace('/<img[^>]+src=["\'][^"\']+\/["\'][^>]*>/i', '', $htmlLegacy);
-
-            // Opcional: Eliminar imágenes rotas específicas o vacías
-            $htmlLegacy = str_replace('src="' . $localPath . 'firmas_profesionales/"', 'src=""', $htmlLegacy);
-
-            // Base URL del legacy => Apuntar a local para resolver otros recursos relativos que no sean images/
-            // Nota: Es mejor no usar http remoto si hay firewall o 403
-            $baseUrl = "file:///var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/";
+            // Base URL del legacy (para images/, css/, etc.)
+            $baseUrl = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/";
 
             // ---- PDF con Snappy ----
             $pdf = app('snappy.pdf.wrapper');

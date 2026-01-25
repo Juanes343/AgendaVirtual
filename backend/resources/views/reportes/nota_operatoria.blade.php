@@ -4,15 +4,21 @@
     <meta charset="UTF-8">
     {{-- Estilos heredados del legacy --}}
     <style>
-        body { font-family: Arial, sans-serif; font-size: 9px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        td, th { border: 1px solid #000; padding: 3px; vertical-align: top; }
-        .normal_10N { font-weight: bold; background-color: #f0f0f0; text-transform: uppercase; font-size: 9px; }
-        .normal_10 { font-size: 9px; }
+        body { font-family: Arial, sans-serif; font-size: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
+        td, th { border: 1px solid #000; padding: 2px; vertical-align: top; }
+        .normal_10N { font-weight: bold; background-color: #f0f0f0; text-transform: uppercase; font-size: 8px; }
+        .normal_10 { font-size: 8px; }
         .no-border { border: none !important; }
         .text-center { text-align: center; }
         .text-left { text-align: left; }
-        .header-title { font-size: 12px; font-weight: bold; text-align: center; margin: 8px 0; }
+        .header-title { font-size: 11px; font-weight: bold; text-align: center; margin: 6px 0; }
+        
+        /* Estilos de firma */
+        .footer-signature { margin-top: 30px; }
+        .signature-line { border-top: 1px solid #000; width: 350px; padding-top: 5px; }
+        .prof-info { font-weight: bold; line-height: 1.3; font-size: 8px; }
+        .firma-img { max-width: 200px; max-height: 70px; display: block; margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -315,18 +321,22 @@
 
     {{-- FIRMA --}}
     @if($profesional)
-    <div style="margin-top: 20px; width: 350px;">
-        @if($firmaBase64)
-            <div style="margin-bottom: -15px; margin-left: 20px;">
-                <img src="{{ $firmaBase64 }}" style="max-height: 80px;">
-            </div>
+    <div class="footer-signature">
+        @if(!empty($firmaBase64))
+        <div style="margin-bottom:5px;">
+            <img src="{{ $firmaBase64 }}" alt="Firma" class="firma-img">
+        </div>
         @else
-            <div style="height: 60px;"></div>
+        <br><br><br>
         @endif
-        <div style="border-top: 1px solid #000; padding-top: 5px;">
-            <b>PROFESIONAL:</b> {{ $profesional->nombre }}<br>
-            {{ $profesional->especialidad }}<br>
-            REGISTRO MEDICO: {{ $profesional->registro_salud_departamental }} - TP: {{ $profesional->tarjeta_profesional }}
+
+        <div class="signature-line">
+            <div class="prof-info">
+                PROFESIONAL: {{ $profesional->nombre }}<br>
+                {{ $profesional->especialidad }}<br>
+                REGISTRO MEDICO: {{ $profesional->tarjeta_profesional }}<br>
+                CC: {{ $profesional->tercero_id }}<br>
+            </div>
         </div>
     </div>
     @endif
