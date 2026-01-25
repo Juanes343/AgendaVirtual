@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\SurgeryController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -37,6 +38,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/medical-history/attachments', [\App\Http\Controllers\ReportController::class, 'getAttachments']);
     Route::get('/medical-history/{ingreso}', [\App\Http\Controllers\ReportController::class, 'getHistoryDetail']);
     
+    // Módulo de Cirugía (Notas Operatorias)
+    Route::get('/medical-history/surgeries/{ingreso}', [SurgeryController::class, 'getSurgeries']);
+    Route::get('/medical-history/surgeries/{notaId}/pdf', [SurgeryController::class, 'generatePdf']);
+    Route::post('/medical-history/surgeries/{notaId}/send-email', [SurgeryController::class, 'sendEmail']);
+
     // Generación de PDFs (Siguen por evolución ID para precisión, o podemos cambiar a ingreso si se requiriera)
     Route::get('/medical-history/{evolucion_id}/pdf-formula', [\App\Http\Controllers\ReportController::class, 'generateFormulaPdf']);
     Route::get('/medical-history/{evolucion_id}/pdf-orden', [\App\Http\Controllers\ReportController::class, 'generateOrderPdf']);

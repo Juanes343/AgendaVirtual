@@ -25,9 +25,10 @@ export default function MedicalHistoryView() {
   const location = useLocation();
   const [history, setHistory] = useState([]);
   const [attachments, setAttachments] = useState([]);
+  const [surgeries, setSurgeries] = useState([]); // Nuevo estado para cirugías
   const [loading, setLoading] = useState(true);
   const [selectedIngreso, setSelectedIngreso] = useState(null);
-  const [activeTab, setActiveTab] = useState(1); // 1: Consulta Externa, 2: Apoyos Diagnósticos
+  const [activeTab, setActiveTab] = useState(1); // 1: Consulta Externa, 2: Apoyos Diagnósticos, 3: Cirugía
   const { user } = useUser();
 
   // Effect para resetear la vista si la ubicación cambia (ej. clic en menú Historial Médico)
@@ -42,7 +43,8 @@ export default function MedicalHistoryView() {
 
   useEffect(() => {
     if (activeTab === 4) loadAttachments();
-  }, [activeTab]);
+    if (activeTab === 3 && history.length > 0) loadSurgeries(); 
+  }, [activeTab, history]);
 
   const loadHistory = async () => {
     try {
@@ -60,6 +62,29 @@ export default function MedicalHistoryView() {
     try {
       const data = await historyService.getAttachments();
       if (data.success) setAttachments(data.data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSurgeries = async () => {
+    setLoading(true);
+    try {
+      let allSurgeries = [];
+      if(history.length > 0) {
+        const ingresos = [...new Set(history.map(h => h.ingreso))];
+        for (const ing of ingresos) {
+             try {
+                const res = await historyService.getSurgeries(ing);
+                if (res.success && Array.isArray(res.data)) {
+                    allSurgeries = [...allSurgeries, ...res.data];
+                }
+             } catch(e) { } 
+        }
+      }
+      setSurgeries(allSurgeries);
     } catch (error) {
       console.error(error);
     } finally {
@@ -191,6 +216,78 @@ export default function MedicalHistoryView() {
               </div>
             ))
           )
+        ) : activeTab === 3 ? (
+            surgeries.length === 0 ? (
+                <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
+                  <Activity className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-400">No hay registros de Cirugías para mostrar.</p>
+                </div>
+            ) : (
+                surgeries.map((item, i) => (
+                    <div
+                      key={i}
+                      className="bg-[#1e293b]/50 backdrop-blur-md rounded-xl border border-blue-900/30 overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group"
+                    >
+                      <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex flex-wrap items-center gap-3 text-sm text-blue-300 font-semibold uppercase tracking-wider">
+                            <div className="px-2 py-1 rounded text-sm bg-red-500/20 text-red-400">
+                              Cirugía #{item.hc_nota_operatoria_cirugia_id}
+                            </div>
+                            <span className="flex items-center gap-1">
+                              <Calendar size={14} /> {item.fecha_hora || item.hora_inicio}
+                            </span>
+                            <div className="flex items-center gap-2 text-blue-300 text-sm border-l border-white/10 pl-3 ml-1 font-bold">
+                                <User size={14} className="text-blue-500" />
+                                <span>{item.cirujano_nombre}</span>
+                            </div>
+                          </div>
+                          <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
+                            {item.tipo_cirugia || "PROCEDIMIENTO QUIRÚRGICO"}
+                          </h3>
+                          <p className="text-sm text-gray-400">
+                             Quirófano: {item.nom_quirofano} | Evolución ID: {item.evolucion_id}
+                          </p>
+                        </div>
+      
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                          <button
+                            onClick={() => historyService.printNotaOperatoria(item.hc_nota_operatoria_cirugia_id)}
+                            className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white"
+                            title="Imprimir Nota Operatoria"
+                          >
+                            <Printer size={16} /> Imprimir
+                          </button>
+                          <button
+                            onClick={async () => {
+                                const result = await Swal.fire({
+                                    title: "¿Enviar Nota Operatoria?",
+                                    text: "Se enviará el PDF al correo registrado.",
+                                    icon: "question",
+                                    showCancelButton: true,
+                                    confirmButtonText: "Sí, enviar",
+                                    background: "#1e293b",
+                                    color: "#fff"
+                                });
+                                if (result.isConfirmed) {
+                                    try {
+                                        await historyService.sendSurgeryEmail(item.hc_nota_operatoria_cirugia_id);
+                                        Swal.fire({ title: "Enviado", icon: "success", background: "#1e293b", color: "#fff" });
+                                    } catch(e) {
+                                        Swal.fire({ title: "Error", text: "No se pudo enviar", icon: "error", background: "#1e293b", color: "#fff" });
+                                    }
+                                }
+                            }}
+                            className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white"
+                            title="Enviar por Correo"
+                          >
+                            <Send size={16} /> Enviar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                ))
+            )
         ) : filteredHistory.length === 0 ? (
           <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
             <Activity className="w-12 h-12 text-gray-600 mx-auto mb-3" />
