@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\SurgeryController;
+use App\Http\Controllers\ConfigReportePermisoController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -56,4 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile/update', [AuthController::class, 'updateProfile']);
     Route::post('/profile/change-password', [AuthController::class, 'changePassword']);
 });
+
+// Obtener permisos (Público o Autenticado según tu lógica)
+Route::get('/config-reporte-permisos', [ConfigReportePermisoController::class, 'index']);
+// Actualizar permisos (Debería ser solo admin)
+Route::post('/config-reporte-permisos', [ConfigReportePermisoController::class, 'update']);
 

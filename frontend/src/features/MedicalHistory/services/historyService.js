@@ -73,6 +73,10 @@ const historyService = {
             evolucion_id: evolucionId
         });
         return response.data;
+    },
+    getPermissions: async () => {
+        const response = await api.get('/config-reporte-permisos');
+        return response.data;
     }
 };
 

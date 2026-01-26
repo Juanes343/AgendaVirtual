@@ -29,6 +29,7 @@ export default function MedicalHistoryView() {
   const [loading, setLoading] = useState(true);
   const [selectedIngreso, setSelectedIngreso] = useState(null);
   const [activeTab, setActiveTab] = useState(1); // 1: Consulta Externa, 2: Apoyos Diagnósticos, 3: Cirugía
+  const [permissions, setPermissions] = useState([]);
   const { user } = useUser();
 
   // Effect para resetear la vista si la ubicación cambia (ej. clic en menú Historial Médico)
@@ -39,12 +40,50 @@ export default function MedicalHistoryView() {
 
   useEffect(() => {
     loadHistory();
+    loadPermissions();
   }, []);
 
   useEffect(() => {
     if (activeTab === 4) loadAttachments();
     if (activeTab === 3 && history.length > 0) loadSurgeries(); 
   }, [activeTab, history]);
+
+  const loadPermissions = async () => {
+    try {
+      const data = await historyService.getPermissions();
+      // La API retorna { success: true, list: [...], data: {...} }
+      // Usamos 'list' que contiene el array de permisos
+      if (data && data.list && Array.isArray(data.list)) {
+        setPermissions(data.list);
+      } else if (Array.isArray(data)) {
+        setPermissions(data);
+      }
+    } catch (e) {
+      console.error("Error loading permissions", e);
+    }
+  };
+
+  const getModulePermissions = (moduleIdOrTab) => {
+    // Mapping user tabs to DB IDs
+    let dbId = 1;
+    if (moduleIdOrTab === 1) dbId = 1; // CONSULTA_EXTERNA
+    if (moduleIdOrTab === 2) dbId = 2; // APOYOS_DIAGNOSTICOS
+    if (moduleIdOrTab === 3) dbId = 3; // CIRUGIA
+    if (moduleIdOrTab === 4) dbId = 5; // ADJUNTOS_GENERALES (Tab 4)
+
+    // Usar comparación '==' para evitar problemas de tipos (string vs number)
+    const p = permissions.find((x) => x.id == dbId);
+    
+    // Return true by default if not loaded or not found to avoid blocking
+    if (!p) return { sw_imprime: true, sw_correo: true };
+
+    // Convert output to boolean. "1", 1, true, "VERDADERO" are considered true.
+    const isTrue = (val) => val === 1 || val === "1" || val === true || val === "VERDADERO";
+    return {
+      sw_imprime: isTrue(p.sw_imprime),
+      sw_correo: isTrue(p.sw_correo),
+    };
+  };
 
   const loadHistory = async () => {
     try {
@@ -98,6 +137,7 @@ export default function MedicalHistoryView() {
       <HistoryDetail
         ingresoId={selectedIngreso}
         onBack={() => setSelectedIngreso(null)}
+        permissions={getModulePermissions(activeTab)}
       />
     );
   }
@@ -252,38 +292,72 @@ export default function MedicalHistoryView() {
                         </div>
       
                         <div className="flex items-center gap-2 w-full md:w-auto">
-                          <button
-                            onClick={() => historyService.printNotaOperatoria(item.hc_nota_operatoria_cirugia_id)}
-                            className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white"
-                            title="Imprimir Nota Operatoria"
-                          >
-                            <Printer size={16} /> Imprimir
-                          </button>
-                          <button
-                            onClick={async () => {
-                                const result = await Swal.fire({
+                          {getModulePermissions(3).sw_imprime && (
+                            <button
+                              onClick={() =>
+                                historyService.printHistoryComplete(item.ingreso)
+                              }
+                              className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600"
+                              title="Imprimir Historia Clínica del Ingreso"
+                            >
+                              <FileText size={16} /> Historia
+                            </button>
+                          )}
+
+                            <button
+                              onClick={() =>
+                                historyService.printNotaOperatoria(
+                                  item.hc_nota_operatoria_cirugia_id
+                                )
+                              }
+                              className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white"
+                              title="Imprimir Nota Operatoria"
+                            >
+                              <Printer size={16} /> Imprimir
+                            </button>
+
+                            {getModulePermissions(3).sw_correo && (
+                              <button
+                                onClick={async () => {
+                                  const result = await Swal.fire({
                                     title: "¿Enviar Nota Operatoria?",
-                                    text: "Se enviará el PDF al correo registrado.",
+                                    text: `Se enviará la Nota Operatoria al correo registrado: ${
+                                      user?.paciente?.email || "N/A"
+                                    }.`,
                                     icon: "question",
                                     showCancelButton: true,
                                     confirmButtonText: "Sí, enviar",
                                     background: "#1e293b",
-                                    color: "#fff"
-                                });
-                                if (result.isConfirmed) {
+                                    color: "#fff",
+                                  });
+                                  if (result.isConfirmed) {
                                     try {
-                                        await historyService.sendSurgeryEmail(item.hc_nota_operatoria_cirugia_id);
-                                        Swal.fire({ title: "Enviado", icon: "success", background: "#1e293b", color: "#fff" });
-                                    } catch(e) {
-                                        Swal.fire({ title: "Error", text: "No se pudo enviar", icon: "error", background: "#1e293b", color: "#fff" });
+                                      await historyService.sendSurgeryEmail(
+                                        item.hc_nota_operatoria_cirugia_id
+                                      );
+                                      Swal.fire({
+                                        title: "Enviado",
+                                        icon: "success",
+                                        background: "#1e293b",
+                                        color: "#fff",
+                                      });
+                                    } catch (e) {
+                                      Swal.fire({
+                                        title: "Error",
+                                        text: "No se pudo enviar",
+                                        icon: "error",
+                                        background: "#1e293b",
+                                        color: "#fff",
+                                      });
                                     }
-                                }
-                            }}
-                            className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white"
-                            title="Enviar por Correo"
-                          >
-                            <Send size={16} /> Enviar
-                          </button>
+                                  }
+                                }}
+                                className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white"
+                                title="Enviar por Correo"
+                              >
+                                <Send size={16} /> Enviar
+                              </button>
+                            )}
                         </div>
                       </div>
                     </div>
@@ -350,7 +424,7 @@ export default function MedicalHistoryView() {
   );
 }
 
-function HistoryDetail({ ingresoId, onBack }) {
+function HistoryDetail({ ingresoId, onBack, permissions }) {
   const [details, setDetails] = useState({
     medicamentos: [],
     solicitudes: [],
@@ -498,13 +572,15 @@ function HistoryDetail({ ingresoId, onBack }) {
               <Printer size={14} /> Imprimir Fórmula
             </button>
 
-            <button
-              onClick={() => handleSendEmail("formula", evolucionId)}
-              disabled={sendingEmail}
-              className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide"
-            >
-              <Mail size={14} /> Enviar al Correo
-            </button>
+            {permissions?.sw_correo && (
+              <button
+                onClick={() => handleSendEmail("formula", evolucionId)}
+                disabled={sendingEmail}
+                className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide"
+              >
+                <Mail size={14} /> Enviar al Correo
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -596,13 +672,15 @@ function HistoryDetail({ ingresoId, onBack }) {
               >
                 <Printer size={14} /> Imprimir Orden
               </button>
-              <button
-                onClick={() => handleSendEmail("ordenes", evolucionId)}
-                disabled={sendingEmail}
-                className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide disabled:opacity-50"
-              >
-                <Mail size={14} /> Enviar al Correo
-              </button>
+              {permissions?.sw_correo && (
+                <button
+                  onClick={() => handleSendEmail("ordenes", evolucionId)}
+                  disabled={sendingEmail}
+                  className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide disabled:opacity-50"
+                >
+                  <Mail size={14} /> Enviar al Correo
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -683,17 +761,19 @@ function HistoryDetail({ ingresoId, onBack }) {
               <Printer size={14} /> Imprimir Incapacidad
             </button>
 
-            <button
-              onClick={() => handleSendEmail("incapacidad", evolucionId)}
-              disabled={sendingEmail}
-              className={`flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide ${
-                sendingEmail
-                  ? "text-gray-500 cursor-not-allowed"
-                  : "text-amber-400 hover:text-amber-300 hover:underline"
-              }`}
-            >
-              <Mail size={14} /> Enviar al Correo
-            </button>
+            {permissions?.sw_correo && (
+              <button
+                onClick={() => handleSendEmail("incapacidad", evolucionId)}
+                disabled={sendingEmail}
+                className={`flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide ${
+                  sendingEmail
+                    ? "text-gray-500 cursor-not-allowed"
+                    : "text-amber-400 hover:text-amber-300 hover:underline"
+                }`}
+              >
+                <Mail size={14} /> Enviar al Correo
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -729,29 +809,33 @@ function HistoryDetail({ ingresoId, onBack }) {
         {/* Botones de Acción Global (Ahora integrados en el header) */}
         {primerEvolucionId && (
           <div className="flex flex-wrap items-center gap-4">
-            <button
-              onClick={handlePrintEvolucion}
-              className="flex items-center gap-2 px-4 py-2 bg-[#1e293b] hover:bg-blue-600 border border-blue-500/30 rounded-lg text-blue-400 hover:text-white font-semibold text-xs uppercase tracking-wide transition-all shadow-sm hover:shadow-blue-500/20"
-            >
-              <Printer size={16} />{" "}
-              <span className="hidden sm:inline">Imprimir Historia</span>
-            </button>
-            <button
-              onClick={() => handleSendEmail("all")}
-              disabled={sendingEmail}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-semibold text-xs uppercase tracking-wide transition-all shadow-sm ${
-                sendingEmail
-                  ? "bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed"
-                  : "bg-green-600/10 hover:bg-green-600 border-green-500/30 hover:border-green-500 text-green-400 hover:text-white shadow-green-500/10 hover:shadow-green-500/30"
-              }`}
-            >
-              {sendingEmail ? (
-                <Activity className="animate-spin" size={16} />
-              ) : (
-                <Send size={16} />
-              )}
-              <span className="hidden sm:inline">Enviar Todo</span>
-            </button>
+            {permissions?.sw_imprime && (
+              <button
+                onClick={handlePrintEvolucion}
+                className="flex items-center gap-2 px-4 py-2 bg-[#1e293b] hover:bg-blue-600 border border-blue-500/30 rounded-lg text-blue-400 hover:text-white font-semibold text-xs uppercase tracking-wide transition-all shadow-sm hover:shadow-blue-500/20"
+              >
+                <Printer size={16} />{" "}
+                <span className="hidden sm:inline">Imprimir Historia</span>
+              </button>
+            )}
+            {permissions?.sw_correo && (
+              <button
+                onClick={() => handleSendEmail("all")}
+                disabled={sendingEmail}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-semibold text-xs uppercase tracking-wide transition-all shadow-sm ${
+                  sendingEmail
+                    ? "bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed"
+                    : "bg-green-600/10 hover:bg-green-600 border-green-500/30 hover:border-green-500 text-green-400 hover:text-white shadow-green-500/10 hover:shadow-green-500/30"
+                }`}
+              >
+                {sendingEmail ? (
+                  <Activity className="animate-spin" size={16} />
+                ) : (
+                  <Send size={16} />
+                )}
+                <span className="hidden sm:inline">Enviar Todo</span>
+              </button>
+            )}
           </div>
         )}
       </div>
