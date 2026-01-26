@@ -393,6 +393,27 @@ class ReportController extends Controller
                             $htmlLegacy = str_ireplace(['href="about:blank"', "href='about:blank'"], 'href="#"', $htmlLegacy);
                             $htmlLegacy = str_replace('images/firmas_profesionales/"', 'images/firmas_profesionales/pixel_dummy.png"', $htmlLegacy);
                             $htmlLegacy = str_replace("images/firmas_profesionales/'", "images/firmas_profesionales/pixel_dummy.png'", $htmlLegacy);
+
+                            // ==========================================
+                            // LIMPIEZA UNIFICADA (Email)
+                            // ==========================================
+                            // 1. Quitar textos de encabezado duplicados
+                            $htmlLegacy = str_ireplace('SIIS - APLICACION DE PRUEBAS', '', $htmlLegacy);
+                            $htmlLegacy = str_ireplace('HISTORIA CLÍNICA', '', $htmlLegacy);
+                            
+                            // 2. Eliminar imágenes que no sean base64 (causan la X roja o errores de carga)
+                            // Reemplazamos <img ... src="algo no data" ...> por un pixel transparente
+                            $htmlLegacy = preg_replace(
+                                '/<img(?![^>]+src=["\']data:)[^>]+>/i', 
+                                '',  // Simplemente las eliminamos para limpiar
+                                $htmlLegacy
+                            );
+                            
+                            // 3. Ocultar footer antiguo (Profesional, Imprimió, etc) para que no salga doble
+                            // Buscamos patrones comunes del pie de página legacy
+                            $htmlLegacy = preg_replace('/Imprimió:.*?<\/table>/is', '', $htmlLegacy); // Intento borrar bloque de impresion
+                            $htmlLegacy = str_ireplace(['PROFESIONAL:', 'Registro Médico:', 'Especialidad:'], ['<!-- PROFESIONAL: -->', '<!-- Registro -->', '<!-- Esp -->'], $htmlLegacy); // Comentar etiquetas viejas
+
                         }
                     }
                 } catch (\Exception $eLeg) {
@@ -400,11 +421,10 @@ class ReportController extends Controller
                 }
                 // --- FIN OBTENCIÓN HTML LEGACY ---
 
-                $dompdf = new \Dompdf\Dompdf();
-                $dompdf->set_option('isRemoteEnabled', true);
-
-                $html = view('reportes.hc_legacy', [ // CAMBIADO de 'reporte_completo' a 'reportes.hc_legacy'
-                    'html' => $htmlLegacy, // Variable requerida por la vista
+                // CAMBIO: Usar Snappy para el Correo (igual que en Imprimir) para consistencia visual
+                $pdf = app('snappy.pdf.wrapper');
+                $pdf->loadView('reportes.hc_legacy', [
+                    'html' => $htmlLegacy,
                     'header' => $header,
                     'paciente' => $header,
                     'medicamentos' => $data->medicamentos,
@@ -416,16 +436,19 @@ class ReportController extends Controller
                     'profesional' => $header->profesional,
                     'especialidad' => $header->especialidad,
                     'ingreso' => $ingreso,
-                    'empresa' => $empresa, // Pasar empresa por si la vista lo requiere
+                    'empresa' => $empresa,
                     'logoBase64' => $logoBase64,
                     'firmaBase64' => $firmaBase64,
-                    'baseUrl' => "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/" // Base correcta para recursos legacy
-                ])->render();
-
-                $dompdf->loadHtml($html);
-                $dompdf->setPaper('A4', 'portrait');
-                $dompdf->render();
-                $pdfContentCompleto = $dompdf->output();
+                    'baseUrl' => "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/"
+                ]);
+                
+                // Opciones críticas para que se vea bien
+                $pdf->setOption('enable-local-file-access', true);
+                $pdf->setOption('encoding', 'utf-8');
+                $pdf->setOption('load-error-handling', 'ignore');
+                $pdf->setOption('disable-smart-shrinking', true);
+                
+                $pdfContentCompleto = $pdf->output(); // Obtener binario para adjunto
             }
 
             // 3.2 Generar PDF Formula (Si hay medicamentos y corresponde el tipo)
@@ -1033,6 +1056,72 @@ class ReportController extends Controller
             // Base URL del legacy (para images/, css/, etc.)
             $baseUrl = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/";
 
+            // ==========================================
+            // LIMPIEZA SEGURA (No destructiva) - UNIFICADA
+            // ==========================================
+            
+            // 1. Ocultar textos de encabezado duplicados
+            $htmlLegacy = str_ireplace('SIIS - APLICACION DE PRUEBAS', '', $htmlLegacy);
+            $htmlLegacy = str_ireplace('HISTORIA CLÍNICA', '', $htmlLegacy);
+
+            // 2. Eliminar footer antiguo (Profesional, Imprimió, etc) para que no salga doble
+            // Reemplazo el texto "Imprimió:" y el bloque
+            $htmlLegacy = preg_replace('/Imprimió:.*?<\/table>/is', '', $htmlLegacy);
+            // Comentar etiquetas de profesional duplicadas
+            $htmlLegacy = str_ireplace(['PROFESIONAL:', 'Registro Médico:', 'Especialidad:'], ['<!-- PROF-->', '<!-- Reg -->', '<!-- Esp -->'], $htmlLegacy);
+
+            // 3. Eliminar imágenes rotas (La X)
+            // Cualquier IMG que no sea data: (firma base64) y no sea pixel_dummy
+            $htmlLegacy = preg_replace(
+                '/<img(?![^>]+src=["\'](data:|.*pixel_dummy))[^>]+>/i', 
+                '',  
+                $htmlLegacy
+            );
+
+            // TRAMPA CSS: Asegurar que tablas vacias (como las del header viejo borrado) no ocupen espacio
+            $styleHack = '<style> tr:empty { display: none; } table:empty { display: none; } .encabezado_legacy { display:none; } </style>';
+            $htmlLegacy = $styleHack . $htmlLegacy;
+
+            // ==========================================
+            
+            // Definir $unaEvolucion antes de usarla
+            $unaEvolucion = DB::table('hc_evoluciones')->where('ingreso', $ingreso)->orderBy('fecha', 'desc')->first();
+
+            // Obtener HEADER para la firma
+            $header = $this->getHeaderData($unaEvolucion ? $unaEvolucion->evolucion_id : null);
+            
+            // --- CARGAR LOGO BASE64 (Faltaba en Imprimir) ---
+            $logoBase64 = null;
+            $pathLogo = public_path('assets/images/simde_logo.png');
+            if (file_exists($pathLogo)) {
+                $typeImg = pathinfo($pathLogo, PATHINFO_EXTENSION);
+                $imgData = file_get_contents($pathLogo);
+                $logoBase64 = 'data:image/' . $typeImg . ';base64,' . base64_encode($imgData);
+            }
+
+            // Recuperar Firma Base64 para imprimir
+            $firmaBase64 = null;
+            if ($header && !empty($header->firma)) {
+                $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
+                // 1) FILESYSTEM
+                if (file_exists('/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded)) {
+                    $firmaPath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+                    $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
+                    $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
+                    $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
+                } else {
+                    // 2) URL
+                    $firmaUrl = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/" . $fileFirmaEncoded;
+                    try {
+                         $imgResp = Http::timeout(4)->get($firmaUrl);
+                         if ($imgResp->ok()) {
+                            $firmaBase64 = 'data:image/jpeg;base64,' . base64_encode($imgResp->body());
+                         }
+                    } catch(\Exception $e) {}
+                }
+            }
+
+
             // ---- PDF con Snappy ----
             $pdf = app('snappy.pdf.wrapper');
 
@@ -1040,6 +1129,15 @@ class ReportController extends Controller
                 'html'    => $htmlLegacy,
                 'baseUrl' => $baseUrl,
                 'ingreso' => (int)$ingreso,
+                // Nuevos datos para que salga el Header y Footer bonito
+                'header'  => $header,
+                'firmaBase64' => $firmaBase64,
+                'profesional' => $header->profesional ?? '',
+                'especialidad' => $header->especialidad ?? '',
+                'empresa' => DB::table('empresas')->where('sw_activa', '1')->first(), 
+                // Logo también
+                'logoBase64' => $logoBase64, // Pasamos el logo cargado
+                'fecha'     => $header->fecha ?? date('Y-m-d')
             ]);
 
             // Opciones clave
