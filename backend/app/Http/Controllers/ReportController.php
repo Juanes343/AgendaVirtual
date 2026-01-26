@@ -344,6 +344,31 @@ class ReportController extends Controller
             return response()->json(['success' => false, 'message' => 'El paciente no tiene un correo electrónico registrado.'], 400);
         }
 
+        // ============================
+        // ✅ FIRMA PROFESIONAL Base64
+        // ============================
+        $firmaBase64 = null;
+        if (!empty($header->firma)) {
+            $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
+            // 1) FILESYSTEM
+            $firmaPath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+            if (file_exists($firmaPath)) {
+                $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
+                $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
+                $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
+            } else {
+                // 2) URL
+                $firmaUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+                try {
+                    $imgResp = Http::timeout(5)->get($firmaUrl);
+                    if ($imgResp->ok()) {
+                        $cType = $imgResp->header('Content-Type') ?: 'image/jpeg';
+                        $firmaBase64 = 'data:' . $cType . ';base64,' . base64_encode($imgResp->body());
+                    }
+                } catch (\Throwable $eF) { Log::error("Error firma email: " . $eF->getMessage()); }
+            }
+        }
+
         try {
             $pdfContentCompleto = null;
             $pdfContentFormula = null;
@@ -351,10 +376,35 @@ class ReportController extends Controller
 
             // 3. Generar PDF consolidado en memoria (Solo si type == 'all')
             if ($type === 'all') {
+                // --- INICIO OBTENCIÓN HTML LEGACY ---
+                $urlLegacy = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php";
+                $htmlLegacy = '';
+
+                try {
+                    $resp = Http::withHeaders(['X-Legacy-Token' => env('LEGACY_HC_TOKEN')])->get($urlLegacy, ['ingreso' => (int)$ingreso]);
+                    if ($resp->ok()) {
+                        $payload = $resp->json();
+                        if (!empty($payload['html'])) {
+                            $htmlLegacy = (string)$payload['html'];
+                            // Limpieza básica (igual a generateHistoryPdf)
+                            $htmlLegacy = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $htmlLegacy);
+                            $htmlLegacy = preg_replace('#<iframe\b[^>]*>.*?</iframe>#is', '', $htmlLegacy);
+                            $htmlLegacy = preg_replace('#<frame\b[^>]*>.*?</frame>#is', '', $htmlLegacy);
+                            $htmlLegacy = str_ireplace(['href="about:blank"', "href='about:blank'"], 'href="#"', $htmlLegacy);
+                            $htmlLegacy = str_replace('images/firmas_profesionales/"', 'images/firmas_profesionales/pixel_dummy.png"', $htmlLegacy);
+                            $htmlLegacy = str_replace("images/firmas_profesionales/'", "images/firmas_profesionales/pixel_dummy.png'", $htmlLegacy);
+                        }
+                    }
+                } catch (\Exception $eLeg) {
+                    Log::error("Error obteniendo HTML legacy para email: " . $eLeg->getMessage());
+                }
+                // --- FIN OBTENCIÓN HTML LEGACY ---
+
                 $dompdf = new \Dompdf\Dompdf();
                 $dompdf->set_option('isRemoteEnabled', true);
 
                 $html = view('reportes.hc_legacy', [ // CAMBIADO de 'reporte_completo' a 'reportes.hc_legacy'
+                    'html' => $htmlLegacy, // Variable requerida por la vista
                     'header' => $header,
                     'paciente' => $header,
                     'medicamentos' => $data->medicamentos,
@@ -368,7 +418,8 @@ class ReportController extends Controller
                     'ingreso' => $ingreso,
                     'empresa' => $empresa, // Pasar empresa por si la vista lo requiere
                     'logoBase64' => $logoBase64,
-                    'baseUrl' => config('app.url') // Agregamos baseUrl para la vista legacy
+                    'firmaBase64' => $firmaBase64,
+                    'baseUrl' => "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/" // Base correcta para recursos legacy
                 ])->render();
 
                 $dompdf->loadHtml($html);
@@ -385,6 +436,7 @@ class ReportController extends Controller
                     'header' => $header,
                     'empresa' => $empresa ?? null,
                     'logoBase64' => $logoBase64 ?? null,
+                    'firmaBase64' => $firmaBase64,
                     'edad' => isset($header->fecha_nacimiento) ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '',
                     'medicamentos' => $data->medicamentos ?? [],
                     'diagnosticos' => $data->diagnosticos ?? [], // Nota: GetHistoryDetail no devuelve diagnosticos actualmente en 'data', considerar agregarlo si es crítico.
@@ -417,6 +469,7 @@ class ReportController extends Controller
                     'especialidad' => $header->especialidad,
                     'empresa' => $empresa ?? null,
                     'logoBase64' => $logoBase64 ?? null,
+                    'firmaBase64' => $firmaBase64,
                     'edad' => isset($header->fecha_nacimiento) ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '',
                     'numero_orden' => $numero_orden,
                     'fecha_impresion' => date('Y-m-d H:i:s')

@@ -101,13 +101,13 @@
 
   <table class="header-container">
     <tr>
-      <!-- <td class="logo-cell">
+      <td class="logo-cell">
         @if(!empty($logoBase64))
           <img src="{{ $logoBase64 }}" class="logo-img" alt="Logo">
         @else
-          <img src="images/logocliente.png" class="logo-img" alt="Logo">
+          {{-- <img src="images/logocliente.png" class="logo-img" alt="Logo"> --}}
         @endif
-      </td> -->
+      </td>
 
       <td class="info-cell">
         @if(!empty($empresa))
