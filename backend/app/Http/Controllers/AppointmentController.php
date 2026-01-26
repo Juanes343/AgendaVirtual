@@ -20,15 +20,15 @@ class AppointmentController extends Controller
         $lastPlanId = null;
 
         if ($documento) {
-            // Buscar último plan usado en os_ordenes_servicios
-            $queryLast = DB::table('os_ordenes_servicios')
+            // Buscar último plan usado en agenda_citas_asignadas
+            $queryLast = DB::table('agenda_citas_asignadas')
                 ->where('paciente_id', $documento);
                 
             if ($tipoDoc) {
                 $queryLast->where('tipo_id_paciente', $tipoDoc);
             }
             
-            $lastOrder = $queryLast->orderBy('orden_servicio_id', 'desc')
+            $lastOrder = $queryLast->orderBy('agenda_cita_asignada_id', 'desc')
                 ->select('plan_id')
                 ->first();
 
