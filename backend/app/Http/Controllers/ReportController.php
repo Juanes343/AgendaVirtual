@@ -373,6 +373,7 @@ class ReportController extends Controller
             $pdfContentCompleto = null;
             $pdfContentFormula = null;
             $pdfContentOrden = null;
+            $pdfContentIncapacidad = null;
 
             // 3. Generar PDF consolidado en memoria (Solo si type == 'all')
             if ($type === 'all') {
@@ -502,13 +503,32 @@ class ReportController extends Controller
                 $pdfContentOrden = $dompdfO->output();
             }
 
+            // 3.4 Generar PDF Incapacidad (Si hay incapacidades y corresponde el tipo)
+            if (($type === 'all' || $type === 'incapacidad') && !empty($data->incapacidades) && count($data->incapacidades) > 0) {
+                $dompdfI = new \Dompdf\Dompdf();
+                $dompdfI->set_option('isRemoteEnabled', true);
+                
+                $dompdfI->loadHtml(view('incapacidad', [
+                    'paciente' => $header,
+                    'incapacidades' => $data->incapacidades,
+                    'empresa' => $empresa ?? null,
+                    'logoBase64' => $logoBase64 ?? null,
+                    'firmaBase64' => $firmaBase64,
+                    'fecha' => date('Y-m-d'),
+                    'fecha_impresion' => date('Y-m-d H:i')
+                ])->render());
+                $dompdfI->setPaper('A4', 'portrait');
+                $dompdfI->render();
+                $pdfContentIncapacidad = $dompdfI->output();
+            }
+
             // 4. Enviar Correo con Adjunto
             Mail::send('emails.medical_history_report_v2', [
                 'nombre' => $header->nombre_completo,
                 'fecha' => $header->fecha,
                 'ingreso' => $ingreso,
                 'profesional' => $header->profesional
-            ], function ($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden, $type) {
+            ], function ($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden, $pdfContentIncapacidad, $type) {
                 $message->to($paciente->email)
                     ->subject('Reporte Historia Clínica - Ingreso #' . $ingreso);
 
@@ -525,6 +545,11 @@ class ReportController extends Controller
                 // Adjunto 3: Ordenes (Si existe)
                 if ($pdfContentOrden) {
                     $message->attachData($pdfContentOrden, "Ordenes_Medicas_{$ingreso}.pdf", ['mime' => 'application/pdf']);
+                }
+
+                // Adjunto 4: Incapacidad (Si existe)
+                if ($pdfContentIncapacidad) {
+                    $message->attachData($pdfContentIncapacidad, "Incapacidad_Medica_{$ingreso}.pdf", ['mime' => 'application/pdf']);
                 }
             });
 
