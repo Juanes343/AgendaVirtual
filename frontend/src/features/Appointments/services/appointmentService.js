@@ -61,6 +61,14 @@ const appointmentService = {
     return response.data;
   },
 
+  // Obtener Citas Asignadas
+  getAssignedAppointments: async (pacienteId, tipoDoc) => {
+    const response = await api.get('/appointments/assigned', {
+        params: { paciente_id: pacienteId, tipo_doc: tipoDoc }
+    });
+    return response.data;
+  },
+
   // Agendar
   bookAppointment: async (data) => {
     const response = await api.post('/appointments/book', data);

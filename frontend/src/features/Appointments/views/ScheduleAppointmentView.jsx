@@ -24,20 +24,23 @@ export default function ScheduleAppointmentView() {
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
   const [availability, setAvailability] = useState([]);
+  const [assignedAppointments, setAssignedAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 1. Cargar Planes y Tipos al iniciar (Con paciente_id)
+  // 1. Cargar Planes, Tipos y Citas Asignadas al iniciar
   useEffect(() => {
     async function loadInitialData() {
       if (!user?.paciente) return;
       
       try {
-        const [plansData, typesData] = await Promise.all([
+        const [plansData, typesData, assignedData] = await Promise.all([
           appointmentService.getPlans(user.paciente.paciente_id, user.paciente.tipo_id_paciente),
-          appointmentService.getAppointmentTypes()
+          appointmentService.getAppointmentTypes(),
+          appointmentService.getAssignedAppointments(user.paciente.paciente_id, user.paciente.tipo_id_paciente)
         ]);
         setPlans(plansData);
         setTypes(typesData);
+        setAssignedAppointments(assignedData || []);
         
         // Cargar últimos datos usados (Autoselección)
         const lastData = await appointmentService.getPatientLastData(user.paciente.paciente_id, user.paciente.tipo_id_paciente);
@@ -246,12 +249,77 @@ export default function ScheduleAppointmentView() {
     
     setCurrentDate(newDate);
   }
+  
+  // Helper para validar cancelación (2 horas antes)
+  const canCancel = (fechaTurno, horaTurno) => {
+      const fechaCita = new Date(`${fechaTurno}T${horaTurno}`);
+      const fechaLimite = new Date(fechaCita.getTime() - (2 * 60 * 60 * 1000)); // Restar 2 horas
+      const ahora = new Date();
+      return ahora < fechaLimite;
+  };
+
+  const handleCancelAppointment = (cita) => {
+      if(!canCancel(cita.fecha_turno, cita.hora)) {
+          Swal.fire('Atención', 'Solo se puede cancelar con 2 horas de anticipación.', 'warning');
+          return;
+      }
+       // Lógica de cancelación pendiente de backend endpoint
+      Swal.fire('Info', 'Funcionalidad de cancelación en proceso.', 'info');
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
          <h2 className="text-2xl font-bold text-blue-900">Agenda Médica</h2>
       </div>
+
+       {/* Citas Asignadas (Legacy Panel) */}
+       {assignedAppointments.length > 0 && (
+          <div className="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden mb-8">
+              <div className="bg-blue-900 text-white p-4">
+                  <h3 className="font-bold text-md uppercase tracking-wider">Citas Programadas</h3>
+              </div>
+              <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                      <thead className="bg-blue-50 text-blue-900 font-bold uppercase text-xs">
+                          <tr>
+                              <th className="p-3 border-b">Fecha Cita</th>
+                              <th className="p-3 border-b">Plan</th>
+                              <th className="p-3 border-b">Tipo Consulta</th>
+                              <th className="p-3 border-b">Atención</th>
+                              <th className="p-3 border-b">Descripción</th>
+                              <th className="p-3 border-b">Profesional</th>
+                              <th className="p-3 border-b text-center">Acción</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                          {assignedAppointments.map((cita, idx) => (
+                              <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                  <td className="p-3 font-medium">{cita.fecha_turno} <br/><span className="text-gray-500 font-normal">{cita.hora}</span></td>
+                                  <td className="p-3 text-gray-600">{cita.plan_descripcion}</td>
+                                  <td className="p-3 text-gray-600">{cita.tipos_consulta}</td>
+                                  <td className="p-3 text-gray-600 font-semibold">{cita.atencion}</td>
+                                  <td className="p-3 text-gray-600">{cita.descripcion}</td>
+                                  <td className="p-3 text-gray-600 uppercase">{cita.profesional}</td>
+                                  <td className="p-3 text-center">
+                                      {canCancel(cita.fecha_turno, cita.hora) ? (
+                                          <button 
+                                              onClick={() => handleCancelAppointment(cita)}
+                                              className="px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 font-medium transition-colors text-xs border border-red-200"
+                                          >
+                                              Cancelar
+                                          </button>
+                                      ) : (
+                                          <span className="text-xs text-red-500 font-bold border border-red-200 bg-red-50 px-2 py-1 rounded">2 Horas Ant.</span>
+                                      )}
+                                  </td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+       )}
 
       {/* Filters Card */}
       <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-6">

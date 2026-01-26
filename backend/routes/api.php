@@ -23,6 +23,7 @@ Route::prefix('appointments')->group(function () {
     Route::get('/services', [AppointmentController::class, 'getServices']);
     Route::get('/professionals', [AppointmentController::class, 'getProfessionals']);
     Route::get('/availability', [AppointmentController::class, 'getAvailability']);
+    Route::get('/assigned', [AppointmentController::class, 'getAssignedAppointments']);
 });
 
 // Rutas protegidas

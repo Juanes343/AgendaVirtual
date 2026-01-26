@@ -300,6 +300,87 @@ class AppointmentController extends Controller
     }
 
     /**
+     * Obtener citas ya asignadas al paciente (Vigentes)
+     */
+    public function getAssignedAppointments(Request $request)
+    {
+        $pacienteId = $request->query('paciente_id');
+        $tipoDoc = $request->query('tipo_doc');
+        
+        if (!$pacienteId || !$tipoDoc) {
+            return response()->json([]);
+        }
+
+        /*
+           Adaptación de query CitasAsignadasPaciente:
+           Se busca listar citas futuras o del día, activas (sw_estado=1), no canceladas.
+           Se valida opcionalmente estado sw_estado de os_maestro si existe cruce.
+        */
+        $query = "
+            SELECT DISTINCT
+                C.fecha_turno,
+                a.hora,
+                e.plan_descripcion,
+                G.tipo_consulta_id,
+                G.descripcion AS tipos_consulta,
+                f.cargo,
+                f.descripcion,
+                T.nombre_tercero as profesional,
+                a.agenda_cita_id,
+                b.agenda_cita_asignada_id,
+                CASE WHEN B.sw_tipo_atencion = '1' THEN 'PRESENCIAL' ELSE 'TELECONSULTA' END AS atencion,
+                om.sw_estado as orden_estado
+            FROM agenda_citas A
+            JOIN agenda_citas_asignadas B ON A.agenda_cita_id = B.agenda_cita_id
+            JOIN agenda_turnos C ON A.agenda_turno_id = C.agenda_turno_id
+            
+            -- Para verificar cancelaciones
+            LEFT JOIN agenda_citas_asignadas_cancelacion AC ON AC.agenda_cita_asignada_id = B.agenda_cita_asignada_id
+            
+            -- Para verificar estado de orden (si aplica)
+            LEFT JOIN os_cruce_citas oc ON b.agenda_cita_asignada_id = oc.agenda_cita_asignada_id
+            LEFT JOIN os_maestro om ON om.numero_orden_id = oc.numero_orden_id
+            
+            LEFT JOIN planes E ON B.plan_id = E.plan_id
+            LEFT JOIN tipos_consulta G ON c.tipo_consulta_id = G.tipo_consulta_id
+            
+            -- Profesionales y Terceros
+            LEFT JOIN profesionales P ON C.profesional_id = P.tercero_id AND C.tipo_id_profesional = P.tipo_id_tercero
+            LEFT JOIN terceros T ON P.tercero_id = T.tercero_id AND P.tipo_id_tercero = T.tipo_id_tercero
+            
+            JOIN cups F ON F.cargo = B.cargo_cita
+            
+            WHERE A.sw_estado = '1' -- Asignada
+            AND b.paciente_id = ?
+            AND b.tipo_id_paciente = ?
+            AND C.fecha_turno >= CURRENT_DATE
+            AND AC.agenda_cita_asignada_id IS NULL
+            
+            ORDER BY C.fecha_turno, a.hora ASC
+        ";
+
+        $citas = DB::select($query, [$pacienteId, $tipoDoc]);
+        
+        // Filtrar por estado de orden si es necesario (Replicando logica legacy: if(sw_estado == '1'))
+        // Nota: Si no hay cruce (om es null), en legacy parece que no entraría en el if($value['sw_estado'] == '1')
+        // Sin embargo, asumiremos que si sw_estado viene, debe ser 1. Si no viene, es cita directa?
+        // Revisando legacy: foreach... if($value['sw_estado'] == '1').
+        // Si om.sw_estado es null, la condición falla.
+        // Mantenemos el filtro estricto:
+        
+        $citasFiltradas = [];
+        foreach($citas as $cita) {
+             // Si sw_estado es 1, o quizas permitir NULL si es cita sin orden (ajustar segun negocio real)
+             // El usuario pidió "tal cual aca". Aca dice: if($value['sw_estado'] == '1')
+             if ($cita->orden_estado == '1') {
+                 $citasFiltradas[] = $cita;
+             }
+        }
+
+        return response()->json($citasFiltradas);
+    } 
+
+    /**
      * Agendar Cita
      */
     public function bookAppointment(Request $request)
