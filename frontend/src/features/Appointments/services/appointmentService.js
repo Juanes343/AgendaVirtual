@@ -73,6 +73,18 @@ const appointmentService = {
   bookAppointment: async (data) => {
     const response = await api.post('/appointments/book', data);
     return response.data;
+  },
+
+  // Obtener Tipos de Cancelación
+  getCancellationTypes: async () => {
+    const response = await api.get('/appointments/cancellation-types');
+    return response.data;
+  },
+
+  // Cancelar Cita
+  cancelAppointment: async (data) => {
+    const response = await api.post('/appointments/cancel', data);
+    return response.data;
   }
 };
 

@@ -24,12 +24,14 @@ Route::prefix('appointments')->group(function () {
     Route::get('/professionals', [AppointmentController::class, 'getProfessionals']);
     Route::get('/availability', [AppointmentController::class, 'getAvailability']);
     Route::get('/assigned', [AppointmentController::class, 'getAssignedAppointments']);
+    Route::get('/cancellation-types', [AppointmentController::class, 'getCancellationTypes']);
 });
 
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
     // Agendamiento (Solo reservar requiere auth)
     Route::post('/appointments/book', [AppointmentController::class, 'bookAppointment']);
+    Route::post('/appointments/cancel', [AppointmentController::class, 'cancelAppointment']);
 
     Route::get('/user', function (Request $request) {
         return $request->user();

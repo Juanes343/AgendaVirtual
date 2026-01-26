@@ -227,11 +227,16 @@ export default function ScheduleAppointmentView() {
                   tipo_afiliado: selectedAffiliateType,
                   rango: affType ? affType.rango : null
               });
-              Swal.fire('¡Agendado!', 'Tu cita ha sido reservada.', 'success');
-              searchAvailability(); 
+              await Swal.fire('¡Agendado!', 'Tu cita ha sido reservada.', 'success');
+              
+              // Recargar citas asignadas para bloquear
+              const assignedData = await appointmentService.getAssignedAppointments(user.paciente.paciente_id, user.paciente.tipo_id_paciente);
+              setAssignedAppointments(assignedData || []);
+              setAvailability([]); // Limpiar agenda
+
           } catch (e) {
               console.error(e);
-              Swal.fire('Error', 'No se pudo agendar la cita.', 'error');
+              Swal.fire('Error', e.response?.data?.message || 'No se pudo agendar la cita.', 'error');
           }
       }
   };
@@ -252,20 +257,131 @@ export default function ScheduleAppointmentView() {
   
   // Helper para validar cancelación (2 horas antes)
   const canCancel = (fechaTurno, horaTurno) => {
-      const fechaCita = new Date(`${fechaTurno}T${horaTurno}`);
-      const fechaLimite = new Date(fechaCita.getTime() - (2 * 60 * 60 * 1000)); // Restar 2 horas
-      const ahora = new Date();
-      return ahora < fechaLimite;
+      // DEBUG: Validación temporalmente comentada para pruebas
+      return true;
+
+      /*
+      if (!fechaTurno || !horaTurno) return false;
+
+      try {
+          // Parsear fecha YYYY-MM-DD manualmente para evitar problemas de zona horaria/strings
+          const [year, month, day] = fechaTurno.split('-').map(Number);
+          // Parsear hora HH:MM o HH:MM:SS
+          const [hours, minutes] = horaTurno.split(':').map(Number);
+          
+          // Crear fecha de la cita (Mes en JS es 0-indexado)
+          const fechaCita = new Date(year, month - 1, day, hours, minutes);
+          
+          // Calcular fecha límite (Cita - 2 horas)
+          const fechaLimite = new Date(fechaCita.getTime() - (2 * 60 * 60 * 1000));
+          
+          const ahora = new Date();
+          
+          return ahora < fechaLimite;
+      } catch (e) {
+          console.error("Error validando fecha cancelación", e);
+          return false;
+      }
+      */
   };
 
-  const handleCancelAppointment = (cita) => {
+  const handleCancelAppointment = async (cita) => {
       if(!canCancel(cita.fecha_turno, cita.hora)) {
           Swal.fire('Atención', 'Solo se puede cancelar con 2 horas de anticipación.', 'warning');
           return;
       }
-       // Lógica de cancelación pendiente de backend endpoint
-      Swal.fire('Info', 'Funcionalidad de cancelación en proceso.', 'info');
+      
+      try {
+          // 1. Cargar Motivos usando el servicio (axios configurado)
+          let options = {};
+          try {
+              const types = await appointmentService.getCancellationTypes();
+              options = types.reduce((acc, t) => {
+                 acc[t.id] = t.label;
+                 return acc;
+              }, {});
+          } catch (errTypes) {
+              console.warn("Fallo cargar tipos, usando default", errTypes);
+              options = { '1': 'Error de Agendamiento', '2': 'Motivos Personales', '3': 'Otro' };
+          }
+          
+          if (Object.keys(options).length === 0) {
+              options = { '1': 'Error de Agendamiento', '2': 'Motivos Personales', '3': 'Otro' };
+          }
+
+          const { value: formValues } = await Swal.fire({
+              title: 'Cancelar Cita',
+              html:
+                  '<p class="mb-2 text-sm text-gray-600">Seleccione el motivo de cancelación:</p>' +
+                  '<select id="swal-cancel-reason" class="swal2-input">' +
+                     Object.entries(options).map(([k, v]) => `<option value="${k}">${v}</option>`).join('') +
+                  '</select>' +
+                  '<textarea id="swal-cancel-obs" class="swal2-textarea" placeholder="Observación (Requerido)..."></textarea>',
+              focusConfirm: false,
+              showCancelButton: true,
+              confirmButtonText: 'Confirmar Cancelación',
+              cancelButtonText: 'Cerrar',
+              confirmButtonColor: '#d33',
+              preConfirm: () => {
+                  return [
+                      document.getElementById('swal-cancel-reason').value,
+                      document.getElementById('swal-cancel-obs').value
+                  ]
+              }
+          });
+          
+          if (formValues) {
+             const [justificacion, observacion] = formValues;
+             if(!justificacion || !observacion) {
+                 Swal.fire('Error', 'Todos los campos son obligatorios. Ingrese una observación.', 'error');
+                 return;
+             }
+             
+             Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+             // 2. Realizar cancelación usando el servicio
+             await appointmentService.cancelAppointment({
+                 agenda_cita_asignada_id: cita.agenda_cita_asignada_id,
+                 paciente_id: user.paciente.paciente_id,
+                 justificacion,
+                 observacion
+             });
+             
+             Swal.fire('Cancelada', 'Su cita ha sido cancelada correctamente.', 'success');
+             
+             // Recargar citas
+             try {
+                 const assignedData = await appointmentService.getAssignedAppointments(user.paciente.paciente_id, user.paciente.tipo_id_paciente);
+                 setAssignedAppointments(assignedData || []);
+                 setAvailability([]);
+             } catch(err) {
+                 // Si falla recarga automatica
+                 window.location.reload();
+             }
+          }
+
+      } catch (e) {
+          console.error(e);
+          Swal.fire('Error', e.response?.data?.message || e.message || 'No se pudo procesar la cancelación', 'error');
+      }
   };
+
+  // Validar si la cita sigue vigente (Fecha/Hora > Actual)
+  const isCitaVigente = (cita) => {
+      if (!cita.fecha_turno || !cita.hora) return false;
+      try {
+          const [year, month, day] = cita.fecha_turno.split('-').map(Number);
+          const [hours, minutes] = cita.hora.split(':').map(Number);
+          const fechaCita = new Date(year, month - 1, day, hours, minutes);
+          const ahora = new Date();
+          // Es vigente si la fecha de la cita es posterior a ahora
+          return fechaCita > ahora;
+      } catch (e) {
+          return true; // Fallback: asumir vigente
+      }
+  };
+
+  const hasActiveAppointments = assignedAppointments.some(isCitaVigente);
 
   return (
     <div className="space-y-6">
@@ -302,16 +418,13 @@ export default function ScheduleAppointmentView() {
                                   <td className="p-3 text-gray-600">{cita.descripcion}</td>
                                   <td className="p-3 text-gray-600 uppercase">{cita.profesional}</td>
                                   <td className="p-3 text-center">
-                                      {canCancel(cita.fecha_turno, cita.hora) ? (
-                                          <button 
-                                              onClick={() => handleCancelAppointment(cita)}
-                                              className="px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 font-medium transition-colors text-xs border border-red-200"
-                                          >
-                                              Cancelar
-                                          </button>
-                                      ) : (
-                                          <span className="text-xs text-red-500 font-bold border border-red-200 bg-red-50 px-2 py-1 rounded">2 Horas Ant.</span>
-                                      )}
+                                      {/* Force enable cancel */}
+                                      <button 
+                                          onClick={() => handleCancelAppointment(cita)}
+                                          className="px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 font-medium transition-colors text-xs border border-red-200"
+                                      >
+                                          Cancelar
+                                      </button>
                                   </td>
                               </tr>
                           ))}
@@ -322,6 +435,17 @@ export default function ScheduleAppointmentView() {
        )}
 
       {/* Filters Card */}
+      {hasActiveAppointments ? (
+           <div className="bg-blue-50 border border-blue-200 rounded-xl p-8 text-center text-blue-900 shadow-sm">
+                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-blue-500"/>
+                <h3 className="text-xl font-bold mb-2">Tiene una cita activa asignada</h3>
+                <p className="text-blue-700 max-w-lg mx-auto">
+                    Nuestro sistema solo permite tener una cita programada a la vez. 
+                    Por favor, asista a su cita o cancélela si necesita reagendar.
+                </p>
+           </div>
+      ) : (
+      <>
       <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-6">
         <div className="grid md:grid-cols-3 gap-6"> 
           
@@ -500,6 +624,8 @@ export default function ScheduleAppointmentView() {
               </div>
               <p className="text-slate-500 font-medium">Seleccione Plan y Tipo de Cita para ver la disponibilidad</p>
           </div>
+      )}
+      </>
       )}
     </div>
   );

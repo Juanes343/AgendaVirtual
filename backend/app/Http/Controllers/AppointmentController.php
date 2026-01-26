@@ -396,6 +396,23 @@ class AppointmentController extends Controller
         
         $params = $request->all();
 
+        // Validar si ya tiene cita activa
+        $citasActivas = DB::select("
+            SELECT count(*) as total
+            FROM agenda_citas A
+            JOIN agenda_citas_asignadas B ON A.agenda_cita_id = B.agenda_cita_id
+            JOIN agenda_turnos C ON A.agenda_turno_id = C.agenda_turno_id
+            LEFT JOIN agenda_citas_asignadas_cancelacion AC ON AC.agenda_cita_asignada_id = B.agenda_cita_asignada_id
+            WHERE A.sw_estado = '1'
+            AND b.paciente_id = ?
+            AND C.fecha_turno >= CURRENT_DATE
+            AND AC.agenda_cita_asignada_id IS NULL
+        ", [$params['paciente_id']]);
+
+        if ($citasActivas[0]->total > 0) {
+            return response()->json(['message' => 'Ya cuenta con una cita activa vigente. Solo puede tener una cita asignada.'], 400);
+        }
+
         // 1. Obtener datos detallados del paciente
         $paciente = DB::table('pacientes')
             ->where('paciente_id', $params['paciente_id'])
@@ -602,6 +619,95 @@ class AppointmentController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Error al agendar cita: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Obtener Tipos de Cancelación
+     */
+    public function getCancellationTypes()
+    {
+        $types = DB::select("SELECT tipo_cancelacion_id as id, descripcion as label FROM tipos_cancelacion ORDER BY descripcion");
+        return response()->json($types);
+    }
+
+    /**
+     * Cancelar Cita
+     */
+    public function cancelAppointment(Request $request)
+    {
+        $request->validate([
+            'agenda_cita_asignada_id' => 'required',
+            'paciente_id' => 'required',
+            'justificacion' => 'required',
+            'observacion' => 'required'
+        ]);
+
+        $params = $request->all();
+
+        DB::beginTransaction();
+        try {
+            // 1. Obtener Padre
+            $datosCita = DB::table('agenda_citas_asignadas')
+                ->where('agenda_cita_asignada_id', $params['agenda_cita_asignada_id'])
+                ->where('paciente_id', $params['paciente_id'])
+                ->select('agenda_cita_id_padre')
+                ->first();
+
+            if (!$datosCita) {
+                return response()->json(['message' => 'Cita asignada no encontrada o no pertenece al paciente'], 404);
+            }
+
+            // 2. Insertar en Cancelacion
+            $exists = DB::table('agenda_citas_asignadas_cancelacion')
+                ->where('agenda_cita_asignada_id', $params['agenda_cita_asignada_id'])
+                ->exists();
+
+            if (!$exists) {
+                DB::table('agenda_citas_asignadas_cancelacion')->insert([
+                    'agenda_cita_asignada_id' => $params['agenda_cita_asignada_id'],
+                    'tipo_cancelacion_id' => $params['justificacion'], // ID del motivo
+                    'observacion' => $params['observacion'],
+                    'fecha_registro' => DB::raw("NOW()"),
+                    'usuario_id' => 0 // Ajustar según auth
+                ]);
+            }
+
+            // 3. Update agenda_citas_asignadas (Set sw_atencion = '1')
+            DB::table('agenda_citas_asignadas')
+                 ->where('agenda_cita_id_padre', $datosCita->agenda_cita_id_padre)
+                 ->where('paciente_id', $params['paciente_id'])
+                 ->where('sw_atencion', '!=', '1')
+                 ->update(['sw_atencion' => '1']);
+
+             // 4. Update Orders
+             $cruce = DB::table('os_cruce_citas')
+                 ->where('agenda_cita_asignada_id', $params['agenda_cita_asignada_id'])
+                 ->select('numero_orden_id')
+                 ->first();
+            
+             if ($cruce) {
+                 DB::table('os_maestro')
+                     ->where('numero_orden_id', $cruce->numero_orden_id)
+                     ->update(['sw_estado' => '9']); 
+
+                 $ordenesIds = DB::table('os_maestro')
+                     ->where('numero_orden_id', $cruce->numero_orden_id)
+                     ->pluck('orden_servicio_id');
+                     
+                 if ($ordenesIds->isNotEmpty()) {
+                     DB::table('os_ordenes_servicios')
+                        ->whereIn('orden_servicio_id', $ordenesIds)
+                        ->update(['sw_estado' => '4']);
+                 }
+             }
+
+             DB::commit();
+             return response()->json(['message' => 'Cita cancelada correctamente', 'success' => true]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al cancelar cita: ' . $e->getMessage()], 500);
         }
     }
 }
