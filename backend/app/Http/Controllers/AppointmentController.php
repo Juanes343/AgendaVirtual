@@ -257,6 +257,7 @@ class AppointmentController extends Controller
             JOIN terceros t ON p.tercero_id = t.tercero_id AND p.tipo_id_tercero = t.tipo_id_tercero
             WHERE a.fecha_turno BETWEEN ? AND ?
             AND ac.sw_estado = '0' -- 0: Disponible
+            AND (ac.sw_separada != '1' OR ac.sw_separada IS NULL)
             -- AND ac.sw_bloqueada != '1'
         ";
         
@@ -340,7 +341,8 @@ class AppointmentController extends Controller
             
             -- Para verificar estado de orden (si aplica)
             LEFT JOIN os_cruce_citas oc ON b.agenda_cita_asignada_id = oc.agenda_cita_asignada_id
-            LEFT JOIN os_maestro om ON om.numero_orden_id = oc.numero_orden_id
+            -- LEFT JOIN os_maestro om ON om.numero_orden_id = oc.numero_orden_id
+            LEFT JOIN os_maestro om ON om.numero_orden_id = oc.numero_orden_id AND om.sw_estado != '1'
             
             LEFT JOIN planes E ON B.plan_id = E.plan_id
             LEFT JOIN tipos_consulta G ON c.tipo_consulta_id = G.tipo_consulta_id
@@ -357,6 +359,10 @@ class AppointmentController extends Controller
             AND C.fecha_turno >= CURRENT_DATE
             AND AC.agenda_cita_asignada_id IS NULL
             
+            -- FIX: No filtrar por sw_estado de orden aquí, o usar LEFT JOIN permisivo
+            -- El filtro de ordenes anuladas ya se haría en el LEFT JOIN de os_maestro si fuera necesario
+            -- pero si la orden no existe, igual debe salir la cita (ej particular)
+            
             ORDER BY C.fecha_turno, a.hora ASC
         ";
 
@@ -366,14 +372,12 @@ class AppointmentController extends Controller
         // Nota: Si no hay cruce (om es null), en legacy parece que no entraría en el if($value['sw_estado'] == '1')
         // Sin embargo, asumiremos que si sw_estado viene, debe ser 1. Si no viene, es cita directa?
         // Revisando legacy: foreach... if($value['sw_estado'] == '1').
-        // Si om.sw_estado es null, la condición falla.
-        // Mantenemos el filtro estricto:
+        // ERROR: Esto descarta citas particulares o sin orden asociada (orden_estado es null).
+        // Ajuste: Permitir si es '1' O si es NULL/vacio.
         
         $citasFiltradas = [];
         foreach($citas as $cita) {
-             // Si sw_estado es 1, o quizas permitir NULL si es cita sin orden (ajustar segun negocio real)
-             // El usuario pidió "tal cual aca". Aca dice: if($value['sw_estado'] == '1')
-             if ($cita->orden_estado == '1') {
+             if ($cita->orden_estado == '1' || empty($cita->orden_estado)) {
                  $citasFiltradas[] = $cita;
              }
         }
@@ -397,18 +401,32 @@ class AppointmentController extends Controller
         
         $params = $request->all();
 
-        // Validar si ya tiene cita activa
-        $citasActivas = DB::select("
+        // Validar si ya tiene cita activa (Mismo paciente y mismo tipo documento)
+        $bindings = [$params['paciente_id']];
+        $sqlCheck = "
             SELECT count(*) as total
             FROM agenda_citas A
             JOIN agenda_citas_asignadas B ON A.agenda_cita_id = B.agenda_cita_id
             JOIN agenda_turnos C ON A.agenda_turno_id = C.agenda_turno_id
             LEFT JOIN agenda_citas_asignadas_cancelacion AC ON AC.agenda_cita_asignada_id = B.agenda_cita_asignada_id
+            
+            LEFT JOIN os_cruce_citas OC ON B.agenda_cita_asignada_id = OC.agenda_cita_asignada_id
+            LEFT JOIN os_maestro OM ON OC.numero_orden_id = OM.numero_orden_id
+
             WHERE A.sw_estado = '1'
             AND b.paciente_id = ?
-            AND C.fecha_turno >= CURRENT_DATE
-            AND AC.agenda_cita_asignada_id IS NULL
-        ", [$params['paciente_id']]);
+            AND (OM.sw_estado = '1' OR OM.sw_estado IS NULL) -- Validar solo si está activa o sin orden
+        ";
+        
+        // Si viene el tipo_doc, filtramos también por él para evitar bloqueos por homónimos/cambios doc
+        if (!empty($params['tipo_doc'])) {
+            $sqlCheck .= " AND b.tipo_id_paciente = ? ";
+            $bindings[] = $params['tipo_doc'];
+        }
+
+        $sqlCheck .= " AND C.fecha_turno >= CURRENT_DATE AND AC.agenda_cita_asignada_id IS NULL ";
+
+        $citasActivas = DB::select($sqlCheck, $bindings);
 
         if ($citasActivas[0]->total > 0) {
             return response()->json(['message' => 'Ya cuenta con una cita activa vigente. Solo puede tener una cita asignada.'], 400);
@@ -487,7 +505,11 @@ class AppointmentController extends Controller
             DB::table('agenda_citas')
                 ->where('agenda_turno_id', $params['agenda_turno_id'])
                 ->where('agenda_cita_id', $params['agenda_cita_id'])
-                ->update(['sw_estado' => '1']); 
+                ->update([
+                    'sw_estado' => '1',
+                    'sw_separada' => '1',
+                    'usuario_separa' => 0
+                ]); 
 
             // B. Generar Autorización
             $authSeq = DB::selectOne("SELECT nextval('autorizaciones_autorizacion_seq'::regclass) AS val")->val;
