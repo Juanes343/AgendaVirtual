@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, User, Users, Activity, Clock, ChevronLeft, ChevronRight, CheckCircle, AlertCircle, FileText } from 'lucide-react';
+import { Calendar, User, Users, Activity, Clock, ChevronLeft, ChevronRight, CheckCircle, AlertCircle, FileText, ArrowLeft } from 'lucide-react';
 import appointmentService from '../services/appointmentService';
 import { useUser } from '../../../contexts/UserContext/UserContext';
 import Swal from 'sweetalert2';
 
-export default function ScheduleAppointmentView() {
+export default function ScheduleAppointmentView({ onBack }) {
   const { user } = useUser();
   
   // Selectors State
@@ -388,6 +388,15 @@ export default function ScheduleAppointmentView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
          <h2 className="text-2xl font-bold text-blue-900">Agenda Médica</h2>
+         {onBack && (
+             <button 
+                onClick={onBack}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm text-sm"
+             >
+                <ArrowLeft className="w-4 h-4" />
+                Regresar al Inicio
+             </button>
+         )}
       </div>
 
        {/* Citas Asignadas (Legacy Panel) */}

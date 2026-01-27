@@ -212,7 +212,7 @@ export default function DashboardView() {
         {activeTab === "datos" && <ProfileView />}
         {activeTab === "diagnosticos" && <DiagnosticosTab />}
         {/* Nueva vista de agendamiento */}
-        {activeTab === "agendar" && <ScheduleAppointmentView />}
+        {activeTab === "agendar" && <ScheduleAppointmentView onBack={() => setActiveTab('inicio')} />}
       </main>
 
       {/* Footer */}
