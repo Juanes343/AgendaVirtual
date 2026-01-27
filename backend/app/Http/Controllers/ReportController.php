@@ -79,6 +79,7 @@ class ReportController extends Controller
                 DB::raw("MAX(DATE(a.fecha)) as fecha"), // Solo fecha
                 DB::raw("MAX(d.nombre) as profesional_nombre"),
                 DB::raw("MAX(cups.descripcion) as servicio"),
+                DB::raw("MAX(cups.cargo) as codigo_servicio"),
                 'b.estado',
                 DB::raw("MAX(tc.tipo) as tipo_consulta_id") // Se asume nombre de columna 'tipo'
             )
