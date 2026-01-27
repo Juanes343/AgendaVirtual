@@ -255,6 +255,24 @@ export default function ScheduleAppointmentView({ onBack }) {
     
     setCurrentDate(newDate);
   }
+
+  const handleDateSelect = (e) => {
+    if(!e.target.value) return;
+    
+    const [year, month, day] = e.target.value.split('-').map(Number);
+    const newDate = new Date(year, month - 1, day);
+    
+    // Validar no retroceder antes de hoy
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    if(newDate < today) {
+      Swal.fire('Atención', 'No puedes seleccionar fechas anteriores a hoy.', 'warning');
+      return; 
+    }
+    
+    setCurrentDate(newDate);
+  };
   
   // Helper para validar cancelación (2 horas antes)
   const canCancel = (fechaTurno, horaTurno) => {
@@ -543,43 +561,62 @@ export default function ScheduleAppointmentView({ onBack }) {
         </div>
       </div>
 
-      {/* Agenda Grid - Estilo Legacy / Lista de Horarios */}
-      {selectedType && availability.length > 0 && (
+      {/* Agenda Grid Unificada - Con Selector de Fecha */}
+      {selectedType && (
       <div className="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden">
-        {/* Header con Fecha Actual seleccionada */}
-        <div className="bg-blue-900 text-white p-4 flex items-center justify-between">
-            <h3 className="font-bold text-lg uppercase tracking-wider">
-               Día Agenda: {currentDate.toLocaleDateString()}
-            </h3>
-             <div className="flex items-center gap-2">
+        {/* Header con Navegación y Calendario */}
+        <div className="bg-blue-900 text-white p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+                 <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-blue-300" />
+                    <span className="font-bold text-lg uppercase tracking-wider">DÍA AGENDA:</span>
+                 </div>
+                 <input 
+                     type="date"
+                     value={formatDateForAPI(currentDate)}
+                     onChange={handleDateSelect}
+                     className="bg-blue-800 border border-blue-600 text-white text-sm rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 [color-scheme:dark]"
+                 />
+            </div>
+
+            <div className="flex items-center gap-2">
                 <button 
                     onClick={() => changeDay(-1)} 
                     disabled={isToday(currentDate)}
                     className={`p-2 rounded-lg transition-colors ${isToday(currentDate) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-800'}`}
+                    title="Día Anterior"
                 >
                     <ChevronLeft className="w-5 h-5 text-white" />
                 </button>
-                <button onClick={() => setCurrentDate(new Date())} className="text-xs bg-blue-700 px-3 py-1 rounded hover:bg-blue-600">HOY</button>
-                <button onClick={() => changeDay(1)} className="p-2 hover:bg-blue-800 rounded-lg transition-colors">
+                <button onClick={() => setCurrentDate(new Date())} className="text-xs bg-blue-700 px-3 py-1 rounded hover:bg-blue-600 font-semibold border border-blue-600">HOY</button>
+                <button onClick={() => changeDay(1)} className="p-2 hover:bg-blue-800 rounded-lg transition-colors" title="Día Siguiente">
                     <ChevronRight className="w-5 h-5 text-white" />
                 </button>
             </div>
         </div>
+        
+        {/* Loading Indicator */}
+        {loading && (
+            <div className="p-12 text-center">
+                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-900 mx-auto mb-4"></div>
+                 <p className="text-gray-500 font-medium">Consultando disponibilidad...</p>
+            </div>
+        )}
 
-        {/* Legacy Table Header */}
-        <div className="grid grid-cols-12 bg-blue-700 text-white font-bold text-sm uppercase text-center border-t border-blue-800">
-             <div className="col-span-2 p-3 border-r border-blue-600">Hora</div>
-             <div className="col-span-4 p-3 border-r border-blue-600">Profesional</div>
-             <div className="col-span-4 p-3 border-r border-blue-600">Consultorio / Sede</div>
-             <div className="col-span-2 p-3">Selección</div>
-        </div>
+        {/* Not Loading & Not Empty = LIST */}
+        {!loading && availability.length > 0 && (
+        <>
+            {/* Legacy Table Header */}
+            <div className="grid grid-cols-12 bg-blue-700 text-white font-bold text-sm uppercase text-center border-t border-blue-800">
+                <div className="col-span-2 p-3 border-r border-blue-600">Hora</div>
+                <div className="col-span-4 p-3 border-r border-blue-600">Profesional</div>
+                <div className="col-span-4 p-3 border-r border-blue-600">Consultorio / Sede</div>
+                <div className="col-span-2 p-3">Selección</div>
+            </div>
 
-        {/* Body Slots - Listado Real */}
-        <div className="max-h-[600px] overflow-y-auto">
-             {availability.length === 0 ? (
-                 <div className="p-8 text-center text-gray-500">No hay turnos disponibles para esta fecha.</div>
-             ) : (
-                 availability.map((turno, idx) => (
+            {/* Body Slots - Listado Real */}
+            <div className="max-h-[600px] overflow-y-auto">
+                 {availability.map((turno, idx) => (
                     <div key={turno.id} className={`grid grid-cols-12 border-b border-gray-200 hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
                         {/* HORA */}
                         <div className="col-span-2 p-3 text-center font-bold text-blue-900 border-r border-gray-200 flex items-center justify-center">
@@ -607,22 +644,23 @@ export default function ScheduleAppointmentView({ onBack }) {
                             </button>
                         </div>
                     </div>
-                 ))
-             )}
-        </div>
-      </div>
-      )}
-
-      {selectedType && availability.length === 0 && !loading && (
-           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-            <p className="text-yellow-700 font-medium">No se encontraron citas disponibles para {currentDate.toLocaleDateString()}</p>
-            <div className="mt-4 flex justify-center gap-4">
-                 {!isToday(currentDate) && (
-                    <button onClick={() => changeDay(-1)} className="text-sm text-blue-600 underline">Ver día anterior</button>
-                 )}
-                 <button onClick={() => changeDay(1)} className="text-sm text-blue-600 underline">Ver día siguiente</button>
+                 ))}
             </div>
+        </>
+        )}
+      
+      {/* Not Loading & Empty = EMPTY STATE */}
+      {!loading && availability.length === 0 && (
+           <div className="p-10 text-center bg-gray-50">
+            <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-gray-600">Sin Horarios Disponibles</h3>
+            <p className="text-gray-500 max-w-sm mx-auto mt-2">
+                No encontramos turnos para el <span className="font-bold text-blue-600">{currentDate.toLocaleDateString()}</span>. 
+                Intenta buscar en otra fecha usando el calendario superior.
+            </p>
            </div>
+      )}
+      </div>
       )}
       
       {!selectedType && (
