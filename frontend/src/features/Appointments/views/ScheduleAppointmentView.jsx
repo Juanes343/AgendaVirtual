@@ -447,7 +447,7 @@ export default function ScheduleAppointmentView() {
       ) : (
       <>
       <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-6">
-        <div className="grid md:grid-cols-3 gap-6"> 
+        <div className="grid md:grid-cols-2 gap-6"> 
           
           {/* 1. Plan */}
           <div>
@@ -512,7 +512,7 @@ export default function ScheduleAppointmentView() {
                 disabled={!selectedType || !selectedPlan}
             >
               <option value="">-- SELECCIONAR --</option>
-              {services.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+              {services.map(s => <option key={s.id} value={s.id}>{s.id} - {s.label}</option>)}
             </select>
           </div>
 

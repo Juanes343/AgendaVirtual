@@ -15,26 +15,25 @@ class AppointmentController extends Controller
     public function getPlans(Request $request)
     {
         $documento = $request->query('paciente_id');
-        $tipoDoc = $request->query('tipo_doc'); // Front debe enviar esto si es posible, sino intentamos solo con documento
+        $tipoDoc = $request->query('tipo_doc'); 
         
-        $lastPlanId = null;
+        $usedPlanIds = [];
 
         if ($documento) {
-            // Buscar último plan usado en agenda_citas_asignadas
-            $queryLast = DB::table('agenda_citas_asignadas')
+            // Buscar historial de planes usados en agenda_citas_asignadas
+            $queryHistory = DB::table('agenda_citas_asignadas')
                 ->where('paciente_id', $documento);
                 
             if ($tipoDoc) {
-                $queryLast->where('tipo_id_paciente', $tipoDoc);
+                $queryHistory->where('tipo_id_paciente', $tipoDoc);
             }
             
-            $lastOrder = $queryLast->orderBy('agenda_cita_asignada_id', 'desc')
+            // Obtener todos los IDs de planes distintos que ha usado el paciente
+            $usedPlanIds = $queryHistory
                 ->select('plan_id')
-                ->first();
-
-            if ($lastOrder) {
-                $lastPlanId = $lastOrder->plan_id;
-            }
+                ->distinct()
+                ->pluck('plan_id')
+                ->toArray();
         }
 
         $query = "
@@ -45,9 +44,11 @@ class AppointmentController extends Controller
             WHERE estado = '1'
         ";
         
-        // Condición: tipo_cliente = '25' O plan_id = last_plan
-        if ($lastPlanId) {
-            $query .= " AND (tipo_cliente = '25' OR plan_id = '$lastPlanId')";
+        // Condición: tipo_cliente = '25' O plan_id IN (usedPlanIds)
+        if (!empty($usedPlanIds)) {
+            // Formatear IDs para cláusula IN ('1','2')
+            $idsList = implode("','", $usedPlanIds);
+            $query .= " AND (tipo_cliente = '25' OR plan_id IN ('$idsList'))";
         } else {
             $query .= " AND tipo_cliente = '25'";
         }
@@ -348,7 +349,7 @@ class AppointmentController extends Controller
             LEFT JOIN profesionales P ON C.profesional_id = P.tercero_id AND C.tipo_id_profesional = P.tipo_id_tercero
             LEFT JOIN terceros T ON P.tercero_id = T.tercero_id AND P.tipo_id_tercero = T.tipo_id_tercero
             
-            JOIN cups F ON F.cargo = B.cargo_cita
+            LEFT JOIN cups F ON F.cargo = B.cargo_cita
             
             WHERE A.sw_estado = '1' -- Asignada
             AND b.paciente_id = ?
