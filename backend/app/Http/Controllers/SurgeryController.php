@@ -17,12 +17,20 @@ class SurgeryController extends Controller
     }
 
     /**
-     * Obtener listado de cirugías por ingreso
+     * Obtener listado de cirugías por ingreso o paciente
      */
-    public function getSurgeries($ingresoId)
+    public function getSurgeries(Request $request, $ingresoId)
     {
         try {
-            $surgeries = $this->surgeryService->getSurgeriesByIngreso($ingresoId);
+            // Si hay usuario autenticado y es paciente, obtener TODAS sus cirugías de todos los ingresos
+            $user = $request->user();
+            if ($user && isset($user->paciente_id) && isset($user->tipo_documento)) {
+                $surgeries = $this->surgeryService->getSurgeriesByPatient($user->paciente_id, $user->tipo_documento);
+            } else {
+                // Comportamiento anterior (fallback)
+                $surgeries = $this->surgeryService->getSurgeriesByIngreso($ingresoId);
+            }
+            
             return response()->json(['success' => true, 'data' => $surgeries]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);

@@ -31,6 +31,51 @@ class SurgeryReportService
                 'ter.nombre_tercero as cirujano_nombre',
                 DB::raw("'1' as estado")
             )
+            ->selectSub(function ($query) {
+                $query->from('hc_notas_operatorias_procedimientos as nop')
+                    ->join('cups', 'nop.procedimiento_qx', '=', 'cups.cargo')
+                    ->whereColumn('nop.hc_nota_operatoria_cirugia_id', 'a.hc_nota_operatoria_cirugia_id')
+                    ->where('nop.realizado', '1')
+                    ->select(DB::raw("CONCAT(cups.cargo, ' - ', cups.descripcion)"))
+                    ->limit(1);
+            }, 'procedimiento_principal')
+            ->orderBy('a.hora_inicio', 'desc')
+            ->get();
+    }
+
+    /**
+     * Obtener cirugías por Paciente (Todos los ingresos)
+     */
+    public function getSurgeriesByPatient($pacienteId, $tipoDoc)
+    {
+        return DB::table('hc_notas_operatorias_cirugias as a')
+            ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
+            ->join('ingresos as i', 'e.ingreso', '=', 'i.ingreso')
+            ->leftJoin('qx_quirofanos as x', 'a.quirofano_id', '=', 'x.quirofano')
+            ->leftJoin('qx_tipos_cirugia as c', 'a.tipo_cirugia', '=', 'c.tipo_cirugia_id')
+            ->leftJoin('terceros as ter', 'a.cirujano_id', '=', 'ter.tercero_id')
+            ->where('i.paciente_id', $pacienteId)
+            ->where('i.tipo_id_paciente', $tipoDoc)
+            ->select(
+                'a.hc_nota_operatoria_cirugia_id',
+                'a.evolucion_id',
+                'e.ingreso',
+                DB::raw("TO_CHAR(a.hora_inicio, 'YYYY-MM-DD HH24:MI') as fecha_hora"),
+                'a.hora_inicio',
+                'a.hora_fin as hora_final',
+                'x.descripcion as nom_quirofano',
+                'c.descripcion as tipo_cirugia',
+                'ter.nombre_tercero as cirujano_nombre',
+                DB::raw("'1' as estado")
+            )
+            ->selectSub(function ($query) {
+                $query->from('hc_notas_operatorias_procedimientos as nop')
+                    ->join('cups', 'nop.procedimiento_qx', '=', 'cups.cargo')
+                    ->whereColumn('nop.hc_nota_operatoria_cirugia_id', 'a.hc_nota_operatoria_cirugia_id')
+                    ->where('nop.realizado', '1')
+                    ->select(DB::raw("CONCAT(cups.cargo, ' - ', cups.descripcion)"))
+                    ->limit(1);
+            }, 'procedimiento_principal')
             ->orderBy('a.hora_inicio', 'desc')
             ->get();
     }

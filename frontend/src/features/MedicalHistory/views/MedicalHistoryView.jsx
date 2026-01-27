@@ -284,7 +284,7 @@ export default function MedicalHistoryView() {
                             </div>
                           </div>
                           <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
-                            {item.tipo_cirugia || "PROCEDIMIENTO QUIRÚRGICO"}
+                            {item.procedimiento_principal || item.tipo_cirugia || "PROCEDIMIENTO QUIRÚRGICO"}
                           </h3>
                           <p className="text-sm text-gray-400">
                              Quirófano: {item.nom_quirofano} | Evolución ID: {item.evolucion_id}
@@ -780,14 +780,6 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
     ));
   };
 
-  // Obtener el primer evolucion_id disponible para el botón de impresión
-  let primerEvolucionId = null;
-  if (details.medicamentos.length > 0) {
-    primerEvolucionId = details.medicamentos[0].evolucion_id;
-  } else if (details.solicitudes.length > 0) {
-    primerEvolucionId = details.solicitudes[0].evolucion_id;
-  }
-
   const handlePrintEvolucion = () => {
     historyService.printHistoryComplete(ingresoId);
   };
@@ -807,8 +799,7 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
         </button>
 
         {/* Botones de Acción Global (Ahora integrados en el header) */}
-        {primerEvolucionId && (
-          <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
             {permissions?.sw_imprime && (
               <button
                 onClick={handlePrintEvolucion}
@@ -837,7 +828,6 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
               </button>
             )}
           </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6">
@@ -860,7 +850,7 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
         details.incapacidades.length === 0 && (
           <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
             <p className="text-gray-400">
-              No hay registros de formulaciones u órdenes para este ingreso.
+              No hay registros de formulaciones u órdenes para esta atención.
             </p>
           </div>
         )}
