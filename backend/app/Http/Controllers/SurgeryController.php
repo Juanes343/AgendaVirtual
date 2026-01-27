@@ -80,10 +80,18 @@ class SurgeryController extends Controller
 
             $pdf = Pdf::loadView('reportes.nota_operatoria', $data);
             
+            // Prepare data for email view
+            $emailData = [
+                'nombre' => $data['paciente']->nombre_completo,
+                'fecha' => $data['nota']->hora_inicio,
+                'profesional' => $data['profesional']->nombre,
+                'tipo_reporte' => $data['nota']->tipo ?? 'Procedimiento Quirúrgico'
+            ];
+
             // Enviar correo
-            Mail::send([], [], function ($message) use ($pacienteEmail, $pdf, $notaId) {
+            Mail::send('emails.surgery_note_report', $emailData, function ($message) use ($pacienteEmail, $pdf, $notaId) {
                 $message->to($pacienteEmail)
-                        ->subject("Nota Operatoria #{$notaId} - AgendaVirtual")
+                        ->subject("Reporte Nota Operatoria - Cirugía #{$notaId}")
                         ->attachData($pdf->output(), "Nota_Operatoria_{$notaId}.pdf", [
                             'mime' => 'application/pdf',
                         ]);
