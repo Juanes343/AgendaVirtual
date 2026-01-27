@@ -221,6 +221,7 @@ export default function ScheduleAppointmentView() {
                   agenda_cita_id: turno.id,
                   agenda_turno_id: turno.agenda_turno_id,
                   paciente_id: user?.paciente?.paciente_id,
+                  tipo_doc: user?.paciente?.tipo_id_paciente, // Fix: Enviar tipo doc para validación estricta
                   plan_id: selectedPlan,
                   service_id: selectedService,
                   appointment_type_id: selectedType,
@@ -403,8 +404,7 @@ export default function ScheduleAppointmentView() {
                               <th className="p-3 border-b">Plan</th>
                               <th className="p-3 border-b">Tipo Consulta</th>
                               <th className="p-3 border-b">Atención</th>
-                              <th className="p-3 border-b">Descripción</th>
-                              <th className="p-3 border-b">Profesional</th>
+                              <th className="p-3 border-b">Profesional</th> {/* Removed columns description */}
                               <th className="p-3 border-b text-center">Acción</th>
                           </tr>
                       </thead>
@@ -415,7 +415,6 @@ export default function ScheduleAppointmentView() {
                                   <td className="p-3 text-gray-600">{cita.plan_descripcion}</td>
                                   <td className="p-3 text-gray-600">{cita.tipos_consulta}</td>
                                   <td className="p-3 text-gray-600 font-semibold">{cita.atencion}</td>
-                                  <td className="p-3 text-gray-600">{cita.descripcion}</td>
                                   <td className="p-3 text-gray-600 uppercase">{cita.profesional}</td>
                                   <td className="p-3 text-center">
                                       {/* Force enable cancel */}

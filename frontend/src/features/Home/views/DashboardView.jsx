@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Home,
   FileText,
@@ -11,6 +11,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useUser } from "../../../contexts/UserContext/UserContext";
+import api from "../../../services/api";
 import logo from "../../../assets/images/sandi_virtual.png";
 import simdeLogo from "../../../assets/images/simde_logo.png";
 
@@ -23,6 +24,25 @@ export default function DashboardView() {
   const [viewKey, setViewKey] = useState(0); // Para forzar recarga de vistas
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout } = useUser();
+
+  // Control de Permisos para Agendamiento
+  const [canSchedule, setCanSchedule] = useState(true);
+
+  useEffect(() => {
+    async function checkPermission() {
+      try {
+        const { data } = await api.get('/config-reporte-permisos');
+        // 'AGENDAMIENTO_WEB' con sw_imprime=1
+        const config = data.data['AGENDAMIENTO_WEB'];
+        if (config) {
+             setCanSchedule(Boolean(config.sw_imprime));
+        }
+      } catch (error) {
+        console.warn("Warning checking permissions", error);
+      }
+    }
+    checkPermission();
+  }, []);
 
   const handleTabChange = (tabId) => {
     if (activeTab === tabId) {
@@ -37,6 +57,7 @@ export default function DashboardView() {
   const tabs = [
     { id: "inicio", label: "Inicio", icon: Home },
     { id: "historial", label: "Historial Médico", icon: FileText },
+    ...(canSchedule ? [{ id: "agendar", label: "Agenda Médica", icon: Calendar }] : []),
     { id: "datos", label: "Datos Básicos", icon: User },
     // { id: "diagnosticos", label: "Apoyos Diagnósticos", icon: Activity },
   ];
@@ -185,7 +206,7 @@ export default function DashboardView() {
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
         {activeTab === "inicio" && (
-          <InicioTab user={user} setActiveTab={setActiveTab} />
+          <InicioTab user={user} setActiveTab={setActiveTab} canSchedule={canSchedule} />
         )}
         {activeTab === "historial" && <MedicalHistoryView key={viewKey} />}
         {activeTab === "datos" && <ProfileView />}
@@ -210,7 +231,7 @@ export default function DashboardView() {
   );
 }
 
-function InicioTab({ user, setActiveTab }) {
+function InicioTab({ user, setActiveTab, canSchedule = true }) {
   const navCards = [
     {
       id: "historial",
@@ -254,6 +275,7 @@ function InicioTab({ user, setActiveTab }) {
               Portal del Paciente SanDi•Med
             </p>
           </div>
+          {canSchedule && (
           <button
             onClick={() => setActiveTab("agendar")}
             className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-black shadow-xl shadow-blue-600/30 transition-all hover:scale-105 active:scale-95 flex items-center gap-2 text-lg"
@@ -261,6 +283,7 @@ function InicioTab({ user, setActiveTab }) {
             <Calendar className="w-6 h-6" />
             Agendar Cita
           </button>
+          )}
         </div>
       </div>
 
