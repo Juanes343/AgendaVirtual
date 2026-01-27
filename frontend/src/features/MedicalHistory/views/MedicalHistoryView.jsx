@@ -263,214 +263,114 @@ export default function MedicalHistoryView() {
                 >
                   Procedimientos / Notas
                 </button>
-                {getModulePermissions(3).sw_imprime && (
-                  <button
-                    onClick={() => setSurgeryViewMode('histories')}
-                    className={`pb-2 text-sm font-semibold transition-colors ${surgeryViewMode === 'histories' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
-                  >
-                    Historias Clínicas
-                  </button>
-                )}
               </div>
               
-              {surgeryViewMode === 'procedures' ? (
-                 surgeries.length === 0 ? (
-                    <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
-                      <Activity className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                      <p className="text-gray-400">No hay registros de Cirugías para mostrar.</p>
-                    </div>
-                ) : (
-                    surgeries.map((item, i) => (
-                        <div
-                          key={i}
-                          className="bg-[#1e293b]/50 backdrop-blur-md rounded-xl border border-blue-900/30 overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group mb-4"
-                        >
-                          <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                            <div className="flex-1 space-y-2">
-                              {/* ... (Contenido Tarjeta Cirugía) ... */}
-                              <div className="flex flex-wrap items-center gap-3 text-sm text-blue-300 font-semibold uppercase tracking-wider">
-                                <div className="px-2 py-1 rounded text-sm bg-red-500/20 text-red-400">
-                                  Cirugía #{item.hc_nota_operatoria_cirugia_id}
-                                </div>
-                                <span className="flex items-center gap-1">
-                                  <Calendar size={14} /> {item.fecha_hora || item.hora_inicio}
-                                </span>
-                                <div className="flex items-center gap-2 text-blue-300 text-sm border-l border-white/10 pl-3 ml-1 font-bold">
-                                    <User size={14} className="text-blue-500" />
-                                    <span>{item.cirujano_nombre}</span>
-                                </div>
+              {surgeries.length === 0 ? (
+                  <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
+                    <Activity className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400">No hay registros de Cirugías para mostrar.</p>
+                  </div>
+              ) : (
+                  surgeries.map((item, i) => (
+                      <div
+                        key={i}
+                        className="bg-[#1e293b]/50 backdrop-blur-md rounded-xl border border-blue-900/30 overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group mb-4"
+                      >
+                        <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                          <div className="flex-1 space-y-2">
+                            {/* ... (Contenido Tarjeta Cirugía) ... */}
+                            <div className="flex flex-wrap items-center gap-3 text-sm text-blue-300 font-semibold uppercase tracking-wider">
+                              <div className="px-2 py-1 rounded text-sm bg-red-500/20 text-red-400">
+                                Cirugía #{item.hc_nota_operatoria_cirugia_id}
                               </div>
-                              <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
-                                {item.procedimiento_principal || item.tipo_cirugia || "PROCEDIMIENTO QUIRÚRGICO"}
-                              </h3>
-                              <p className="text-sm text-gray-400">
-                                 Quirófano: {item.nom_quirofano} | Evolución ID: {item.evolucion_id}
-                              </p>
+                              <span className="flex items-center gap-1">
+                                <Calendar size={14} /> {item.fecha_hora || item.hora_inicio}
+                              </span>
+                              <div className="flex items-center gap-2 text-blue-300 text-sm border-l border-white/10 pl-3 ml-1 font-bold">
+                                  <User size={14} className="text-blue-500" />
+                                  <span>{item.cirujano_nombre}</span>
+                              </div>
                             </div>
-          
-                            <div className="flex items-center gap-2 w-full md:w-auto">
-                              {getModulePermissions(3).sw_imprime && (
+                            <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
+                              {item.procedimiento_principal || item.tipo_cirugia || "PROCEDIMIENTO QUIRÚRGICO"}
+                            </h3>
+                            <p className="text-sm text-gray-400">
+                                Quirófano: {item.nom_quirofano} | Evolución ID: {item.evolucion_id}
+                            </p>
+                          </div>
+        
+                          <div className="flex items-center gap-2 w-full md:w-auto">
+                            {getModulePermissions(3).sw_imprime && (
+                              <button
+                                onClick={() =>
+                                  historyService.printHistoryComplete(item.ingreso)
+                                }
+                                className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600"
+                                title="Imprimir Historia Clínica del Ingreso"
+                              >
+                                <FileText size={16} /> Historia
+                              </button>
+                            )}
+  
+                              <button
+                                onClick={() =>
+                                  historyService.printNotaOperatoria(
+                                    item.hc_nota_operatoria_cirugia_id
+                                  )
+                                }
+                                className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white"
+                                title="Imprimir Nota Operatoria"
+                              >
+                                <Printer size={16} /> Imprimir Nota Operatoria
+                              </button>
+  
+                              {getModulePermissions(3).sw_correo && (
                                 <button
-                                  onClick={() =>
-                                    historyService.printHistoryComplete(item.ingreso)
-                                  }
-                                  className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600"
-                                  title="Imprimir Historia Clínica del Ingreso"
+                                  onClick={async () => {
+                                    const result = await Swal.fire({
+                                      title: "¿Enviar Nota Operatoria?",
+                                      text: `Se enviará la Nota Operatoria al correo registrado: ${
+                                        user?.paciente?.email || "N/A"
+                                      }.`,
+                                      icon: "question",
+                                      showCancelButton: true,
+                                      confirmButtonText: "Sí, enviar",
+                                      background: "#1e293b",
+                                      color: "#fff",
+                                    });
+                                    if (result.isConfirmed) {
+                                      try {
+                                        await historyService.sendSurgeryEmail(
+                                          item.hc_nota_operatoria_cirugia_id
+                                        );
+                                        Swal.fire({
+                                          title: "Enviado",
+                                          text: "El reporte ha sido enviado exitosamente a tu correo.",
+                                          icon: "success",
+                                          background: "#1e293b",
+                                          color: "#fff",
+                                        });
+                                      } catch (e) {
+                                        Swal.fire({
+                                          title: "Error",
+                                          text: "No se pudo enviar",
+                                          icon: "error",
+                                          background: "#1e293b",
+                                          color: "#fff",
+                                        });
+                                      }
+                                    }
+                                  }}
+                                  className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white"
+                                  title="Enviar por Correo"
                                 >
-                                  <FileText size={16} /> Historia
+                                  <Send size={16} /> Enviar
                                 </button>
                               )}
-    
-                                <button
-                                  onClick={() =>
-                                    historyService.printNotaOperatoria(
-                                      item.hc_nota_operatoria_cirugia_id
-                                    )
-                                  }
-                                  className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white"
-                                  title="Imprimir Nota Operatoria"
-                                >
-                                  <Printer size={16} /> Imprimir
-                                </button>
-    
-                                {getModulePermissions(3).sw_correo && (
-                                  <button
-                                    onClick={async () => {
-                                      const result = await Swal.fire({
-                                        title: "¿Enviar Nota Operatoria?",
-                                        text: `Se enviará la Nota Operatoria al correo registrado: ${
-                                          user?.paciente?.email || "N/A"
-                                        }.`,
-                                        icon: "question",
-                                        showCancelButton: true,
-                                        confirmButtonText: "Sí, enviar",
-                                        background: "#1e293b",
-                                        color: "#fff",
-                                      });
-                                      if (result.isConfirmed) {
-                                        try {
-                                          await historyService.sendSurgeryEmail(
-                                            item.hc_nota_operatoria_cirugia_id
-                                          );
-                                          Swal.fire({
-                                            title: "Enviado",
-                                            icon: "success",
-                                            background: "#1e293b",
-                                            color: "#fff",
-                                          });
-                                        } catch (e) {
-                                          Swal.fire({
-                                            title: "Error",
-                                            text: "No se pudo enviar",
-                                            icon: "error",
-                                            background: "#1e293b",
-                                            color: "#fff",
-                                          });
-                                        }
-                                      }
-                                    }}
-                                    className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white"
-                                    title="Enviar por Correo"
-                                  >
-                                    <Send size={16} /> Enviar
-                                  </button>
-                                )}
-                            </div>
                           </div>
                         </div>
-                    ))
-                )
-              ) : (
-                /* Sub-pestaña: Historias Clínicas (Lista completa de ingresos) */
-                 history.length === 0 ? (
-                    <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
-                      <Activity className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                      <p className="text-gray-400">No hay registros de Historias Clínicas para mostrar.</p>
-                    </div>
-                ) : (
-                    history.map((item, i) => (
-                        <div
-                          key={i}
-                          className="bg-[#1e293b]/50 backdrop-blur-md rounded-xl border border-blue-900/30 overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group mb-4"
-                        >
-                          <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                            <div className="flex-1 space-y-2">
-                              <div className="flex flex-wrap items-center gap-3 text-sm text-blue-300 font-semibold uppercase tracking-wider">
-                                <div className={`px-2 py-1 rounded text-sm ${item.estado === "1" ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}>
-                                  Ingreso #{item.ingreso}
-                                </div>
-                                <span className="flex items-center gap-1">
-                                  <Calendar size={14} /> {item.fecha}
-                                </span>
-                                <div className="flex items-center gap-2 text-blue-300 text-sm border-l border-white/10 pl-3 ml-1 font-bold">
-                                    <User size={14} className="text-blue-500" />
-                                    <span>{item.profesional_nombre}</span>
-                                </div>
-                              </div>
-                              <h3 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors">
-                                {item.codigo_servicio ? `${item.codigo_servicio} - ` : ''}{item.servicio || "ATENCIÓN MÉDICA"}
-                              </h3>
-                            </div>
-          
-                            <div className="flex items-center gap-2 w-full md:w-auto">
-                               {/* Reutilizamos permisos básicos */}
-                               {getModulePermissions(1).sw_imprime && (
-                                <button
-                                  onClick={() =>
-                                    historyService.printHistoryComplete(item.ingreso)
-                                  }
-                                  className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600"
-                                  title="Imprimir Historia Clínica"
-                                >
-                                  <FileText size={16} /> Imprimir Historia
-                                </button>
-                               )}
-    
-                                {getModulePermissions(1).sw_correo && (
-                                  <button
-                                    onClick={async () => {
-                                      const result = await Swal.fire({
-                                        title: "¿Enviar Historia Clínica?",
-                                        text: `Se enviará la Historia Clínica del ingreso #${item.ingreso} al correo: ${
-                                          user?.paciente?.email || "N/A"
-                                        }.`,
-                                        icon: "question",
-                                        showCancelButton: true,
-                                        confirmButtonText: "Sí, enviar",
-                                        background: "#1e293b",
-                                        color: "#fff",
-                                      });
-                                      if (result.isConfirmed) {
-                                        try {
-                                          await historyService.sendReportEmail(item.ingreso, 'all');
-                                          Swal.fire({
-                                            title: "Enviado",
-                                            icon: "success",
-                                            background: "#1e293b",
-                                            color: "#fff",
-                                          });
-                                        } catch (e) {
-                                          Swal.fire({
-                                            title: "Error",
-                                            text: "No se pudo enviar",
-                                            icon: "error",
-                                            background: "#1e293b",
-                                            color: "#fff",
-                                          });
-                                        }
-                                      }
-                                    }}
-                                    className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white"
-                                    title="Enviar por Correo"
-                                  >
-                                    <Send size={16} /> Enviar al Correo
-                                  </button>
-                                )}
-                            </div>
-                          </div>
-                        </div>
-                    ))
-                )
+                      </div>
+                  ))
               )}
             </div>
         ) : filteredHistory.length === 0 ? (
@@ -522,7 +422,7 @@ export default function MedicalHistoryView() {
                         : "bg-purple-600 hover:bg-purple-500 text-white"
                     }`}
                   >
-                    <Eye size={18} /> Ver Detalles
+                    <Eye size={18} /> Ver Ordenes y Solicitudes
                   </button>
                 </div>
               </div>
@@ -958,10 +858,19 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
       {details.medicamentos.length === 0 &&
         details.solicitudes.length === 0 &&
         details.incapacidades.length === 0 && (
-          <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
-            <p className="text-gray-400">
-              No hay registros de formulaciones u órdenes para esta atención.
-            </p>
+          <div className="space-y-4">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <Layers size={24} className="text-blue-400" /> 
+              Órdenes y Solicitudes Médicas
+            </h3>
+            <div className="text-center py-16 bg-gradient-to-b from-blue-900/20 to-slate-900/40 rounded-2xl border border-blue-500/20 shadow-lg backdrop-blur-sm">
+              <div className="bg-blue-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-1 ring-blue-400/20">
+                 <FileText className="w-10 h-10 text-blue-400 opacity-80" />
+              </div>
+              <p className="text-xl md:text-2xl font-bold text-blue-100 max-w-2xl mx-auto leading-relaxed px-4">
+                No hay registros de formulaciones u órdenes para esta atención.
+              </p>
+            </div>
           </div>
         )}
     </div>
