@@ -217,7 +217,7 @@ export default function ScheduleAppointmentView({ onBack }) {
               // Obtener objeto del tipo de afiliado para sacar el rango
               const affType = affiliateTypes.find(a => a.id === selectedAffiliateType);
               
-              await appointmentService.bookAppointment({
+              const response = await appointmentService.bookAppointment({
                   agenda_cita_id: turno.id,
                   agenda_turno_id: turno.agenda_turno_id,
                   paciente_id: user?.paciente?.paciente_id,
@@ -228,7 +228,9 @@ export default function ScheduleAppointmentView({ onBack }) {
                   tipo_afiliado: selectedAffiliateType,
                   rango: affType ? affType.rango : null
               });
-              await Swal.fire('¡Agendado!', 'Tu cita ha sido reservada.', 'success');
+              
+              // Mostramos el mensaje exacto que devuelve el backend con el correo
+              await Swal.fire('¡Agendado!', response.message || 'Tu cita ha sido reservada.', 'success');
               
               // Recargar citas asignadas para bloquear
               const assignedData = await appointmentService.getAssignedAppointments(user.paciente.paciente_id, user.paciente.tipo_id_paciente);
@@ -359,14 +361,15 @@ export default function ScheduleAppointmentView({ onBack }) {
              Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
              // 2. Realizar cancelación usando el servicio
-             await appointmentService.cancelAppointment({
+             const response = await appointmentService.cancelAppointment({
                  agenda_cita_asignada_id: cita.agenda_cita_asignada_id,
                  paciente_id: user.paciente.paciente_id,
                  justificacion,
                  observacion
              });
              
-             Swal.fire('Cancelada', 'Su cita ha sido cancelada correctamente.', 'success');
+             // Mostramos mensaje del backend con el correo
+             Swal.fire('Cancelada', response.message || 'Su cita ha sido cancelada correctamente.', 'success');
              
              // Recargar citas
              try {

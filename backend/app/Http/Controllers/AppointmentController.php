@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 
 class AppointmentController extends Controller
 {
@@ -637,7 +638,54 @@ class AppointmentController extends Controller
             ]);
 
             DB::commit();
-            return response()->json(['message' => 'Cita agendada con éxito', 'success' => true]);
+
+            // --- ENVIO CORREO CONFIRMACION ---
+            $msg = 'Cita agendada con éxito.';
+            
+            if (!empty($paciente->email)) {
+                try {
+                    // Datos Agregados para el Mail
+                    $horaCita = DB::table('agenda_citas')->where('agenda_cita_id', $params['agenda_cita_id'])->value('hora');
+                    
+                    $profesionalNombre = DB::table('agenda_turnos as a')
+                        ->join('profesionales as p', function($join){
+                             $join->on('a.profesional_id','=','p.tercero_id')
+                                  ->on('a.tipo_id_profesional','=','p.tipo_id_tercero');
+                        })
+                        ->join('terceros as t', function($join){
+                             $join->on('p.tercero_id','=','t.tercero_id')
+                                  ->on('p.tipo_id_tercero','=','t.tipo_id_tercero');
+                        })
+                        ->where('a.agenda_turno_id', $params['agenda_turno_id'])
+                        ->value('t.nombre_tercero');
+                    
+                    $servicioNombre = DB::table('cups')->where('cargo', $tarifarioInfo->cargo_cups)->value('descripcion');
+
+                    $dataMail = [
+                        'nombre' => trim(($paciente->primer_nombre ?? '') . ' ' . ($paciente->primer_apellido ?? '')),
+                        'fecha' => $turno->fecha_turno,
+                        'hora' => $horaCita,
+                        'profesional' => $profesionalNombre,
+                        'servicio' => $servicioNombre,
+                        'consultorio' => 'Sede Principal', // Ajustar si hay info de consultorio
+                        'identificacion' => $paciente->paciente_id
+                    ];
+
+                    Mail::send('emails.appointment_confirmation', $dataMail, function ($message) use ($paciente) {
+                        $message->to($paciente->email)
+                                ->subject('Confirmación de Cita Médica - SanDi•Med');
+                    });
+
+                    $msg = 'Cita agendada con éxito. La información fue enviada al correo registrado: ' . $paciente->email;
+
+                } catch (\Exception $exMail) {
+                    // No fallamos la transacción si falla el mail, solo advertimos en log
+                    \Log::error("Error enviando correo cita: " . $exMail->getMessage());
+                    // Opcional: Avisar al usuario que el correo falló, o dejarlo transparente
+                }
+            }
+
+            return response()->json(['message' => $msg, 'success' => true]);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -667,6 +715,34 @@ class AppointmentController extends Controller
         ]);
 
         $params = $request->all();
+
+        // Obtener datos para el correo ANTES de cancelar/modificar
+        $citaCanceladaInfo = null;
+        try {
+            $citaCanceladaInfo = DB::table('agenda_citas_asignadas as aca')
+            ->join('agenda_citas as ac', 'aca.agenda_cita_id', '=', 'ac.agenda_cita_id')
+            ->join('agenda_turnos as at', 'ac.agenda_turno_id', '=', 'at.agenda_turno_id')
+            ->join('pacientes as pa', 'aca.paciente_id', '=', 'pa.paciente_id')
+            ->join('cups as c', 'aca.cargo_cita', '=', 'c.cargo')
+            ->leftJoin('profesionales as pr', function($join){
+                 $join->on('at.profesional_id','=','pr.tercero_id')
+                      ->on('at.tipo_id_profesional','=','pr.tipo_id_tercero');
+            })
+            ->leftJoin('terceros as t', function($join){
+                 $join->on('pr.tercero_id','=','t.tercero_id')
+                      ->on('pr.tipo_id_tercero','=','t.tipo_id_tercero');
+            })
+            ->where('aca.agenda_cita_asignada_id', $params['agenda_cita_asignada_id'])
+            ->select(
+                'pa.email',
+                'pa.primer_nombre', 'pa.primer_apellido',
+                'at.fecha_turno',
+                'ac.hora',
+                't.nombre_tercero as profesional',
+                'c.descripcion as servicio'
+            )
+            ->first();
+        } catch (\Exception $e) { \Log::error("Error data mail cancel: ".$e->getMessage()); }
 
         DB::beginTransaction();
         try {
@@ -726,7 +802,31 @@ class AppointmentController extends Controller
              }
 
              DB::commit();
-             return response()->json(['message' => 'Cita cancelada correctamente', 'success' => true]);
+
+             // --- ENVIO CORREO CANCELACION ---
+             $msg = 'Cita cancelada correctamente.';
+             if ($citaCanceladaInfo && !empty($citaCanceladaInfo->email)) {
+                 try {
+                     $dataMail = [
+                        'nombre' => trim(($citaCanceladaInfo->primer_nombre ?? '') . ' ' . ($citaCanceladaInfo->primer_apellido ?? '')),
+                        'fecha' => $citaCanceladaInfo->fecha_turno,
+                        'hora' => $citaCanceladaInfo->hora,
+                        'profesional' => $citaCanceladaInfo->profesional,
+                        'servicio' => $citaCanceladaInfo->servicio
+                     ];
+ 
+                     Mail::send('emails.appointment_cancellation', $dataMail, function ($message) use ($citaCanceladaInfo) {
+                         $message->to($citaCanceladaInfo->email)
+                                 ->subject('Cancelación de Cita - SanDi•Med');
+                     });
+ 
+                     $msg = 'Cita cancelada correctamente. La información fue enviada al correo registrado: ' . $citaCanceladaInfo->email;
+                 } catch (\Exception $ex) {
+                    \Log::error('Error mail cancelacion: ' . $ex->getMessage());
+                 }
+             }
+
+             return response()->json(['message' => $msg, 'success' => true]);
 
         } catch (\Exception $e) {
             DB::rollBack();
