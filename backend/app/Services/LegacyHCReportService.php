@@ -10,7 +10,7 @@ class LegacyHCReportService
 
     public function __construct()
     {
-        $this->basePath = env('LEGACY_PATH', '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS');
+        $this->basePath = env('LEGACY_PATH');
     }
 
     public function generarHistoriaCompleta(int $ingreso): string

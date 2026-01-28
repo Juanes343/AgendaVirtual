@@ -331,7 +331,7 @@ class ReportController extends Controller
         if (!empty($header->firma)) {
             $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
             // 1) FILESYSTEM
-            $basePath = env('LEGACY_PATH', '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS');
+            $basePath = env('LEGACY_PATH');
             $firmaPath = $basePath . '/images/firmas_profesionales/' . $fileFirmaEncoded;
 
             if (file_exists($firmaPath)) {
@@ -340,7 +340,7 @@ class ReportController extends Controller
                 $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
             } else {
                 // 2) URL
-                $baseUrl = env('LEGACY_URL', 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS');
+                $baseUrl = env('LEGACY_URL');
                 $firmaUrl = $baseUrl . '/images/firmas_profesionales/' . $fileFirmaEncoded;
                 try {
                     $imgResp = Http::timeout(5)->get($firmaUrl);
@@ -361,7 +361,7 @@ class ReportController extends Controller
             // 3. Generar PDF consolidado en memoria (Solo si type == 'all')
             if ($type === 'all') {
                 // --- INICIO OBTENCIÓN HTML LEGACY ---
-                $urlLegacy = env('LEGACY_WS_URL', "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php");
+                $urlLegacy = env('LEGACY_WS_URL');
                 $htmlLegacy = '';
 
                 try {
@@ -423,7 +423,7 @@ class ReportController extends Controller
                     'empresa' => $empresa,
                     'logoBase64' => $logoBase64,
                     'firmaBase64' => $firmaBase64,
-                    'baseUrl' => env('LEGACY_URL', 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS') . '/'
+                    'baseUrl' => env('LEGACY_URL') . '/'
                 ]);
                 
                 // Opciones críticas para que se vea bien
@@ -630,7 +630,7 @@ class ReportController extends Controller
         if (empty($firma)) return null;
 
         $fileFirmaEncoded = str_replace('*', '%2A', $firma);
-        $basePath = env('LEGACY_PATH', '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS');
+        $basePath = env('LEGACY_PATH');
         $firmaPath = $basePath . '/images/firmas_profesionales/' . $fileFirmaEncoded;
 
         if (file_exists($firmaPath)) {
@@ -638,7 +638,7 @@ class ReportController extends Controller
             $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
             return 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
         } else {
-            $baseUrl = env('LEGACY_URL', 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS');
+            $baseUrl = env('LEGACY_URL');
             $firmaUrl = $baseUrl . '/images/firmas_profesionales/' . $fileFirmaEncoded;
             try {
                 $imgResp = Http::timeout(5)->get($firmaUrl);
@@ -953,7 +953,7 @@ class ReportController extends Controller
     public function generateHistoryPdf($ingreso)
     {
         try {
-            $url = env('LEGACY_WS_URL', "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php");
+            $url = env('LEGACY_WS_URL');
 
             $resp = Http::withHeaders([
                 'X-Legacy-Token' => env('LEGACY_HC_TOKEN'),
@@ -1005,7 +1005,7 @@ class ReportController extends Controller
             $htmlLegacy = str_replace("images/firmas_profesionales/'", "images/firmas_profesionales/pixel_dummy.png'", $htmlLegacy);
 
             // Base URL del legacy (para images/, css/, etc.)
-            $baseUrl = env('LEGACY_URL', "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS") . '/';
+            $baseUrl = env('LEGACY_URL') . '/';
 
             // ==========================================
             // LIMPIEZA SEGURA (No destructiva) - UNIFICADA
@@ -1230,7 +1230,7 @@ class ReportController extends Controller
         $ingreso = (int) $request->query('ingreso');
 
         // 1) Llamar al WS legacy
-        $url = env('LEGACY_WS_URL', "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php");
+        $url = env('LEGACY_WS_URL');
         $resp = Http::get($url, ['ingreso' => $ingreso])->json();
 
         if (empty($resp['success'])) {
@@ -1240,7 +1240,7 @@ class ReportController extends Controller
         $htmlLegacy = $resp['html'];
 
         // 2) Render Blade + PDF
-        $baseUrl = env('LEGACY_URL', 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS') . '/';
+        $baseUrl = env('LEGACY_URL') . '/';
 
         $pdf = app('snappy.pdf.wrapper');
         $pdf->loadView('reportes.hc_legacy', [
