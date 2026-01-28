@@ -350,7 +350,8 @@ class SurgeryReportService
             $fileFirmaEncoded = str_replace('*', '%2A', $firmaClean);
 
             // 1) Intentar por FILESYSTEM Legacy
-            $pathLegacy = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+            $basePath = env('LEGACY_PATH', '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS');
+            $pathLegacy = $basePath . '/images/firmas_profesionales/' . $fileFirmaEncoded;
             
             // 1.1) Intentar path local actual (por si acaso han movido imágenes)
             $pathLocal = public_path('images/firmas_profesionales/' . $fileFirmaEncoded);
@@ -368,7 +369,8 @@ class SurgeryReportService
                 $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($finalPath));
             } else {
                 // 2) Fallback por URL (External request)
-                $firmaUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+                $baseUrl = env('LEGACY_URL', 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS');
+                $firmaUrl = $baseUrl . '/images/firmas_profesionales/' . $fileFirmaEncoded;
 
                 try {
                     $imgResp = Http::timeout(8)->get($firmaUrl);

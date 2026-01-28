@@ -146,7 +146,8 @@ export default function MedicalHistoryView() {
 
   const getFileUrl = (item) => {
     if (!item || !item.nombre_asignado) return "#";
-    return `https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/repositorio_hc/${item.tipo_id_paciente}-${item.paciente_id}/${item.nombre_asignado}`;
+    const baseUrl = import.meta.env.VITE_LEGACY_REPO_URL || "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/repositorio_hc";
+    return `${baseUrl}/${item.tipo_id_paciente}-${item.paciente_id}/${item.nombre_asignado}`;
   };
 
   return (

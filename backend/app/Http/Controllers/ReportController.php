@@ -331,14 +331,17 @@ class ReportController extends Controller
         if (!empty($header->firma)) {
             $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
             // 1) FILESYSTEM
-            $firmaPath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+            $basePath = env('LEGACY_PATH', '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS');
+            $firmaPath = $basePath . '/images/firmas_profesionales/' . $fileFirmaEncoded;
+
             if (file_exists($firmaPath)) {
                 $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
                 $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
                 $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
             } else {
                 // 2) URL
-                $firmaUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
+                $baseUrl = env('LEGACY_URL', 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS');
+                $firmaUrl = $baseUrl . '/images/firmas_profesionales/' . $fileFirmaEncoded;
                 try {
                     $imgResp = Http::timeout(5)->get($firmaUrl);
                     if ($imgResp->ok()) {
@@ -358,7 +361,7 @@ class ReportController extends Controller
             // 3. Generar PDF consolidado en memoria (Solo si type == 'all')
             if ($type === 'all') {
                 // --- INICIO OBTENCIÓN HTML LEGACY ---
-                $urlLegacy = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php";
+                $urlLegacy = env('LEGACY_WS_URL', "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php");
                 $htmlLegacy = '';
 
                 try {
@@ -420,7 +423,7 @@ class ReportController extends Controller
                     'empresa' => $empresa,
                     'logoBase64' => $logoBase64,
                     'firmaBase64' => $firmaBase64,
-                    'baseUrl' => "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/"
+                    'baseUrl' => env('LEGACY_URL', 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS') . '/'
                 ]);
                 
                 // Opciones críticas para que se vea bien
@@ -622,6 +625,32 @@ class ReportController extends Controller
         return $header;
     }
 
+    private function getFirmaBase64($firma)
+    {
+        if (empty($firma)) return null;
+
+        $fileFirmaEncoded = str_replace('*', '%2A', $firma);
+        $basePath = env('LEGACY_PATH', '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS');
+        $firmaPath = $basePath . '/images/firmas_profesionales/' . $fileFirmaEncoded;
+
+        if (file_exists($firmaPath)) {
+            $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
+            $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
+            return 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
+        } else {
+            $baseUrl = env('LEGACY_URL', 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS');
+            $firmaUrl = $baseUrl . '/images/firmas_profesionales/' . $fileFirmaEncoded;
+            try {
+                $imgResp = Http::timeout(5)->get($firmaUrl);
+                if ($imgResp->ok()) {
+                    $cType = $imgResp->header('Content-Type') ?: 'image/jpeg';
+                    return 'data:' . $cType . ';base64,' . base64_encode($imgResp->body());
+                }
+            } catch (\Throwable $eF) { \Log::error("Error firma: " . $eF->getMessage()); }
+        }
+        return null;
+    }
+
 
     public function generateFormulaPdf($evolucion_id)
     {
@@ -730,42 +759,14 @@ class ReportController extends Controller
         // ============================
         // ✅ FIRMA PROFESIONAL Base64
         // ============================
-        $firmaBase64 = null;
-
-        if (!empty($header->firma)) {
-            // En BD: "CC*7458529.jpg"
-            // En disco/url suele estar: "CC%2A7458529.jpg"
-            $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
-
-            // 1) Intentar por FILESYSTEM (si backend comparte disco con legacy)
-            $firmaPath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
-
-            if (file_exists($firmaPath)) {
-                $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
-                $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
-                $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
-            } else {
-                // 2) Fallback por URL (si NO comparten disco)
-                $firmaUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
-
-                try {
-                    $imgResp = Http::timeout(8)->get($firmaUrl);
-                    if ($imgResp->ok()) {
-                        $contentType = $imgResp->header('Content-Type') ?: 'image/jpeg';
-                        $firmaBase64 = 'data:' . $contentType . ';base64,' . base64_encode($imgResp->body());
-                    }
-                } catch (\Throwable $e) {
-                    // si falla, queda null
-                }
-            }
-        }
+        $firmaBase64 = $this->getFirmaBase64($header->firma);
 
         // Render HTML
         $html = view('formula', [
             'header' => $header,
             'empresa' => $empresa,
             'logoBase64' => $logoBase64,
-            'firmaBase64' => $firmaBase64, // ✅ NUEVO
+            'firmaBase64' => $firmaBase64,
             'edad' => $edad,
             'medicamentos' => $medicamentos,
             'diagnosticos' => $diagnosticos,
@@ -841,38 +842,10 @@ class ReportController extends Controller
             ? $diagnosticos->first()->diagnostico_id . ' - ' . $diagnosticos->first()->diagnostico_nombre
             : '';
 
-        // ============================
+         // ============================
         // ✅ FIRMA PROFESIONAL Base64
         // ============================
-        $firmaBase64 = null;
-
-        if (!empty($header->firma)) {
-            // En BD: "CC*7458529.jpg"
-            // En disco suele estar: "CC%2A7458529.jpg"
-            $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
-
-            // 1) Intentar por FILESYSTEM (si backend comparte disco con legacy)
-            $firmaPath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
-
-            if (file_exists($firmaPath)) {
-                $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
-                $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
-                $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
-            } else {
-                // 2) Fallback por URL (si NO comparten disco)
-                $firmaUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
-
-                try {
-                    $imgResp = Http::timeout(8)->get($firmaUrl);
-                    if ($imgResp->ok()) {
-                        $contentType = $imgResp->header('Content-Type') ?: 'image/jpeg';
-                        $firmaBase64 = 'data:' . $contentType . ';base64,' . base64_encode($imgResp->body());
-                    }
-                } catch (\Throwable $e) {
-                    // si falla, se queda null
-                }
-            }
-        }
+        $firmaBase64 = $this->getFirmaBase64($header->firma);
 
         // --- Render Vista ---
         $html = view('orden', [
@@ -954,34 +927,7 @@ class ReportController extends Controller
         // ============================
         // ✅ FIRMA PROFESIONAL Base64
         // ============================
-        $firmaBase64 = null;
-
-        // IMPORTANTE: esto requiere que en getHeaderData selecciones d.firma
-        if (!empty($header->firma)) {
-            $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
-
-            // 1) Intentar por FILESYSTEM (si backend comparte disco con legacy)
-            $firmaPath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
-
-            if (file_exists($firmaPath)) {
-                $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
-                $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
-                $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
-            } else {
-                // 2) Fallback por URL (si NO comparten disco)
-                $firmaUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
-
-                try {
-                    $imgResp = Http::timeout(8)->get($firmaUrl);
-                    if ($imgResp->ok()) {
-                        $contentType = $imgResp->header('Content-Type') ?: 'image/jpeg';
-                        $firmaBase64 = 'data:' . $contentType . ';base64,' . base64_encode($imgResp->body());
-                    }
-                } catch (\Throwable $e) {
-                    // si falla, queda null
-                }
-            }
-        }
+        $firmaBase64 = $this->getFirmaBase64($header->firma);
 
         // Render HTML
         $html = view('incapacidad', [
@@ -1007,7 +953,7 @@ class ReportController extends Controller
     public function generateHistoryPdf($ingreso)
     {
         try {
-            $url = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php";
+            $url = env('LEGACY_WS_URL', "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php");
 
             $resp = Http::withHeaders([
                 'X-Legacy-Token' => env('LEGACY_HC_TOKEN'),
@@ -1059,7 +1005,7 @@ class ReportController extends Controller
             $htmlLegacy = str_replace("images/firmas_profesionales/'", "images/firmas_profesionales/pixel_dummy.png'", $htmlLegacy);
 
             // Base URL del legacy (para images/, css/, etc.)
-            $baseUrl = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/";
+            $baseUrl = env('LEGACY_URL', "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS") . '/';
 
             // ==========================================
             // LIMPIEZA SEGURA (No destructiva) - UNIFICADA
@@ -1105,26 +1051,7 @@ class ReportController extends Controller
             }
 
             // Recuperar Firma Base64 para imprimir
-            $firmaBase64 = null;
-            if ($header && !empty($header->firma)) {
-                $fileFirmaEncoded = str_replace('*', '%2A', $header->firma);
-                // 1) FILESYSTEM
-                if (file_exists('/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded)) {
-                    $firmaPath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/' . $fileFirmaEncoded;
-                    $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
-                    $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
-                    $firmaBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
-                } else {
-                    // 2) URL
-                    $firmaUrl = "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/images/firmas_profesionales/" . $fileFirmaEncoded;
-                    try {
-                         $imgResp = Http::timeout(4)->get($firmaUrl);
-                         if ($imgResp->ok()) {
-                            $firmaBase64 = 'data:image/jpeg;base64,' . base64_encode($imgResp->body());
-                         }
-                    } catch(\Exception $e) {}
-                }
-            }
+            $firmaBase64 = ($header) ? $this->getFirmaBase64($header->firma) : null;
 
 
             // ---- PDF con Snappy ----
@@ -1303,10 +1230,8 @@ class ReportController extends Controller
         $ingreso = (int) $request->query('ingreso');
 
         // 1) Llamar al WS legacy
-        $resp = Http::get(
-            'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php',
-            ['ingreso' => $ingreso]
-        )->json();
+        $url = env('LEGACY_WS_URL', "https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/programas/ws/hc_reporte_legacy.php");
+        $resp = Http::get($url, ['ingreso' => $ingreso])->json();
 
         if (empty($resp['success'])) {
             abort(500, $resp['detail'] ?? 'Error generando');
@@ -1315,7 +1240,7 @@ class ReportController extends Controller
         $htmlLegacy = $resp['html'];
 
         // 2) Render Blade + PDF
-        $baseUrl = 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS/';
+        $baseUrl = env('LEGACY_URL', 'https://devel74.simde.com.co/PRUEBAS_SANDIEGO_RIPS') . '/';
 
         $pdf = app('snappy.pdf.wrapper');
         $pdf->loadView('reportes.hc_legacy', [

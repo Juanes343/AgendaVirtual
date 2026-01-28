@@ -6,7 +6,12 @@ use Illuminate\Support\Facades\DB;
 
 class LegacyHCReportService
 {
-    private string $basePath = '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS';
+    private string $basePath;
+
+    public function __construct()
+    {
+        $this->basePath = env('LEGACY_PATH', '/var/www/html/php74/PRUEBAS_SANDIEGO_RIPS');
+    }
 
     public function generarHistoriaCompleta(int $ingreso): string
     {
