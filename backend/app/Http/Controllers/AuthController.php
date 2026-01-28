@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 
 use App\Models\SystemUsuarioVirtual;
 use App\Models\Paciente;
+use App\Models\TipoIdPaciente; // Modelo nuevo
 use App\Models\TokenAgendaVirtual; // Modelo nuevo para los tokens
 use App\Mail\RestorePasswordMail;  // Correo
 use Illuminate\Support\Facades\DB;
@@ -513,5 +514,19 @@ class AuthController extends Controller
         $user->save();
 
         return response()->json(['message' => 'Contraseña actualizada correctamente']);
+    }
+
+    /**
+     * Obtener lista de tipos de documento
+     */
+    public function getDocumentTypes()
+    {
+        try {
+            // Se asume que la columna es indice_de_orden según error SQL
+            $types = TipoIdPaciente::orderBy('indice_de_orden', 'asc')->get();
+            return response()->json($types);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error fetching document types', 'message' => $e->getMessage()], 500);
+        }
     }
 }

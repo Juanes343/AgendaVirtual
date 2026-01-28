@@ -1,21 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Calendar, FileText, Bell, Shield, Eye, EyeOff, Check, ChevronDown, User, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useUser } from '../../../contexts/UserContext/UserContext';
 import authService from '../services/authService';
+import api from '../../../services/api'; // Import instance
 import logo from '../../../assets/images/sandi_virtual.png';
-
-const documentTypes = [
-  { value: "CC", label: "Cédula de Ciudadanía" },
-  { value: "TI", label: "Tarjeta de Identidad" },
-  { value: "CE", label: "Cédula de Extranjería" },
-  { value: "PAS", label: "Pasaporte" },
-  { value: "RC", label: "Registro Civil" },
-];
 
 export default function RegisterView() {
     const { login } = useUser();
     const navigate = useNavigate();
+
+    // Estado local para tipos de documento
+    const [documentTypes, setDocumentTypes] = useState([
+        { value: "CC", label: "Cédula de Ciudadanía" }
+    ]);
 
     // Steps: 1 = Validation, 2 = Personal Data
     const [step, setStep] = useState(1);
@@ -42,7 +40,26 @@ export default function RegisterView() {
     const [isExistingPatient, setIsExistingPatient] = useState(false); // If patient exists in legacy DB
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-    const selectedDocType = documentTypes.find(d => d.value === formData.tipo_doc) || documentTypes[0];
+    // Cargar tipos de documento
+    useEffect(() => {
+        const fetchDocTypes = async () => {
+             try {
+                 const response = await api.get('/document-types');
+                 if (response.data && Array.isArray(response.data)) {
+                     const types = response.data.map(t => ({
+                         value: t.tipo_id_paciente,
+                         label: t.descripcion || t.tipo_id_paciente
+                     }));
+                     setDocumentTypes(types);
+                 }
+             } catch (error) {
+                 console.error("Error cargando tipos documento registro:", error);
+             }
+        };
+        fetchDocTypes();
+    }, []);
+
+    const selectedDocType = documentTypes.find(d => d.value === formData.tipo_doc) || documentTypes[0] || { value: '', label: 'Seleccionar' };
 
     const handleChange = (e) => {
         setFormData({

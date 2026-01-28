@@ -1,22 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Calendar, FileText, Bell, Shield, Eye, EyeOff, Check, ChevronDown, User } from 'lucide-react';
 import { useUser } from '../../../contexts/UserContext/UserContext';
 import authService from '../services/authService';
+import api from '../../../services/api'; // Importamos instancia Axios
 import doctorImg from '../../../assets/images/doctor_illustration.png';
 import logo from '../../../assets/images/sandi_virtual.png';
 import simdeLogo from '../../../assets/images/simde_logo.png'; // Added missing import
 
-const documentTypes = [
-  { value: "CC", label: "Cédula de Ciudadanía" },
-  { value: "TI", label: "Tarjeta de Identidad" },
-  { value: "CE", label: "Cédula de Extranjería" },
-  { value: "PAS", label: "Pasaporte" },
-];
-
 export default function LoginView() {
     const { login } = useUser();
     const navigate = useNavigate();
+
+    // Estado para tipos de documento dinámicos
+    const [documentTypes, setDocumentTypes] = useState([
+        { value: "CC", label: "Cédula de Ciudadanía" } // Default inicial para evitar vacíos
+    ]);
 
     const [formData, setFormData] = useState({
         tipo_doc: 'CC',
@@ -34,7 +33,30 @@ export default function LoginView() {
     const [recoverLoading, setRecoverLoading] = useState(false);
     const [recoverMessage, setRecoverMessage] = useState(null); // { type: 'success' | 'error', text: '' }
 
-    const selectedDocType = documentTypes.find(d => d.value === formData.tipo_doc) || documentTypes[0];
+    // Cargar tipos de documento desde el backend
+    useEffect(() => {
+        const fetchDocTypes = async () => {
+             try {
+                 // Endpoint en la API pública
+                 const response = await api.get('/document-types');
+                 if (response.data && Array.isArray(response.data)) {
+                     const types = response.data.map(t => ({
+                         value: t.tipo_id_paciente,
+                         // Usar title case para que se vea mejor o directo descripcion
+                         label: t.descripcion || t.tipo_id_paciente
+                     }));
+                     setDocumentTypes(types);
+                 }
+             } catch (error) {
+                 console.error("Error cargando tipos de documento:", error);
+                 // Fallback silencioso a los defaults o estáticos si se prefiere
+             }
+        };
+        fetchDocTypes();
+    }, []);
+
+    const selectedDocType = documentTypes.find(d => d.value === formData.tipo_doc) || documentTypes[0] || { value: '', label: 'Seleccionar' };
+
 
     // Manejo del formulario de recuperación
     const handleRecoverSubmit = async (e) => {

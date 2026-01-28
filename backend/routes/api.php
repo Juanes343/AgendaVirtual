@@ -13,6 +13,8 @@ Route::post('/check-patient', [AuthController::class, 'checkPatient']);
 Route::post('/recover-password', [AuthController::class, 'recoverPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/manual', [AuthController::class, 'downloadManual']);
+Route::get('/document-types', [AuthController::class, 'getDocumentTypes']);
+
 
 // Rutas de Agendamiento (Públicas para catálogos)
 Route::prefix('appointments')->group(function () {
