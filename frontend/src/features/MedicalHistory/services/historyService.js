@@ -5,6 +5,11 @@ const historyService = {
         const response = await api.get('/medical-history');
         return response.data;
     },
+    // Nuevo endpoint específico para hospitalización
+    getHospitalization: async () => {
+        const response = await api.get('/hospitalization');
+        return response.data;
+    },
     getDetail: async (ingresoId) => {
         const response = await api.get(`/medical-history/${ingresoId}`);
         return response.data;
@@ -48,6 +53,35 @@ const historyService = {
                 window.open(fileURL, '_blank');
             })
             .catch(err => console.error("Error descargando PDF", err));
+    },
+    // Imprimir PDF de Procedimientos No Quirúrgicos (Hospitalización)
+    printNoQx: (ingresoId) => {
+        return api.get(`/hospitalization/${ingresoId}/pdf-no-qx`, { responseType: 'blob' })
+            .then((response) => {
+                const file = new Blob([response.data], { type: 'application/pdf' });
+                const fileURL = URL.createObjectURL(file);
+                window.open(fileURL, '_blank');
+            })
+            .catch(err => console.error("Error descargando PDF No Qx", err));
+    },
+    // Enviar Email de Procedimientos No Quirúrgicos
+    sendNoQxEmail: async (ingresoId) => {
+        const response = await api.post(`/hospitalization/${ingresoId}/send-email-no-qx`);
+        return response.data;
+    },
+    // Nuevo endpoint para Apoyos Diagnósticos
+    getDiagnosticSupport: async () => {
+        const response = await api.get('/diagnostic-support');
+        return response.data;
+    },
+    printDiagnosticSupport: (resultadoId) => {
+        return api.get(`/diagnostic-support/${resultadoId}/pdf`, { responseType: 'blob' })
+            .then((response) => {
+                const file = new Blob([response.data], { type: 'application/pdf' });
+                const fileURL = URL.createObjectURL(file);
+                window.open(fileURL, '_blank');
+            })
+            .catch(err => console.error("Error descargando PDF Apoyo Diagnóstico", err));
     },
     // Nuevas funciones para Cirugía/Notas Operatorias
     getSurgeries: async (ingresoId) => {

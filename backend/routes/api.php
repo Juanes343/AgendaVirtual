@@ -58,6 +58,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Envío de reportes por correo
     Route::post('/medical-history/{ingreso}/send-email', [\App\Http\Controllers\ReportController::class, 'sendHistoryEmail']);
 
+    // Módulo de Hospitalización (Query separado)
+    Route::get('/hospitalization', [\App\Http\Controllers\HospitalizationController::class, 'index']);
+    Route::get('/hospitalization/{ingreso}/pdf-no-qx', [\App\Http\Controllers\HospitalizationController::class, 'generateNoQxPdf']);
+    Route::post('/hospitalization/{ingreso}/send-email-no-qx', [\App\Http\Controllers\HospitalizationController::class, 'sendNoQxEmail']);
+
+    // Módulo de Apoyos Diagnósticos
+    Route::get('/diagnostic-support', [\App\Http\Controllers\DiagnosticSupportController::class, 'index']);
+    Route::get('/diagnostic-support/{id}/pdf', [\App\Http\Controllers\DiagnosticSupportController::class, 'generatePdf']);
+
     // Perfil de Usuario
     Route::put('/profile/update', [AuthController::class, 'updateProfile']);
     Route::post('/profile/change-password', [AuthController::class, 'changePassword']);

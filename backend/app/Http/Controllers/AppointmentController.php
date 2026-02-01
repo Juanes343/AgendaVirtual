@@ -634,7 +634,7 @@ class AppointmentController extends Controller
             DB::table('os_maestro_cargos')->insert([
                 'numero_orden_id' => $numOrdenSeq,
                 'tarifario_id' => $tarifarioInfo->tarifario_id,
-                'cargo' => $tarifarioInfo->cargo_cups
+                'cargo' => $tarifarioInfo->cargo
             ]);
 
             DB::commit();

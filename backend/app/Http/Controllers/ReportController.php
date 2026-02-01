@@ -230,6 +230,24 @@ class ReportController extends Controller
             ->orderBy('a.fecha_registro', 'asc')
             ->get();
 
+        // 6. Procedimientos No Quirúrgicos (Para visualización detallada con observaciones)
+        $procedimientosNoQx = DB::table('hc_os_solicitudes as a')
+            ->join('hc_os_solicitudes_no_quirurgicos as nq', 'a.hc_os_solicitud_id', '=', 'nq.hc_os_solicitud_id')
+            ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
+            ->join('cups as b', 'a.cargo', '=', 'b.cargo')
+            ->where('e.ingreso', $ingreso)
+            ->select(
+                'a.hc_os_solicitud_id',
+                'a.hc_os_solicitud_id as numero_solicitud',
+                DB::raw("TO_CHAR(a.fecha_solicitud, 'DD/MM/YYYY') as fecha"),
+                'a.cargo',
+                'b.descripcion',
+                'a.cantidad',
+                'nq.observacion'
+            )
+            ->orderBy('a.fecha_solicitud', 'desc')
+            ->get();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -237,7 +255,8 @@ class ReportController extends Controller
                 'solicitudes' => $solicitudes,
                 'incapacidades' => $incapacidades,
                 'diagnosticos' => $diagnosticos,
-                'notas' => $notas
+                'notas' => $notas,
+                'procedimientos_no_qx' => $procedimientosNoQx
             ]
         ]);
     }
@@ -505,13 +524,81 @@ class ReportController extends Controller
                 $pdfContentIncapacidad = $dompdfI->output();
             }
 
+            // 3.5 Generar PDF No Quirúrgicos (Si type === 'all')
+            $pdfContentNoQx = null;
+            if ($type === 'all') {
+                $procedimientosNoQx = DB::table('hc_os_solicitudes as a')
+                    ->join('hc_os_solicitudes_no_quirurgicos as e', 'a.hc_os_solicitud_id', '=', 'e.hc_os_solicitud_id')
+                    ->join('cups as b', 'a.cargo', '=', 'b.cargo')
+                    ->join('hc_evoluciones as d', 'a.evolucion_id', '=', 'd.evolucion_id')
+                    ->where('d.ingreso', $ingreso)
+                    ->select(
+                        'a.cargo',
+                        'b.descripcion',
+                        'a.cantidad',
+                        'a.fecha_solicitud',
+                        'a.fecha_solicitud as fecha',
+                        'e.observacion',
+                        'd.usuario_id',
+                        'a.hc_os_solicitud_id',
+                        DB::raw("'NO QUIRURGICO' as tipo")
+                    )
+                    ->orderBy('a.fecha_solicitud', 'desc')
+                    ->get();
+                
+                if (!$procedimientosNoQx->isEmpty()) {
+                     // Datos complementarios
+                     $usuario_id_firma_noqx = null;
+                     foreach ($procedimientosNoQx as $proc) {
+                         $diagnosticos = DB::table('hc_os_solicitudes_diagnosticos as sd')
+                             ->join('diagnosticos as dx', 'sd.diagnostico_id', '=', 'dx.diagnostico_id')
+                             ->where('sd.hc_os_solicitud_id', $proc->hc_os_solicitud_id)
+                             ->select('sd.diagnostico_id', 'dx.diagnostico_nombre', 'sd.tipo_diagnostico', 'sd.sw_principal')
+                             ->get();
+                         $proc->diagnosticos = $diagnosticos;
+                         if (!$usuario_id_firma_noqx) $usuario_id_firma_noqx = $proc->usuario_id;
+                     }
+
+                     // Profesional Firma NoQx
+                     $profesionalNoQx = null;
+                     if ($usuario_id_firma_noqx) {
+                         $profesionalNoQx = DB::table('system_usuarios as u')
+                             ->join('profesionales_usuarios as pu', 'u.usuario_id', '=', 'pu.usuario_id')
+                             ->join('profesionales as p', function($join){
+                                 $join->on('pu.tipo_tercero_id', '=', 'p.tipo_id_tercero')->on('pu.tercero_id', '=', 'p.tercero_id');
+                             })
+                             ->leftJoin('profesionales_especialidades as pe', function($join){
+                                 $join->on('p.tipo_id_tercero', '=', 'pe.tipo_id_tercero')->on('p.tercero_id', '=', 'pe.tercero_id');
+                             })
+                             ->leftJoin('especialidades as esp', 'pe.especialidad', '=', 'esp.especialidad')
+                             ->where('u.usuario_id', $usuario_id_firma_noqx)
+                             ->select('p.nombre', 'p.tarjeta_profesional', 'esp.descripcion as especialidad', 'p.firma')
+                             ->first();
+                     }
+                     
+                     // Generar PDF
+                     $pdfNoQx = \PDF::loadView('reportes.hc_solicitud_no_qx', [
+                        'empresa' => $empresa,
+                        'paciente' => $header,
+                        'ingreso' => $ingreso,
+                        'fecha' => $procedimientosNoQx[0]->fecha_solicitud ?? date('Y-m-d'),
+                        'profesional' => $profesionalNoQx,
+                        'cliente' => $header,
+                        'procedimientos' => $procedimientosNoQx,
+                        'logoBase64' => $logoBase64,
+                        'firmaBase64' => $firmaBase64
+                    ]);
+                    $pdfContentNoQx = $pdfNoQx->output();
+                }
+            }
+
             // 4. Enviar Correo con Adjunto
             Mail::send('emails.medical_history_report_v2', [
                 'nombre' => $header->nombre_completo,
                 'fecha' => $header->fecha,
                 'ingreso' => $ingreso,
                 'profesional' => $header->profesional
-            ], function ($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden, $pdfContentIncapacidad, $type) {
+            ], function ($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden, $pdfContentIncapacidad, $pdfContentNoQx, $type) {
                 $message->to($paciente->email)
                     ->subject('Reporte Historia Clínica - Ingreso #' . $ingreso);
 
@@ -533,6 +620,11 @@ class ReportController extends Controller
                 // Adjunto 4: Incapacidad (Si existe)
                 if ($pdfContentIncapacidad) {
                     $message->attachData($pdfContentIncapacidad, "Incapacidad_Medica_{$ingreso}.pdf", ['mime' => 'application/pdf']);
+                }
+                
+                // Adjunto 5: No Qx (Si existe)
+                if ($pdfContentNoQx) {
+                    $message->attachData($pdfContentNoQx, "Procedimientos_No_Qx_{$ingreso}.pdf", ['mime' => 'application/pdf']);
                 }
             });
 
