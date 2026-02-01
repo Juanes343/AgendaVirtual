@@ -1079,198 +1079,206 @@ class ReportController extends Controller
     }
 
 
-    public function generateHistoryPdf($ingreso)
-    {
-        try {
-            $url = env('LEGACY_WS_URL');
+public function generateHistoryPdf($ingreso)
+{
+    try {
+        $url = env('LEGACY_WS_URL');
 
-            $resp = Http::withHeaders([
-                'X-Legacy-Token' => env('LEGACY_HC_TOKEN'),
-            ])->get($url, [
-                'ingreso' => (int)$ingreso,
-            ]);
+        $resp = Http::withHeaders([
+            'X-Legacy-Token' => env('LEGACY_HC_TOKEN'),
+        ])->get($url, [
+            'ingreso' => (int)$ingreso,
+        ]);
 
-            if (!$resp->ok()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se pudo obtener HTML legacy',
-                    'detail'  => $resp->body(),
-                ], 500);
-            }
-
-            $payload = $resp->json();
-            if (empty($payload['success']) || empty($payload['html'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Legacy no devolvió HTML válido',
-                    'payload' => $payload,
-                ], 500);
-            }
-
-            $htmlLegacy = (string)$payload['html'];
-
-            // ---- LIMPIEZA (evita about:blank y cosas que wkhtmltopdf intenta cargar) ----
-            // Quita scripts (JS no sirve en PDF y suele causar about:blank)
-            $htmlLegacy = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $htmlLegacy);
-
-            // Quita iframes/frames por seguridad y porque suelen disparar about:blank
-            $htmlLegacy = preg_replace('#<iframe\b[^>]*>.*?</iframe>#is', '', $htmlLegacy);
-            $htmlLegacy = preg_replace('#<frame\b[^>]*>.*?</frame>#is', '', $htmlLegacy);
-
-            // Corrige href="" / href='about:blank' si existieran
-            $htmlLegacy = str_ireplace(['href="about:blank"', "href='about:blank'"], 'href="#"', $htmlLegacy);
-
-            // FIX: WKHTMLTOPDF falla con 403 si encuentra src=".../images/firmas_profesionales/" (directorio sin archivo)
-            // Esto sucede si el legacy retorna la ruta sin nombre de imagen.
-            // Lo reemplazamos por un pixel transparente en Base64 para evitar la petición de red fallida.
-            $htmlLegacy = preg_replace(
-                '/src\s*=\s*(["\'])(?:(?!\1).)*\/images\/firmas_profesionales\/\s*\1/i',
-                'src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="',
-                $htmlLegacy
-            );
-            
-            // Refuerzo con str_replace para casos simples
-            $htmlLegacy = str_replace('images/firmas_profesionales/"', 'images/firmas_profesionales/pixel_dummy.png"', $htmlLegacy);
-            $htmlLegacy = str_replace("images/firmas_profesionales/'", "images/firmas_profesionales/pixel_dummy.png'", $htmlLegacy);
-
-            // Base URL del legacy (para images/, css/, etc.)
-            $baseUrl = env('LEGACY_URL') . '/';
-
-            // ==========================================
-            // LIMPIEZA SEGURA (No destructiva) - UNIFICADA
-            // ==========================================
-            
-            // 1. Ocultar textos de encabezado duplicados y NITs rotos del legacy
-            // Primero intentamos borrar la tabla completa del encabezado legacy que suele contener NIT, Dirección, etc.
-            $htmlLegacy = preg_replace('/<table[^>]*>.*?SIIS\s*-\s*APLICACION.*?<\/table>/is', '', $htmlLegacy);
-            
-            // Refuerzo en caso de que no esté en tabla o use otros textos
-            $htmlLegacy = str_ireplace('SIIS - APLICACION DE PRUEBAS - 20251111', '', $htmlLegacy);
-            $htmlLegacy = str_ireplace('SIIS - APLICACION DE PRUEBAS', '', $htmlLegacy);
-            $htmlLegacy = str_ireplace('HISTORIA CLÍNICA', '', $htmlLegacy);
-            $htmlLegacy = preg_replace('/NIT\s*-\s*\d+/i', '', $htmlLegacy); // Elimina "NIT -4"
-
-            // 2. Eliminar footer/bloque de firma antiguo (Texto y Rayas)
-            // Esto elimina el bloque de texto del profesional que viene sin imagen
-            $htmlLegacy = preg_replace('/[A-Z\s]{5,}\n_{10,}.*?PROFESIONAL.*?CC\s*-\s*\d+.*?T\.P.*?\n/is', '', $htmlLegacy);
-            // Backup por si el regex anterior es muy estricto:
-            $htmlLegacy = preg_replace('/_{10,}.*?PROFESIONAL/is', '', $htmlLegacy);
-            $htmlLegacy = preg_replace('/Imprimió:.*?<\/table>/is', '', $htmlLegacy);
-            
-            // Comentar etiquetas de profesional duplicadas por si quedan restos
-            $htmlLegacy = str_ireplace(['PROFESIONAL:', 'Registro Médico:', 'Especialidad:'], ['<!-- PROF-->', '<!-- Reg -->', '<!-- Esp -->'], $htmlLegacy);
-
-            // 3. Eliminar imágenes rotas (La X) 
-            $htmlLegacy = preg_replace('/<img(?![^>]+src=["\'](data:|.*pixel_dummy))[^>]+>/i', '', $htmlLegacy);
-
-            // TRAMPA CSS: Reducción de espacios y agrupación visual
-            $styleHack = '<style> 
-                tr:empty, table:empty { display: none !important; } 
-                .encabezado_legacy { display:none !important; } 
-                /* Estilos para agrupar y quitar espacios en blanco */
-                .legacy-wrap table { margin-top: 0px !important; margin-bottom: 2px !important; border-spacing: 0 !important; }
-                .legacy-wrap td { padding-top: 1px !important; padding-bottom: 1px !important; line-height: 1.1 !important; }
-                .legacy-wrap br { display: none; } 
-                .legacy-wrap p { margin: 2px 0 !important; }
-                /* Asegurar que el NIT de nuestra cabecera se vea bien */
-                .info-cell { font-size: 10px !important; }
-            </style>';
-            $htmlLegacy = $styleHack . $htmlLegacy;
-
-            // ==========================================
-            
-            // Definir $unaEvolucion antes de usarla
-            $unaEvolucion = DB::table('hc_evoluciones')->where('ingreso', $ingreso)->orderBy('fecha', 'desc')->first();
-
-            // Obtener HEADER para la firma
-            $header = $this->getHeaderData($unaEvolucion ? $unaEvolucion->evolucion_id : null);
-            
-            // --- CARGAR LOGO BASE64 (Faltaba en Imprimir) ---
-            $logoBase64 = null;
-            $pathLogo = public_path('assets/images/simde_logo.png');
-            if (file_exists($pathLogo)) {
-                $typeImg = pathinfo($pathLogo, PATHINFO_EXTENSION);
-                $imgData = file_get_contents($pathLogo);
-                $logoBase64 = 'data:image/' . $typeImg . ';base64,' . base64_encode($imgData);
-            }
-
-            // Recuperar Firma Base64 para imprimir
-            $firmaBase64 = ($header) ? $this->getFirmaBase64($header->firma) : null;
-
-            // --- EMPRESA (FIX NIT Y DIRECCIÓN) ---
-            $empresa = DB::table('empresas as e')
-                ->leftJoin('tipo_mpios as m', function($join) {
-                    $join->on('e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
-                         ->on('e.tipo_dpto_id', '=', 'm.tipo_dpto_id');
-                })
-                ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
-                ->select(
-                    'e.razon_social',
-                    'e.id as nit',
-                    'e.digito_verificacion',
-                    'e.direccion',
-                    'e.telefonos',
-                    'e.website',
-                    'e.email',
-                    'm.municipio',
-                    'd.departamento'
-                )
-                ->where('e.sw_activa', '1')
-                ->orderBy('e.id', 'asc')
-                ->first();
-
-            // Normalizar dirección (Colapsar espacios redundantes de la BD)
-            if ($empresa && !empty($empresa->direccion)) {
-                $empresa->direccion = preg_replace('/\s+/', ' ', trim($empresa->direccion));
-            }
-
-
-            // ---- PDF con Snappy ----
-            $pdf = app('snappy.pdf.wrapper');
-
-            $pdf->loadView('reportes.hc_legacy', [
-                'html'    => $htmlLegacy,
-                'baseUrl' => $baseUrl,
-                'ingreso' => (int)$ingreso,
-                // Nuevos datos para que salga el Header y Footer bonito
-                'header'  => $header,
-                'firmaBase64' => $firmaBase64,
-                'profesional' => $header->profesional ?? '',
-                'especialidad' => $header->especialidad ?? '',
-                'empresa' => $empresa, 
-                // Logo también
-                'logoBase64' => $logoBase64, // Pasamos el logo cargado
-                'fecha'     => $header->fecha ?? date('Y-m-d')
-            ]);
-
-            // Opciones clave
-            $pdf->setOption('encoding', 'utf-8');
-            $pdf->setOption('enable-local-file-access', true);
-
-            // Evita que falle por recursos que no carguen (css/js/imagenes)
-            $pdf->setOption('load-error-handling', 'ignore');
-            $pdf->setOption('load-media-error-handling', 'ignore');
-
-            // Recomendadas para estabilidad
-            $pdf->setOption('disable-smart-shrinking', true);
-            $pdf->setOption('no-stop-slow-scripts', true);
-
-            // Márgenes
-            $pdf->setOption('page-size', 'A4');
-            $pdf->setOption('margin-top', 10);
-            $pdf->setOption('margin-right', 10);
-            $pdf->setOption('margin-bottom', 10);
-            $pdf->setOption('margin-left', 10);
-
-            return $pdf->inline("historia_clinica_{$ingreso}.pdf");
-        } catch (\Throwable $e) {
+        if (!$resp->ok()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error generando PDF historia legacy',
-                'detail'  => $e->getMessage(),
+                'message' => 'No se pudo obtener HTML legacy',
+                'detail'  => $resp->body(),
             ], 500);
         }
+
+        $payload = $resp->json();
+        if (empty($payload['success']) || empty($payload['html'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Legacy no devolvió HTML válido',
+                'payload' => $payload,
+            ], 500);
+        }
+
+        $htmlLegacy = (string)$payload['html'];
+
+        // ==========================================
+        // LIMPIEZA BASE (evita about:blank / scripts)
+        // ==========================================
+        $htmlLegacy = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $htmlLegacy);
+        $htmlLegacy = preg_replace('#<iframe\b[^>]*>.*?</iframe>#is', '', $htmlLegacy);
+        $htmlLegacy = preg_replace('#<frame\b[^>]*>.*?</frame>#is', '', $htmlLegacy);
+        $htmlLegacy = str_ireplace(['href="about:blank"', "href='about:blank'"], 'href="#"', $htmlLegacy);
+
+        // ==========================================================
+        // FIX wkhtmltopdf: firmas_profesionales/ sin archivo (directorio)
+        // ==========================================================
+        $htmlLegacy = preg_replace(
+            '/src\s*=\s*(["\'])(?:(?!\1).)*\/images\/firmas_profesionales\/\s*\1/i',
+            'src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="',
+            $htmlLegacy
+        );
+
+        $htmlLegacy = str_replace(
+            ['images/firmas_profesionales/"', "images/firmas_profesionales/'"],
+            ['images/firmas_profesionales/pixel_dummy.png"', "images/firmas_profesionales/pixel_dummy.png'"],
+            $htmlLegacy
+        );
+
+        // ==========================================================
+        // ✅ COMPACTACIÓN (quita espacios en blanco gigantes)
+        // ==========================================================
+
+        // 1) Quitar heights fijos en atributos HTML: height="180"
+        $htmlLegacy = preg_replace('/\sheight\s*=\s*["\']?\d+["\']?/i', '', $htmlLegacy);
+
+        // 2) Quitar height/min-height dentro de style="..."
+        $htmlLegacy = preg_replace_callback('/style\s*=\s*(["\'])(.*?)\1/is', function ($m) {
+            $style = $m[2];
+
+            // elimina height / min-height
+            $style = preg_replace('/\b(min-)?height\s*:\s*[^;]+;?/i', '', $style);
+
+            // elimina padding-top/bottom muy grandes (opcional)
+            $style = preg_replace('/\bpadding-(top|bottom)\s*:\s*(\d{2,}|[2-9]em|[2-9]rem)[^;]*;?/i', '', $style);
+
+            // normaliza
+            $style = trim(preg_replace('/\s+/', ' ', $style));
+            return $style ? 'style="'.$style.'"' : '';
+        }, $htmlLegacy);
+
+        // 3) Reducir <br> repetidos (deja máximo 1)
+        $htmlLegacy = preg_replace('/(?:<br\s*\/?>\s*){2,}/i', '<br>', $htmlLegacy);
+
+        // 4) Reducir &nbsp; repetidos
+        $htmlLegacy = preg_replace('/(&nbsp;\s*){3,}/i', '&nbsp;', $htmlLegacy);
+
+        // 5) Eliminar filas TR completamente vacías (ojo: es agresivo, pero ayuda mucho)
+        $htmlLegacy = preg_replace(
+            '/<tr[^>]*>\s*(?:<td[^>]*>\s*(?:&nbsp;|\s|<br\s*\/?>)*<\/td>\s*)+<\/tr>/is',
+            '',
+            $htmlLegacy
+        );
+
+        // 6) Ocultar textos duplicados / footer viejo (tu limpieza anterior)
+        $htmlLegacy = str_ireplace('SIIS - APLICACION DE PRUEBAS', '', $htmlLegacy);
+        $htmlLegacy = str_ireplace('HISTORIA CLÍNICA', '', $htmlLegacy);
+        $htmlLegacy = preg_replace('/Imprimió:.*?<\/table>/is', '', $htmlLegacy);
+
+        // 7) (Opcional) remover imágenes rotas no data/pixel_dummy
+        $htmlLegacy = preg_replace(
+            '/<img(?![^>]+src=["\'](data:|.*pixel_dummy))[^>]+>/i',
+            '',
+            $htmlLegacy
+        );
+
+        // 8) Style hack para ocultar tablas/filas vacías
+        $styleHack = '<style>
+            tr:empty { display:none; }
+            table:empty { display:none; }
+        </style>';
+        $htmlLegacy = $styleHack . $htmlLegacy;
+
+        // ==========================
+        // Datos para header/firma
+        // ==========================
+        $unaEvolucion = DB::table('hc_evoluciones')
+            ->where('ingreso', $ingreso)
+            ->orderBy('fecha', 'desc')
+            ->first();
+
+        $header = $this->getHeaderData($unaEvolucion ? $unaEvolucion->evolucion_id : null);
+
+        // Logo base64
+        $logoBase64 = null;
+        $pathLogo = public_path('assets/images/simde_logo.png');
+        if (file_exists($pathLogo)) {
+            $typeImg = pathinfo($pathLogo, PATHINFO_EXTENSION);
+            $imgData = file_get_contents($pathLogo);
+            $logoBase64 = 'data:image/' . $typeImg . ';base64,' . base64_encode($imgData);
+        }
+
+        // Firma base64
+        $firmaBase64 = ($header && !empty($header->firma))
+            ? $this->getFirmaBase64($header->firma)
+            : null;
+
+        // Empresa
+        $empresa = DB::table('empresas as e')
+            ->leftJoin('tipo_mpios as m', function($join) {
+                $join->on('e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+                     ->on('e.tipo_dpto_id', '=', 'm.tipo_dpto_id');
+            })
+            ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
+            ->select(
+                'e.razon_social',
+                'e.id as nit',
+                'e.digito_verificacion',
+                'e.direccion',
+                'e.telefonos',
+                'e.website',
+                'e.email',
+                'm.municipio',
+                'd.departamento'
+            )
+            ->where('e.sw_activa', '1')
+            ->orderBy('e.id', 'asc')
+            ->first();
+
+        if ($empresa && !empty($empresa->direccion)) {
+            $empresa->direccion = preg_replace('/\s+/', ' ', trim($empresa->direccion));
+        }
+
+        // Base URL del legacy (para images/, css/, etc.)
+        $baseUrl = rtrim(env('LEGACY_URL'), '/') . '/';
+
+        // ==========================
+        // PDF con Snappy
+        // ==========================
+        $pdf = app('snappy.pdf.wrapper');
+
+        $pdf->loadView('reportes.hc_legacy', [
+            'html'        => $htmlLegacy,
+            'baseUrl'     => $baseUrl,
+            'ingreso'     => (int)$ingreso,
+            'header'      => $header,
+            'firmaBase64' => $firmaBase64,
+            'empresa'     => $empresa,
+            'logoBase64'  => $logoBase64,
+            'fecha'       => $header->fecha ?? date('Y-m-d'),
+            'fecha_impresion' => date('Y-m-d H:i:s'),
+        ]);
+
+        $pdf->setOption('encoding', 'utf-8');
+        $pdf->setOption('enable-local-file-access', true);
+        $pdf->setOption('load-error-handling', 'ignore');
+        $pdf->setOption('load-media-error-handling', 'ignore');
+        $pdf->setOption('disable-smart-shrinking', true);
+        $pdf->setOption('no-stop-slow-scripts', true);
+
+        $pdf->setOption('page-size', 'A4');
+        $pdf->setOption('margin-top', 10);
+        $pdf->setOption('margin-right', 10);
+        $pdf->setOption('margin-bottom', 10);
+        $pdf->setOption('margin-left', 10);
+
+        return $pdf->inline("historia_clinica_{$ingreso}.pdf");
+    } catch (\Throwable $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error generando PDF historia legacy',
+            'detail'  => $e->getMessage(),
+        ], 500);
     }
+}
+
 
 
 
