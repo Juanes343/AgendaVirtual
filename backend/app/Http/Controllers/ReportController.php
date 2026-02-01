@@ -320,11 +320,20 @@ class ReportController extends Controller
 
         // --- Obtener datos de Empresa y Logo (Faltaban en la versión anterior) ---
         $empresa = DB::table('empresas as e')
-            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_mpios as m', function($join) {
+                $join->on('e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+                     ->on('e.tipo_dpto_id', '=', 'm.tipo_dpto_id');
+            })
             ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
             ->select('e.razon_social', 'e.id as nit', 'e.digito_verificacion', 'e.direccion', 'e.telefonos', 'e.website', 'e.email', 'm.municipio', 'd.departamento')
             ->where('e.sw_activa', '1')
+            ->orderBy('e.id', 'asc')
             ->first();
+
+        // Normalizar dirección (Colapsar espacios redundantes)
+        if ($empresa && !empty($empresa->direccion)) {
+            $empresa->direccion = preg_replace('/\s+/', ' ', trim($empresa->direccion));
+        }
 
         $logoBase64 = null;
         $pathLogo = public_path('assets/images/simde_logo.png');
@@ -516,7 +525,7 @@ class ReportController extends Controller
                     'empresa' => $empresa ?? null,
                     'logoBase64' => $logoBase64 ?? null,
                     'firmaBase64' => $firmaBase64,
-                    'fecha' => date('Y-m-d'),
+                    'fecha' => !empty($header->fecha_registro) ? date('Y-m-d', strtotime($header->fecha_registro)) : date('Y-m-d'),
                     'fecha_impresion' => date('Y-m-d H:i')
                 ])->render());
                 $dompdfI->setPaper('A4', 'portrait');
@@ -689,6 +698,7 @@ class ReportController extends Controller
                 'p.residencia_direccion as direccion',
                 'p.residencia_telefono as telefono',
 
+                'a.fecha_registro',
                 DB::raw("DATE(a.fecha) as fecha"),
                 'a.evolucion_id',
                 'b.ingreso',
@@ -751,7 +761,10 @@ class ReportController extends Controller
 
         // --- Empresa ---
         $empresa = DB::table('empresas as e')
-            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_mpios as m', function($join) {
+                $join->on('e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+                     ->on('e.tipo_dpto_id', '=', 'm.tipo_dpto_id');
+            })
             ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
             ->select(
                 'e.razon_social',
@@ -765,7 +778,13 @@ class ReportController extends Controller
                 'd.departamento'
             )
             ->where('e.sw_activa', '1')
+            ->orderBy('e.id', 'asc')
             ->first();
+
+        // Normalizar dirección (Colapsar espacios redundantes)
+        if ($empresa && !empty($empresa->direccion)) {
+            $empresa->direccion = preg_replace('/\s+/', ' ', trim($empresa->direccion));
+        }
 
         // --- LOGO Base64 ---
         $logoBase64 = null;
@@ -882,7 +901,10 @@ class ReportController extends Controller
 
         // --- Empresa ---
         $empresa = DB::table('empresas as e')
-            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_mpios as m', function($join) {
+                $join->on('e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+                     ->on('e.tipo_dpto_id', '=', 'm.tipo_dpto_id');
+            })
             ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
             ->select(
                 'e.razon_social',
@@ -896,7 +918,13 @@ class ReportController extends Controller
                 'd.departamento'
             )
             ->where('e.sw_activa', '1')
+            ->orderBy('e.id', 'asc')
             ->first();
+
+        // Normalizar dirección (Colapsar espacios redundantes)
+        if ($empresa && !empty($empresa->direccion)) {
+            $empresa->direccion = preg_replace('/\s+/', ' ', trim($empresa->direccion));
+        }
 
         // --- LOGO Base64 ---
         $logoBase64 = null;
@@ -975,7 +1003,10 @@ class ReportController extends Controller
 
         // --- Empresa ---
         $empresa = DB::table('empresas as e')
-            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_mpios as m', function($join) {
+                $join->on('e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+                     ->on('e.tipo_dpto_id', '=', 'm.tipo_dpto_id');
+            })
             ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
             ->select(
                 'e.razon_social',
@@ -989,7 +1020,13 @@ class ReportController extends Controller
                 'd.departamento'
             )
             ->where('e.sw_activa', '1')
+            ->orderBy('e.id', 'asc')
             ->first();
+
+        // Normalizar dirección (Colapsar espacios redundantes)
+        if ($empresa && !empty($empresa->direccion)) {
+            $empresa->direccion = preg_replace('/\s+/', ' ', trim($empresa->direccion));
+        }
 
         // --- LOGO Base64 ---
         $logoBase64 = null;
@@ -1028,7 +1065,7 @@ class ReportController extends Controller
             'empresa' => $empresa,
             'logoBase64' => $logoBase64,
             'firmaBase64' => $firmaBase64, // ✅ NUEVO
-            'fecha' => date('Y-m-d'),
+            'fecha' => !empty($header->fecha_registro) ? date('Y-m-d', strtotime($header->fecha_registro)) : date('Y-m-d'),
             'fecha_impresion' => date('Y-m-d H:i')
         ])->render();
 
@@ -1103,26 +1140,41 @@ class ReportController extends Controller
             // LIMPIEZA SEGURA (No destructiva) - UNIFICADA
             // ==========================================
             
-            // 1. Ocultar textos de encabezado duplicados
+            // 1. Ocultar textos de encabezado duplicados y NITs rotos del legacy
+            // Primero intentamos borrar la tabla completa del encabezado legacy que suele contener NIT, Dirección, etc.
+            $htmlLegacy = preg_replace('/<table[^>]*>.*?SIIS\s*-\s*APLICACION.*?<\/table>/is', '', $htmlLegacy);
+            
+            // Refuerzo en caso de que no esté en tabla o use otros textos
+            $htmlLegacy = str_ireplace('SIIS - APLICACION DE PRUEBAS - 20251111', '', $htmlLegacy);
             $htmlLegacy = str_ireplace('SIIS - APLICACION DE PRUEBAS', '', $htmlLegacy);
             $htmlLegacy = str_ireplace('HISTORIA CLÍNICA', '', $htmlLegacy);
+            $htmlLegacy = preg_replace('/NIT\s*-\s*\d+/i', '', $htmlLegacy); // Elimina "NIT -4"
 
-            // 2. Eliminar footer antiguo (Profesional, Imprimió, etc) para que no salga doble
-            // Reemplazo el texto "Imprimió:" y el bloque
+            // 2. Eliminar footer/bloque de firma antiguo (Texto y Rayas)
+            // Esto elimina el bloque de texto del profesional que viene sin imagen
+            $htmlLegacy = preg_replace('/[A-Z\s]{5,}\n_{10,}.*?PROFESIONAL.*?CC\s*-\s*\d+.*?T\.P.*?\n/is', '', $htmlLegacy);
+            // Backup por si el regex anterior es muy estricto:
+            $htmlLegacy = preg_replace('/_{10,}.*?PROFESIONAL/is', '', $htmlLegacy);
             $htmlLegacy = preg_replace('/Imprimió:.*?<\/table>/is', '', $htmlLegacy);
-            // Comentar etiquetas de profesional duplicadas
+            
+            // Comentar etiquetas de profesional duplicadas por si quedan restos
             $htmlLegacy = str_ireplace(['PROFESIONAL:', 'Registro Médico:', 'Especialidad:'], ['<!-- PROF-->', '<!-- Reg -->', '<!-- Esp -->'], $htmlLegacy);
 
-            // 3. Eliminar imágenes rotas (La X)
-            // Cualquier IMG que no sea data: (firma base64) y no sea pixel_dummy
-            $htmlLegacy = preg_replace(
-                '/<img(?![^>]+src=["\'](data:|.*pixel_dummy))[^>]+>/i', 
-                '',  
-                $htmlLegacy
-            );
+            // 3. Eliminar imágenes rotas (La X) 
+            $htmlLegacy = preg_replace('/<img(?![^>]+src=["\'](data:|.*pixel_dummy))[^>]+>/i', '', $htmlLegacy);
 
-            // TRAMPA CSS: Asegurar que tablas vacias (como las del header viejo borrado) no ocupen espacio
-            $styleHack = '<style> tr:empty { display: none; } table:empty { display: none; } .encabezado_legacy { display:none; } </style>';
+            // TRAMPA CSS: Reducción de espacios y agrupación visual
+            $styleHack = '<style> 
+                tr:empty, table:empty { display: none !important; } 
+                .encabezado_legacy { display:none !important; } 
+                /* Estilos para agrupar y quitar espacios en blanco */
+                .legacy-wrap table { margin-top: 0px !important; margin-bottom: 2px !important; border-spacing: 0 !important; }
+                .legacy-wrap td { padding-top: 1px !important; padding-bottom: 1px !important; line-height: 1.1 !important; }
+                .legacy-wrap br { display: none; } 
+                .legacy-wrap p { margin: 2px 0 !important; }
+                /* Asegurar que el NIT de nuestra cabecera se vea bien */
+                .info-cell { font-size: 10px !important; }
+            </style>';
             $htmlLegacy = $styleHack . $htmlLegacy;
 
             // ==========================================
@@ -1145,6 +1197,33 @@ class ReportController extends Controller
             // Recuperar Firma Base64 para imprimir
             $firmaBase64 = ($header) ? $this->getFirmaBase64($header->firma) : null;
 
+            // --- EMPRESA (FIX NIT Y DIRECCIÓN) ---
+            $empresa = DB::table('empresas as e')
+                ->leftJoin('tipo_mpios as m', function($join) {
+                    $join->on('e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+                         ->on('e.tipo_dpto_id', '=', 'm.tipo_dpto_id');
+                })
+                ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
+                ->select(
+                    'e.razon_social',
+                    'e.id as nit',
+                    'e.digito_verificacion',
+                    'e.direccion',
+                    'e.telefonos',
+                    'e.website',
+                    'e.email',
+                    'm.municipio',
+                    'd.departamento'
+                )
+                ->where('e.sw_activa', '1')
+                ->orderBy('e.id', 'asc')
+                ->first();
+
+            // Normalizar dirección (Colapsar espacios redundantes de la BD)
+            if ($empresa && !empty($empresa->direccion)) {
+                $empresa->direccion = preg_replace('/\s+/', ' ', trim($empresa->direccion));
+            }
+
 
             // ---- PDF con Snappy ----
             $pdf = app('snappy.pdf.wrapper');
@@ -1158,7 +1237,7 @@ class ReportController extends Controller
                 'firmaBase64' => $firmaBase64,
                 'profesional' => $header->profesional ?? '',
                 'especialidad' => $header->especialidad ?? '',
-                'empresa' => DB::table('empresas')->where('sw_activa', '1')->first(), 
+                'empresa' => $empresa, 
                 // Logo también
                 'logoBase64' => $logoBase64, // Pasamos el logo cargado
                 'fecha'     => $header->fecha ?? date('Y-m-d')

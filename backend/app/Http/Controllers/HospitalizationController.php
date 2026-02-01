@@ -154,7 +154,10 @@ class HospitalizationController extends Controller
 
         // 1. Obtener datos basicos de la empresa (CORREGIDO CON JOINs)
         $empresa = DB::table('empresas as e')
-            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_mpios as m', function($join) {
+                $join->on('e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+                     ->on('e.tipo_dpto_id', '=', 'm.tipo_dpto_id');
+            })
             ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
             ->select(
                 'e.razon_social', 
@@ -169,7 +172,13 @@ class HospitalizationController extends Controller
                 'e.email'
             )
             ->where('e.sw_activa', '1')
+            ->orderBy('e.id', 'asc')
             ->first();
+
+        // Normalizar dirección (Colapsar espacios redundantes)
+        if ($empresa && !empty($empresa->direccion)) {
+            $empresa->direccion = preg_replace('/\s+/', ' ', trim($empresa->direccion));
+        }
 
         // Cargar Logo
         $logoBase64 = null;
@@ -337,7 +346,10 @@ class HospitalizationController extends Controller
 
         // 1. Obtener datos basicos de la empresa
         $empresa = DB::table('empresas as e')
-            ->leftJoin('tipo_mpios as m', 'e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+            ->leftJoin('tipo_mpios as m', function($join) {
+                $join->on('e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+                     ->on('e.tipo_dpto_id', '=', 'm.tipo_dpto_id');
+            })
             ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
             ->select(
                 'e.razon_social', 
@@ -352,7 +364,13 @@ class HospitalizationController extends Controller
                 'e.email'
             )
             ->where('e.sw_activa', '1')
+            ->orderBy('e.id', 'asc')
             ->first();
+        
+        // Normalizar dirección (Colapsar espacios redundantes)
+        if ($empresa && !empty($empresa->direccion)) {
+            $empresa->direccion = preg_replace('/\s+/', ' ', trim($empresa->direccion));
+        }
         
         // Cargar Logo
         $logoBase64 = null;
