@@ -25,6 +25,11 @@ const authService = {
     resetPassword: async (data) => {
         const response = await api.post('/reset-password', data);
         return response.data;
+    },
+
+    activateAccount: async (token) => {
+        const response = await api.get(`/activate-account/${token}`);
+        return response.data;
     }
 };
 

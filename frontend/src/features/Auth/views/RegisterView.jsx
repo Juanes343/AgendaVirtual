@@ -37,8 +37,16 @@ export default function RegisterView() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [isExistingPatient, setIsExistingPatient] = useState(false); // If patient exists in legacy DB
+    const [isExistingPatient, setIsExistingPatient] = useState(false); // Si el paciente existe en DB
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [maskedEmail, setMaskedEmail] = useState('');
+    // Enmascarar email (ej: simde***@gmail.com)
+    const maskEmail = (email) => {
+        if (!email) return '';
+        const [user, domain] = email.split('@');
+        if (user.length <= 3) return user[0] + '***@' + domain;
+        return user.substring(0, 3) + '***@' + domain;
+    };
 
     // Cargar tipos de documento
     useEffect(() => {
@@ -78,34 +86,30 @@ export default function RegisterView() {
         e.preventDefault();
         setError('');
         setLoading(true);
-
         try {
             const response = await authService.checkPatient({
                 tipo_doc: formData.tipo_doc,
                 usuario: formData.usuario
             });
-
             if (response.success) {
-                if (response.status === 'has_account') {
-                    setError('Este usuario ya tiene una cuenta registrada. Por favor inicie sesión.');
-                } else if (response.status === 'exists') {
-                   // Patient exists in legacy DB -> Pre-fill data
-                   const p = response.data;
-                   setFormData(prev => ({
-                       ...prev,
-                       primer_nombre: p.primer_nombre || '',
-                       segundo_nombre: p.segundo_nombre || '',
-                       primer_apellido: p.primer_apellido || '',
-                       segundo_apellido: p.segundo_apellido || '',
-                       fecha_nacimiento: p.fecha_nacimiento || '',
-                       sexo: p.sexo || '',
-                       celular: p.movil || '', // Assuming API returns 'movil'
-                       email: p.email || ''     // Assuming API returns 'email'
-                   }));
-                   setIsExistingPatient(true);
-                   setStep(2);
+                if (response.exists) {
+                    // Precargar datos
+                    const p = response.paciente;
+                    setFormData(prev => ({
+                        ...prev,
+                        primer_nombre: p.primer_nombre || '',
+                        segundo_nombre: p.segundo_nombre || '',
+                        primer_apellido: p.primer_apellido || '',
+                        segundo_apellido: p.segundo_apellido || '',
+                        fecha_nacimiento: p.fecha_nacimiento || '',
+                        sexo: p.sexo || '',
+                        celular: p.celular || '',
+                        email: p.email || ''
+                    }));
+                    setMaskedEmail(maskEmail(p.email));
+                    setIsExistingPatient(true);
+                    setStep(2);
                 } else {
-                    // New Patient -> Clean form just in case and move to step 2
                     setIsExistingPatient(false);
                     setStep(2);
                 }
@@ -432,9 +436,11 @@ export default function RegisterView() {
                                     <input
                                         type="email"
                                         name="email"
-                                        value={formData.email}
+                                        value={isExistingPatient ? maskedEmail : formData.email}
                                         onChange={handleChange}
-                                        className="w-full px-3 py-2 bg-input/50 border border-input rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none"
+                                        readOnly={isExistingPatient}
+                                        disabled={isExistingPatient}
+                                        className={`w-full px-3 py-2 bg-input/50 border border-input rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none ${isExistingPatient ? 'opacity-70 cursor-not-allowed bg-muted/50' : ''}`}
                                         required
                                     />
                                 </div>
@@ -513,24 +519,16 @@ export default function RegisterView() {
                             <Check className="w-10 h-10 text-primary" />
                         </div>
                         
-                        <h3 className="text-2xl font-bold mb-2 text-foreground">¡Cuenta Creada!</h3>
+                        <h3 className="text-2xl font-bold mb-2 text-foreground">¡Casi listo!</h3>
                         <p className="text-muted-foreground mb-8 text-balance">
-                            Te has registrado exitosamente en SanDi•Med. Ya puedes acceder a tu portal.
+                            Te has registrado exitosamente. Para activar tu cuenta, por favor revisa el correo enviado a <b className="text-primary">{formData.email}</b> y haz clic en el botón <b>"Activar mi cuenta"</b>.
                         </p>
                         
                         <button 
-                            onClick={handleSuccessContinue}
-                            disabled={loading}
+                            onClick={() => navigate('/login')}
                             className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 active:scale-[0.98] flex items-center justify-center gap-2"
                         >
-                            {loading ? (
-                                <>
-                                    <span className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></span>
-                                    Iniciando...
-                                </>
-                            ) : (
-                                "Ingresar al Portal"
-                            )}
+                            Entendido, ir al Login
                         </button>
                     </div>
                 </div>

@@ -5,6 +5,7 @@ import { UserProvider, useUser } from './contexts/UserContext/UserContext';
 import LoginPage from './features/Auth/pages/LoginPage';
 import RegisterPage from './features/Auth/pages/RegisterPage';
 import ResetPasswordView from './features/Auth/views/ResetPasswordView';
+import ActivateAccountView from './features/Auth/views/ActivateAccountView';
 import DashboardView from './features/Home/views/DashboardView';
 
 const Home = () => <DashboardView />;
@@ -21,6 +22,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/reset-password" element={<ResetPasswordView />} />
+      <Route path="/activar-cuenta" element={<ActivateAccountView />} />
       <Route
         path="/home"
         element={

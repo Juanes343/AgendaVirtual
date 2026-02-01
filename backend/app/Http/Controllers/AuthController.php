@@ -3,12 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-
 use App\Models\SystemUsuarioVirtual;
 use App\Models\Paciente;
-use App\Models\TipoIdPaciente; // Modelo nuevo
-use App\Models\TokenAgendaVirtual; // Modelo nuevo para los tokens
-use App\Mail\RestorePasswordMail;  // Correo
+use App\Models\TipoIdPaciente;
+use App\Models\TokenAgendaVirtual;
+use App\Mail\RestorePasswordMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -25,10 +24,9 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        // 1. Validar
         $validator = Validator::make($request->all(), [
             'tipo_doc' => 'required|string|max:3',
-            'usuario'  => 'required|string|max:32', // Numero documento
+            'usuario'  => 'required|string|max:32',
             'primer_nombre' => 'required|string|max:20',
             'primer_apellido' => 'required|string|max:30',
             'fecha_nacimiento' => 'required|date',
@@ -51,13 +49,11 @@ class AuthController extends Controller
             $pacienteId = $request->usuario;
             $tipoDoc = $request->tipo_doc;
 
-            // 2. Verificar si Paciente ya existe
             $pacienteExistente = Paciente::where('paciente_id', $pacienteId)
                 ->where('tipo_id_paciente', $tipoDoc)
                 ->first();
 
             if ($pacienteExistente) {
-                // Verificar si ya tiene usuario virtual
                 $usuarioVirtual = SystemUsuarioVirtual::where('paciente_id', $pacienteId)
                     ->where('tipo_documento', $tipoDoc)
                     ->first();
@@ -68,10 +64,7 @@ class AuthController extends Controller
                         'message' => 'El usuario ya se encuentra registrado en el sistema.'
                     ], 409);
                 }
-                // Si existe el paciente pero no el usuario, continuamos para crear solo el usuario...
-                // (Para simplificar, asumiremos que si existe el paciente, usamos sus datos y solo creamos el usuario)
             } else {
-                // 3. Crear Paciente
                 $paciente = new Paciente();
                 $paciente->paciente_id = $pacienteId;
                 $paciente->tipo_id_paciente = $tipoDoc;
@@ -83,41 +76,46 @@ class AuthController extends Controller
                 $paciente->sexo_id = $request->sexo;
                 $paciente->celular_telefono = $request->celular ?? '';
                 $paciente->email = $request->email ?? '';
-                
-                // Defaults requeridos
-                $paciente->usuario_id = 1; // Usuario sistema o self-registered
+                $paciente->usuario_id = 1;
                 $paciente->fecha_registro = now();
                 $paciente->save();
             }
 
-            // 4. Crear Usuario Virtual
             $usuario = new SystemUsuarioVirtual();
             $usuario->paciente_id = $pacienteId;
             $usuario->tipo_documento = $tipoDoc;
-            $usuario->passwd = md5($request->passwd); // Legacy MD5
-            //$usuario->created_at = now();
-            //$usuario->updated_at = now();
+            $usuario->passwd = Hash::make($request->passwd);
+            $usuario->estado = '0';
             $usuario->save();
 
-            // Enviar correo de bienvenida
-            try {
-                // Recuperar paciente para tener el email y nombre (si ya existía, usamos $pacienteExistente)
-                $pacienteFinal = $pacienteExistente ?? $paciente;
-                
-                if (!empty($pacienteFinal->email)) {
-                    $nombreCompleto = trim("{$pacienteFinal->primer_nombre} {$pacienteFinal->primer_apellido}");
-                    Mail::to($pacienteFinal->email)->send(new WelcomeMail($nombreCompleto, $pacienteFinal->paciente_id));
-                }
-            } catch (\Exception $e) {
-                // Loguear error pero no detener registro
-                \Illuminate\Support\Facades\Log::error('Error enviando WelcomeMail: ' . $e->getMessage());
+            $token = Str::random(64);
+            TokenAgendaVirtual::create([
+                'incriptacion' => $token,
+                'paciente_id' => $usuario->paciente_id,
+                'tipo_documento' => $usuario->tipo_documento,
+                'fecha_registro' => now(),
+                'estado' => '1',
+            ]);
+
+            $activationUrl = 'https://devel82els.simde.com.co/PortalPaciente/SERVIMEDICOS/AgendaVirtual/frontend/build/#/activar-cuenta?token=' . $token;
+
+            $pacienteFinal = $pacienteExistente ?? $paciente;
+            if (!empty($pacienteFinal->email)) {
+                Mail::send('emails.welcome', [
+                    'nombre' => trim("{$pacienteFinal->primer_nombre} {$pacienteFinal->primer_apellido}"),
+                    'documento' => $pacienteFinal->paciente_id,
+                    'activationUrl' => $activationUrl
+                ], function ($message) use ($pacienteFinal) {
+                    $message->to($pacienteFinal->email)
+                        ->subject('¡Bienvenido a SanDi•Med! - Activa tu cuenta');
+                });
             }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Registro exitoso',
+                'message' => 'Registro exitoso. Revisa tu correo para activar la cuenta.',
             ], 201);
 
         } catch (\Exception $e) {
@@ -131,8 +129,56 @@ class AuthController extends Controller
     }
 
     /**
+     * Endpoint para activar usuario por token de activación
+     */
+    public function activateAccount($token)
+    {
+        $tokenRow = TokenAgendaVirtual::where('incriptacion', $token)
+            ->where('estado', '1')
+            ->first();
+
+        if (!$tokenRow) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Token inválido o ya utilizado.'
+            ], 400);
+        }
+
+        $expira = \Carbon\Carbon::parse($tokenRow->fecha_registro)->addHours(24);
+        if (now()->greaterThan($expira)) {
+            $tokenRow->estado = '0';
+            $tokenRow->save();
+            return response()->json([
+                'success' => false,
+                'message' => 'El enlace de activación ha expirado.'
+            ], 400);
+        }
+
+        $usuario = SystemUsuarioVirtual::where('paciente_id', $tokenRow->paciente_id)
+            ->where('tipo_documento', $tokenRow->tipo_documento)
+            ->first();
+
+        if (!$usuario) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario no encontrado.'
+            ], 404);
+        }
+
+        $usuario->estado = '1';
+        $usuario->save();
+
+        $tokenRow->estado = '0';
+        $tokenRow->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cuenta activada correctamente. Ya puedes iniciar sesión.'
+        ]);
+    }
+
+    /**
      * Endpoint para verificar existencia de paciente
-     * POST /api/check-patient
      */
     public function checkPatient(Request $request)
     {
@@ -148,7 +194,6 @@ class AuthController extends Controller
         $pacienteId = $request->usuario;
         $tipoDoc = $request->tipo_doc;
 
-        // 1. Verificar si ya tiene cuenta virtual
         $usuarioVirtual = SystemUsuarioVirtual::where('paciente_id', $pacienteId)
             ->where('tipo_documento', $tipoDoc)
             ->first();
@@ -161,16 +206,15 @@ class AuthController extends Controller
             ]);
         }
 
-        // 2. Verificar si existe como paciente
         $paciente = Paciente::where('paciente_id', $pacienteId)
             ->where('tipo_id_paciente', $tipoDoc)
             ->first();
 
         if ($paciente) {
-             return response()->json([
+            return response()->json([
                 'success' => true,
-                'status' => 'exists',
-                'data' => [
+                'exists' => true,
+                'paciente' => [
                     'primer_nombre' => $paciente->primer_nombre,
                     'segundo_nombre' => $paciente->segundo_nombre,
                     'primer_apellido' => $paciente->primer_apellido,
@@ -178,27 +222,24 @@ class AuthController extends Controller
                     'fecha_nacimiento' => $paciente->fecha_nacimiento,
                     'sexo' => $paciente->sexo_id,
                     'celular' => $paciente->celular_telefono,
-                    'email' => $paciente->email
-                ]
+                    'email' => $paciente->email,
+                ],
+                'message' => 'Paciente encontrado'
             ]);
         }
 
-        // 3. No existe ni paciente ni usuario
         return response()->json([
             'success' => true,
-            'status' => 'new',
+            'exists' => false,
             'message' => 'Paciente nuevo'
         ]);
     }
 
     /**
      * Endpoint para autenticación de usuarios (Login)
-     * POST /api/login
      */
-
     public function login(Request $request)
     {
-        // 1. Validar inputs
         $validator = Validator::make($request->all(), [
             'tipo_doc' => 'required|string',
             'usuario'  => 'required|string', 
@@ -213,39 +254,61 @@ class AuthController extends Controller
             ], 400); 
         }
 
-        // 2. Buscar usuario
         $usuario = SystemUsuarioVirtual::where('paciente_id', $request->usuario)
-                                       ->where('tipo_documento', $request->tipo_doc)
-                                       ->first();
+            ->where('tipo_documento', $request->tipo_doc)
+            ->first();
 
-        // 3. Validar password (MD5)
-        if (!$usuario || md5($request->passwd) !== $usuario->passwd) {
+        // 3. Validar password (Hash::check con fallback a MD5)
+        $authenticated = false;
+        if ($usuario) {
+            // Solo usamos Hash::check si la contraseña almacenada parece un hash de Bcrypt ($2y$)
+            $esBcrypt = strpos($usuario->passwd, '$2y$') === 0;
+
+            if ($esBcrypt) {
+                if (Hash::check($request->passwd, $usuario->passwd)) {
+                    $authenticated = true;
+                }
+            } else {
+                // Si no es Bcrypt, probamos MD5 (Compatibilidad con usuarios antiguos)
+                if (md5($request->passwd) === $usuario->passwd) {
+                    // Migrar a Bcrypt automáticamente para la próxima vez
+                    $usuario->passwd = Hash::make($request->passwd);
+                    $usuario->save();
+                    $authenticated = true;
+                }
+            }
+        }
+
+        if (!$authenticated) {
             return response()->json([
                 'success' => false,
                 'message' => 'Credenciales incorrectas'
             ], 401); 
         }
 
-        // 4. Autenticar manualmente para Sanctum (Usando helper auth() para evitar error de Clase no encontrada)
+        if ($usuario->estado != '1') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tu cuenta aún no ha sido activada. Revisa tu correo para activarla.'
+            ], 403);
+        }
+
         auth()->login($usuario); 
 
-        // 5. Crear Token
-        // *IMPORTANTE*: Esto requiere que SystemUsuarioVirtual use el trait HasApiTokens
         $token = $request->user()->createToken('auth_token')->plainTextToken;
 
-        // 6. Obtener datos extra (Paciente)
         $paciente = Paciente::where('paciente_id', $usuario->paciente_id)
-                            ->where('tipo_id_paciente', $usuario->tipo_documento)
-                            ->first();
+            ->where('tipo_id_paciente', $usuario->tipo_documento)
+            ->first();
 
         return response()->json([
             'success' => true,
             'message' => 'Inicio de sesión exitoso',
             'data' => [
-                'token' => $token, // Token generado
+                'token' => $token,
                 'usuario' => [
                     'id' => $usuario->usuario_id_virtual,
-                    'documento' => $usuario->paciente_id, // Asegurar compatibilidad
+                    'documento' => $usuario->paciente_id,
                     'tipo_documento' => $usuario->tipo_documento,
                 ],
                 'paciente' => $paciente ? [
@@ -264,13 +327,12 @@ class AuthController extends Controller
             ]
         ]);
     }
-    
+
     /**
      * Endpoint para restablecer contraseña
      */
     public function recoverPassword(Request $request)
     {
-        // 1. Validar
         $validator = Validator::make($request->all(), [
             'tipo_doc' => 'required|string',
             'usuario'  => 'required|string', 
@@ -280,18 +342,15 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'message' => 'Por favor ingrese tipo y número de documento.'], 400);
         }
 
-        // 2. Buscar usuario
         $usuario = SystemUsuarioVirtual::where('paciente_id', $request->usuario)
             ->where('tipo_documento', $request->tipo_doc)
             ->first();
 
-        // Para seguridad, verificamos si existe como paciente también
         $paciente = Paciente::where('paciente_id', $request->usuario)
             ->where('tipo_id_paciente', $request->tipo_doc)
             ->first();
 
         if (!$usuario || !$paciente) {
-            // Retornamos 404 o un mensaje genérico por seguridad
             return response()->json(['success' => false, 'message' => 'Usuario no encontrado.'], 404);
         }
 
@@ -300,35 +359,24 @@ class AuthController extends Controller
         }
 
         try {
-            // 3. Generar Token aleatorio
             $tokenStr = Str::random(60);
-            
-            // 4. Guardar en base de datos (tokens_agenda_virtual)
-            // Se asume estado '1' = Activo
             TokenAgendaVirtual::create([
                 'incriptacion'   => $tokenStr,
                 'paciente_id'    => $usuario->paciente_id,
                 'tipo_documento' => $usuario->tipo_documento,
-                'fecha_registro' => now(), // o date('Y-m-d H:i:s')
+                'fecha_registro' => now(),
                 'estado'         => '1'
             ]);
 
-            // 5. Construir enlace para el frontend
-            // Ajustamos la URL base según tu entorno (Hardcoded temporalmente según tu screenshot)
-            $baseUrl = 'https://devel82els.simde.com.co/AgendaVirtual/frontend/build';
+            $baseUrl = 'https://devel82els.simde.com.co/PortalPaciente/SERVIMEDICOS/AgendaVirtual/frontend/build';
             $link = $baseUrl . '/#/reset-password?token=' . $tokenStr;
             
             $nombrePaciente = trim("{$paciente->primer_nombre} {$paciente->primer_apellido}");
-            
-            // 6. Enviar correo
             Mail::to($paciente->email)->send(new RestorePasswordMail($nombrePaciente, $link));
-
-            // Enmascarar email para mostrarlo en el mensaje
-            $maskedEmail = $this->maskEmail($paciente->email);
 
             return response()->json([
                 'success' => true, 
-                'message' => "Se ha enviado un enlace de recuperación al correo {$maskedEmail}"
+                'message' => "Se ha enviado un enlace de recuperación al correo " . $this->maskEmail($paciente->email)
             ]);
 
         } catch (\Exception $e) {
@@ -345,7 +393,6 @@ class AuthController extends Controller
      */
     public function resetPassword(Request $request)
     {
-        // 1. Validar inputs
         $validator = Validator::make($request->all(), [
             'token'    => 'required|string',
             'password' => 'required|string|min:6',
@@ -361,7 +408,6 @@ class AuthController extends Controller
         }
 
         try {
-            // 2. Buscar token válido (estado '1' = activo)
             $tokenRecord = TokenAgendaVirtual::where('incriptacion', $request->token)
                 ->where('estado', '1')
                 ->first();
@@ -373,10 +419,6 @@ class AuthController extends Controller
                 ], 404);
             }
 
-            // Opcional: Verificar expiración (ej: 24 horas)
-            // if ($tokenRecord->fecha_registro < now()->subHours(24)) { ... }
-
-            // 3. Buscar Usuario Virtual
             $usuario = SystemUsuarioVirtual::where('paciente_id', $tokenRecord->paciente_id)
                 ->where('tipo_documento', $tokenRecord->tipo_documento)
                 ->first();
@@ -385,11 +427,9 @@ class AuthController extends Controller
                 return response()->json(['success' => false, 'message' => 'Usuario asociado no encontrado.'], 404);
             }
 
-            // 4. Actualizar contraseña (MD5 según lógica legacy observada)
-            $usuario->passwd = md5($request->password);
+            $usuario->passwd = Hash::make($request->password);
             $usuario->save();
 
-            // 5. Invalidar Token
             $tokenRecord->estado = '0';
             $tokenRecord->save();
 
@@ -407,7 +447,6 @@ class AuthController extends Controller
         }
     }
 
-    // Helper para ocultar parte del correo
     private function maskEmail($email) {
         $parts = explode('@', $email);
         if(count($parts) < 2) return $email;
@@ -418,9 +457,6 @@ class AuthController extends Controller
         return $maskedName . '@' . $parts[1];
     }
 
-    /**
-     * Generar y descargar el manual de usuario
-     */
     public function downloadManual()
     {
         $dompdf = new Dompdf();
@@ -435,9 +471,6 @@ class AuthController extends Controller
             ->header('Content-Disposition', 'inline; filename="Manual_Usuario_AgendaVirtual.pdf"');
     }
 
-    /**
-     * Actualiza los datos de perfil del paciente
-     */
     public function updateProfile(Request $request)
     {
         $user = $request->user();
@@ -445,7 +478,6 @@ class AuthController extends Controller
             return response()->json(['message' => 'Usuario no es un paciente'], 400);
         }
 
-        // Validar datos básicos
         $request->validate([
             'email' => 'required|email',
             'celular' => 'nullable|string',
@@ -459,13 +491,6 @@ class AuthController extends Controller
         try {
             DB::beginTransaction();
 
-            /* 
-             // 1. Opcional: Actualizar email en tabla de usuarios virtuales si existiera columna email
-             // $user->email = $request->email;
-             // $user->save();
-            */
-
-            // 2. Actualizar datos en tabla pacientes
             DB::table('pacientes')
                 ->where('paciente_id', $user->paciente_id)
                 ->where('tipo_id_paciente', $user->tipo_documento)
@@ -481,8 +506,7 @@ class AuthController extends Controller
 
             DB::commit();
             
-            // Recargar datos actualizados para responder
-             $paciente = DB::table('pacientes')
+            $paciente = DB::table('pacientes')
                 ->where('paciente_id', $user->paciente_id)
                 ->where('tipo_id_paciente', $user->tipo_documento)
                 ->first();
@@ -498,31 +522,20 @@ class AuthController extends Controller
         }
     }
 
-    /**
-     * Cambia la contraseña del usuario logueado
-     */
     public function changePassword(Request $request)
     {
         $request->validate([
             'newPassword' => 'required|min:6|confirmed', 
         ]);
-
         $user = $request->user();
-        
-        // El sistema usa MD5 según endpoints anteriores
-        $user->passwd = md5($request->newPassword);
+        $user->passwd = Hash::make($request->newPassword);
         $user->save();
-
         return response()->json(['message' => 'Contraseña actualizada correctamente']);
     }
 
-    /**
-     * Obtener lista de tipos de documento
-     */
     public function getDocumentTypes()
     {
         try {
-            // Se asume que la columna es indice_de_orden según error SQL
             $types = TipoIdPaciente::orderBy('indice_de_orden', 'asc')->get();
             return response()->json($types);
         } catch (\Exception $e) {

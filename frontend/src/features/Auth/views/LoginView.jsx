@@ -100,10 +100,15 @@ export default function LoginView() {
             if (response.success) {
                 login(response.data);
                 navigate('/home'); 
+            } else {
+                // Si success es false pero no lanzó excepción (depende de la versión del service)
+                setError(response.message || 'Error al iniciar sesión.');
             }
         } catch (err) {
             console.error(err);
-            setError(err.response?.data?.message || 'Error al iniciar sesión. Verifique sus credenciales.');
+            // Si el backend devuelve 403 (Forbidden) por cuenta inactiva, Axios lo captura aquí
+            const serverMessage = err.response?.data?.message;
+            setError(serverMessage || 'Error al iniciar sesión. Verifique sus credenciales.');
         } finally {
             setLoading(false);
         }

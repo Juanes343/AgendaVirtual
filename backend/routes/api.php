@@ -7,6 +7,9 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\SurgeryController;
 use App\Http\Controllers\ConfigReportePermisoController;
 
+// Activación de cuenta por token
+Route::get('/activate-account/{token}', [AuthController::class, 'activateAccount']);
+
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/check-patient', [AuthController::class, 'checkPatient']);

@@ -25,14 +25,18 @@
             
             <div class="info-box">
                 <p><strong>Usuario / Documento:</strong> {{ $documento }}</p>
-                <p>Ya puedes acceder a agendar tus citas y consultar tu historial.</p>
+                <p>Para activar tu cuenta y poder ingresar, haz clic en el siguiente botón:</p>
             </div>
 
-            <p>Para ingresar, utiliza tu número de documento y la contraseña que definiste al registrarte.</p>
-            
-            <div style="text-align: center;">
-                <a href="{{ url('/') }}" class="btn">Ir al Portal</a>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ $activationUrl }}" 
+                   style="display: inline-block; background: #0F52BA; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; font-family: Arial, sans-serif;" 
+                   target="_blank">
+                   Activar mi cuenta
+                </a>
             </div>
+
+            <p style="font-size:13px; color:#888; text-align:center;">Este enlace es válido por 24 horas. Si no solicitaste este registro, puedes ignorar este mensaje.</p>
         </div>
         <div class="footer">
             <p>&copy; {{ date('Y') }} SanDi•Med. Todos los derechos reservados.</p>
