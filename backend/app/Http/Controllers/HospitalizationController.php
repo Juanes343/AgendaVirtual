@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
 
 class HospitalizationController extends Controller
 {
@@ -279,6 +280,10 @@ class HospitalizationController extends Controller
                     'p.firma'
                 ) 
                 ->first();
+
+            if ($profesional && !empty($profesional->firma)) {
+                $firmaBase64 = $this->getFirmaBase64($profesional->firma);
+            }
         }
 
         // 6. Generar Y Retornar PDF
@@ -457,6 +462,10 @@ class HospitalizationController extends Controller
                     'p.firma'
                 )
                 ->first();
+
+            if ($profesional && !empty($profesional->firma)) {
+                $firmaBase64 = $this->getFirmaBase64($profesional->firma);
+            }
         }
 
         // 6. Generar PDF
@@ -500,5 +509,37 @@ class HospitalizationController extends Controller
             Log::error("Error enviando correo NoQx: " . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Error al enviar el correo.'], 500);
         }
+    }
+
+    /**
+     * Obtiene la firma del profesional en formato Base64.
+     * Busca primero localmente y luego vía URL si es necesario.
+     */
+    private function getFirmaBase64($firma)
+    {
+        if (empty($firma)) return null;
+
+        $fileFirmaEncoded = str_replace('*', '%2A', $firma);
+        $basePath = env('LEGACY_PATH'); 
+        $firmaPath = $basePath . '/images/firmas_profesionales/' . $fileFirmaEncoded;
+
+        if (file_exists($firmaPath)) {
+            $ext = strtolower(pathinfo($firmaPath, PATHINFO_EXTENSION));
+            $mime = in_array($ext, ['jpg', 'jpeg', 'png']) ? $ext : 'jpeg';
+            return 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($firmaPath));
+        } else {
+            $baseUrl = env('LEGACY_URL');
+            $firmaUrl = $baseUrl . '/images/firmas_profesionales/' . $fileFirmaEncoded;
+            try {
+                $imgResp = Http::timeout(5)->get($firmaUrl);
+                if ($imgResp->ok()) {
+                    $cType = $imgResp->header('Content-Type') ?: 'image/jpeg';
+                    return 'data:' . $cType . ';base64,' . base64_encode($imgResp->body());
+                }
+            } catch (\Throwable $eF) { 
+                Log::error("Error descargando firma NoQx: " . $eF->getMessage()); 
+            }
+        }
+        return null;
     }
 }

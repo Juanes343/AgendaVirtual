@@ -97,7 +97,8 @@ class AuthController extends Controller
                 'estado' => '1',
             ]);
 
-            $activationUrl = 'https://devel82els.simde.com.co/PortalPaciente/SERVIMEDICOS/AgendaVirtual/frontend/build/#/activar-cuenta?token=' . $token;
+            $frontendUrl = rtrim(env('FRONTEND_URL'), '/');
+            $activationUrl = $frontendUrl . '/#/activar-cuenta?token=' . $token;
 
             $pacienteFinal = $pacienteExistente ?? $paciente;
             if (!empty($pacienteFinal->email)) {
@@ -368,8 +369,8 @@ class AuthController extends Controller
                 'estado'         => '1'
             ]);
 
-            $baseUrl = 'https://devel82els.simde.com.co/PortalPaciente/SERVIMEDICOS/AgendaVirtual/frontend/build';
-            $link = $baseUrl . '/#/reset-password?token=' . $tokenStr;
+            $frontendUrl = rtrim(env('FRONTEND_URL'), '/');
+            $link = $frontendUrl . '/#/reset-password?token=' . $tokenStr;
             
             $nombrePaciente = trim("{$paciente->primer_nombre} {$paciente->primer_apellido}");
             Mail::to($paciente->email)->send(new RestorePasswordMail($nombrePaciente, $link));
@@ -478,7 +479,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Usuario no es un paciente'], 400);
         }
 
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'celular' => 'nullable|string',
             'direccion' => 'nullable|string',
@@ -486,7 +487,18 @@ class AuthController extends Controller
             'segundo_nombre' => 'nullable|string|max:50',
             'primer_apellido' => 'nullable|string|max:50',
             'segundo_apellido' => 'nullable|string|max:50',
+        ], [
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.email' => 'El formato del correo electrónico no es válido.',
+            'max' => 'El campo :attribute no debe superar los :max caracteres.',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
 
         try {
             DB::beginTransaction();
@@ -524,13 +536,26 @@ class AuthController extends Controller
 
     public function changePassword(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'newPassword' => 'required|min:6|confirmed', 
+        ], [
+            'newPassword.required' => 'La nueva contraseña es obligatoria.',
+            'newPassword.min' => 'La nueva contraseña debe tener al menos 6 caracteres.',
+            'newPassword.confirmed' => 'La confirmación de la contraseña no coincide.',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
+
         $user = $request->user();
         $user->passwd = Hash::make($request->newPassword);
         $user->save();
-        return response()->json(['message' => 'Contraseña actualizada correctamente']);
+
+        return response()->json(['success' => true, 'message' => 'Contraseña actualizada correctamente']);
     }
 
     public function getDocumentTypes()

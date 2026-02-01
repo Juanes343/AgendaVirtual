@@ -49,7 +49,7 @@
             </p>
 
             <div class="btn-container">
-                <a href="{{ env('FRONTEND_URL', 'https://devel82els.simde.com.co/PortalPaciente/SERVIMEDICOS/AgendaVirtual/frontend/') }}" class="btn">Ingresar al Portal</a>
+                <a href="{{ env('FRONTEND_URL') }}" class="btn">Ingresar al Portal</a>
             </div>
         </div>
         <div class="footer">
