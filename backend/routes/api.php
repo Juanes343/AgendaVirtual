@@ -69,6 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Módulo de Apoyos Diagnósticos
     Route::get('/diagnostic-support', [\App\Http\Controllers\DiagnosticSupportController::class, 'index']);
     Route::get('/diagnostic-support/{id}/pdf', [\App\Http\Controllers\DiagnosticSupportController::class, 'generatePdf']);
+    Route::post('/diagnostic-support/{id}/send-email', [\App\Http\Controllers\DiagnosticSupportController::class, 'sendEmail']);
 
     // Perfil de Usuario
     Route::put('/profile/update', [AuthController::class, 'updateProfile']);

@@ -83,6 +83,10 @@ const historyService = {
             })
             .catch(err => console.error("Error descargando PDF Apoyo Diagnóstico", err));
     },
+    sendDiagnosticEmail: async (resultadoId) => {
+        const response = await api.post(`/diagnostic-support/${resultadoId}/send-email`);
+        return response.data;
+    },
     // Nuevas funciones para Cirugía/Notas Operatorias
     getSurgeries: async (ingresoId) => {
         const response = await api.get(`/medical-history/surgeries/${ingresoId}`);

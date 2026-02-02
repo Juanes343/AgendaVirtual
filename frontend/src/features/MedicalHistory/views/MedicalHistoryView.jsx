@@ -33,6 +33,7 @@ export default function MedicalHistoryView() {
   const [activeTab, setActiveTab] = useState(1); // 1: Consulta Externa, 2: Apoyos Diagnósticos, 3: Cirugía
   const [permissions, setPermissions] = useState([]);
   const [surgeryViewMode, setSurgeryViewMode] = useState("procedures"); // 'procedures' | 'histories'
+  const [sendingEmail, setSendingEmail] = useState(false);
   const { user } = useUser();
 
   // Effect para resetear la vista si la ubicación cambia (ej. clic en menú Historial Médico)
@@ -97,6 +98,48 @@ export default function MedicalHistoryView() {
       sw_correo: isTrue(p.sw_correo),
       estado: p.estado ?? "1",
     };
+  };
+
+  const handleSendDiagnosticEmail = async (resultadoId, examenNombre) => {
+    const result = await Swal.fire({
+      title: "¿Enviar resultado por correo?",
+      text: `Se enviará el resultado de "${examenNombre}" al correo registrado: ${
+        user?.paciente?.email || "N/A"
+      }.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Sí, enviar",
+      cancelButtonText: "Cancelar",
+      background: "#1e293b",
+      color: "#fff",
+    });
+
+    if (!result.isConfirmed) return;
+
+    setSendingEmail(true);
+    try {
+      await historyService.sendDiagnosticEmail(resultadoId);
+      Swal.fire({
+        title: "¡Enviado!",
+        text: "El resultado ha sido enviado exitosamente a tu correo.",
+        icon: "success",
+        confirmButtonColor: "#10b981",
+        background: "#1e293b",
+        color: "#fff",
+      });
+    } catch (error) {
+      Swal.fire({
+        title: "Error",
+        text: "Error enviando el correo.",
+        icon: "error",
+        background: "#1e293b",
+        color: "#fff",
+      });
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const loadHistory = async () => {
@@ -340,16 +383,35 @@ export default function MedicalHistoryView() {
                             item.resultado_id,
                           )
                         }
+                        title="Ver/Imprimir Resultado PDF"
                         className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 justify-center bg-blue-600 hover:bg-blue-500 text-white"
                       >
                         <Printer size={18} /> Ver Resultado
                       </button>
+
+                      {getModulePermissions(2).sw_correo && (
+                        <button
+                          onClick={() =>
+                            handleSendDiagnosticEmail(
+                              item.resultado_id,
+                              item.descripcion,
+                            )
+                          }
+                          disabled={sendingEmail}
+                          title="Enviar Resultado al Correo"
+                          className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 justify-center bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50"
+                        >
+                          <Mail size={18} />{" "}
+                          {sendingEmail ? "Enviando..." : "Enviar Correo"}
+                        </button>
+                      )}
+
                       <a
                         href={getDiagnosticSupportFileUrl(item)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 justify-center bg-purple-700 hover:bg-purple-600 text-white"
-                        title="Imprimir Archivo Adjunto"
+                        title="Imprimir Archivo Adjunto (Original)"
                         style={{ pointerEvents: !item.nombre_archivo_carpeta ? 'none' : 'auto', opacity: !item.nombre_archivo_carpeta ? 0.5 : 1 }}
                       >
                         <Printer size={18} /> Ver Detalle

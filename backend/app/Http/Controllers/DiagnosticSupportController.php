@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
 
@@ -142,6 +143,101 @@ class DiagnosticSupportController extends Controller
 
     public function generatePdf(Request $request, $resultado_id)
     {
+        try {
+            $data = $this->getDiagnosticData($resultado_id, $request);
+            if (!$data) {
+                return response()->json(['error' => 'Result not found'], 404);
+            }
+
+            $pdf = PDF::loadView('pdf.diagnostic_support', $data);
+            $pdf->setOption('enable-local-file-access', true);
+            $pdf->setOption('load-error-handling', 'ignore');
+            $pdf->setOption('disable-smart-shrinking', true);
+            
+            return $pdf->stream('resultado_apoyo_'.$resultado_id.'.pdf');
+        } catch (\Exception $e) {
+            Log::error("Error generating Diagnostic PDF: " . $e->getMessage());
+            return response()->json(['error' => 'Error generating PDF'], 500);
+        }
+    }
+
+    public function sendEmail(Request $request, $resultado_id)
+    {
+        try {
+            $diagnosticData = $this->getDiagnosticData($resultado_id, $request);
+            if (!$diagnosticData) {
+                return response()->json(['success' => false, 'message' => 'Examen no encontrado'], 404);
+            }
+
+            // Obtener datos resumidos para el correo
+            $mainInfo = $diagnosticData['header'];
+            $paciente = DB::table('pacientes')
+                ->where('paciente_id', $mainInfo->paciente_id)
+                ->where('tipo_id_paciente', $mainInfo->tipo_id_paciente)
+                ->first();
+
+            if (!$paciente || empty($paciente->email)) {
+                return response()->json(['success' => false, 'message' => 'El paciente no tiene un correo electrónico registrado'], 422);
+            }
+
+            // Generar PDF del Resultado
+            $pdf = PDF::loadView('pdf.diagnostic_support', $diagnosticData);
+            $pdf->setOption('enable-local-file-access', true);
+            $pdf->setOption('load-error-handling', 'ignore');
+            $pdf->setOption('disable-smart-shrinking', true);
+            $pdfContent = $pdf->output();
+
+            // Verificar si hay archivo adjunto (Ver Detalle)
+            $extraAttachment = DB::selectOne(
+                "SELECT nombre_archivo_carpeta FROM hc_apoyod_resultados_subirarchivo WHERE resultado_id = ?",
+                [$resultado_id]
+            );
+
+            $mailData = [
+                'paciente_nombre' => $diagnosticData['header']->nombre,
+                'examen_nombre'   => $diagnosticData['header']->titulo,
+                'fecha_examen'    => $diagnosticData['header']->fecha_cumplimiento,
+                'numero_orden'    => $diagnosticData['header']->numero_orden_id,
+                'has_attachment'  => !empty($extraAttachment->nombre_archivo_carpeta)
+            ];
+
+            Mail::send('emails.diagnostic_result', $mailData, function($message) use ($paciente, $pdfContent, $resultado_id, $extraAttachment) {
+                $message->to($paciente->email)
+                        ->subject('Resultado de Apoyo Diagnóstico - SanDi•Med')
+                        ->attachData($pdfContent, 'resultado_examen_'.$resultado_id.'.pdf', [
+                            'mime' => 'application/pdf',
+                        ]);
+
+                // Adjuntar archivo extra si existe
+                if ($extraAttachment && !empty($extraAttachment->nombre_archivo_carpeta)) {
+                    $basePath = env('LEGACY_PATH');
+                    $filePath = $basePath . '/' . $extraAttachment->nombre_archivo_carpeta;
+                    
+                    if (file_exists($filePath)) {
+                        $message->attach($filePath);
+                    } else {
+                        Log::warning("Archivo extra no encontrado para adjuntar al correo: " . $filePath);
+                    }
+                }
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Resultado enviado correctamente al correo: ' . $paciente->email
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error enviando correo de Apoyo Diagnóstico: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al intentar enviar el correo',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function getDiagnosticData($resultado_id, $request)
+    {
         // 1. QUERY PRINCIPAL (Encabezado)
         $sqlMain = "
             SELECT  a.*,
@@ -234,7 +330,7 @@ class DiagnosticSupportController extends Controller
         $mainInfo = DB::selectOne($sqlMain, [$resultado_id]);
 
         if (!$mainInfo) {
-             return response()->json(['error' => 'Result not found'], 404);
+             return null;
         }
 
          // Edad
@@ -432,7 +528,7 @@ class DiagnosticSupportController extends Controller
                 }
             }
     
-            $data = [
+            return [
                 'header' => $mainInfo,
                 'details' => $details,
                 'additional' => $additionalData,
@@ -443,14 +539,8 @@ class DiagnosticSupportController extends Controller
                 'logoBase64' => $logoBase64,
                 'firmaBase64' => $firmaBase64,
                 'firmaRevisorBase64' => $firmaRevisorBase64,
-                'current_user' => $request->user()->paciente_id ? 'Paciente' : 'Usuario Sistema', 
+                'current_user' => ($request->user() && $request->user()->paciente_id) ? 'Paciente' : 'Usuario Sistema', 
                 'print_date' => Carbon::now()->format('Y-m-d H:i')
             ];
-
-            $pdf = PDF::loadView('pdf.diagnostic_support', $data);
-            $pdf->setOption('enable-local-file-access', true);
-        $pdf->setOption('load-error-handling', 'ignore');
-        $pdf->setOption('disable-smart-shrinking', true);
-        return $pdf->stream('resultado_apoyo_'.$resultado_id.'.pdf');
     }
 }
