@@ -12,11 +12,13 @@ class ConfigReportePermiso extends Model
         'modulo',
         'etiqueta',
         'sw_imprime',
-        'sw_correo'
+        'sw_correo',
+        'estado'
     ];
 
     protected $casts = [
         'sw_imprime' => 'boolean',
         'sw_correo' => 'boolean',
+        'estado' => 'string'
     ];
 }

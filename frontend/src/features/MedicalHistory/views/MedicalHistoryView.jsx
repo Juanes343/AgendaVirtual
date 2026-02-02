@@ -58,10 +58,19 @@ export default function MedicalHistoryView() {
       const data = await historyService.getPermissions();
       // La API retorna { success: true, list: [...], data: {...} }
       // Usamos 'list' que contiene el array de permisos
+      let list = [];
       if (data && data.list && Array.isArray(data.list)) {
-        setPermissions(data.list);
+        list = data.list;
       } else if (Array.isArray(data)) {
-        setPermissions(data);
+        list = data;
+      }
+      setPermissions(list);
+
+      // Si el tab actual (1 por defecto) está inactivo, buscar el primero activo
+      const currentTabPerm = list.find((p) => p.id == activeTab);
+      if (currentTabPerm && currentTabPerm.estado === "0") {
+        const firstActive = list.find((p) => p.estado === "1" && p.id <= 5);
+        if (firstActive) setActiveTab(parseInt(firstActive.id));
       }
     } catch (e) {
       console.error("Error loading permissions", e);
@@ -86,6 +95,7 @@ export default function MedicalHistoryView() {
     return {
       sw_imprime: isTrue(p.sw_imprime),
       sw_correo: isTrue(p.sw_correo),
+      estado: p.estado ?? "1",
     };
   };
 
@@ -204,56 +214,29 @@ export default function MedicalHistoryView() {
 
         {/* Tabs de Tipo de Consulta - Aligned Right */}
         <div className="flex justify-end gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-blue-600/20 scrollbar-track-transparent">
-          <button
-            onClick={() => setActiveTab(1)}
-            className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
-              activeTab === 1
-                ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"
-                : "bg-[#1e293b] border-white/5 text-gray-400 hover:border-blue-500/50 hover:text-white"
-            }`}
-          >
-            Consulta Externa
-          </button>
-          <button
-            onClick={() => setActiveTab(2)}
-            className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
-              activeTab === 2
-                ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"
-                : "bg-[#1e293b] border-white/5 text-gray-400 hover:border-blue-500/50 hover:text-white"
-            }`}
-          >
-            Apoyos Diagnósticos
-          </button>
-          <button
-            onClick={() => setActiveTab(3)}
-            className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
-              activeTab === 3
-                ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"
-                : "bg-[#1e293b] border-white/5 text-gray-400 hover:border-blue-500/50 hover:text-white"
-            }`}
-          >
-            Cirugía
-          </button>
-          <button
-            onClick={() => setActiveTab(4)}
-            className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
-              activeTab === 4
-                ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"
-                : "bg-[#1e293b] border-white/5 text-gray-400 hover:border-blue-500/50 hover:text-white"
-            }`}
-          >
-            Hospitalización
-          </button>
-          <button
-            onClick={() => setActiveTab(5)}
-            className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
-              activeTab === 5
-                ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"
-                : "bg-[#1e293b] border-white/5 text-gray-400 hover:border-blue-500/50 hover:text-white"
-            }`}
-          >
-            Adjuntos Generales
-          </button>
+          {[
+            { id: 1, label: "Consulta Externa" },
+            { id: 2, label: "Apoyos Diagnósticos" },
+            { id: 3, label: "Cirugía" },
+            { id: 4, label: "Hospitalización" },
+            { id: 5, label: "Adjuntos Generales" },
+          ].map((tab) => {
+            const perm = getModulePermissions(tab.id);
+            if (perm.estado === "0") return null;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
+                  activeTab === tab.id
+                    ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"
+                    : "bg-[#1e293b] border-white/5 text-gray-400 hover:border-blue-500/50 hover:text-white"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

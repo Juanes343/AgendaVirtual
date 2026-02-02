@@ -25,6 +25,7 @@ class ConfigReportePermisoController extends Controller
                 'etiqueta' => $p->etiqueta,
                 'sw_imprime' => $p->sw_imprime,
                 'sw_correo' => $p->sw_correo,
+                'estado' => $p->estado,
             ];
         }
 
@@ -45,12 +46,16 @@ class ConfigReportePermisoController extends Controller
         $data = $request->validate([
             'id' => 'required|integer',
             'sw_imprime' => 'required|boolean',
-            'sw_correo' => 'required|boolean'
+            'sw_correo' => 'required|boolean',
+            'estado' => 'nullable|string|max:1'
         ]);
 
         $permiso = ConfigReportePermiso::findOrFail($data['id']);
         $permiso->sw_imprime = $data['sw_imprime'];
         $permiso->sw_correo = $data['sw_correo'];
+        if (isset($data['estado'])) {
+            $permiso->estado = $data['estado'];
+        }
         $permiso->save();
 
         return response()->json([
