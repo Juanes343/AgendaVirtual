@@ -99,7 +99,11 @@ export default function LoginView() {
 
             if (response.success) {
                 login(response.data);
-                navigate('/home'); 
+                if (response.data.usuario?.sw_admin) {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/home'); 
+                }
             } else {
                 // Si success es false pero no lanzó excepción (depende de la versión del service)
                 setError(response.message || 'Error al iniciar sesión.');

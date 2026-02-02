@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\SystemUsuarioVirtual;
+use App\Models\SystemUsuario;
 use App\Models\Paciente;
 use App\Models\TipoIdPaciente;
 use App\Models\TokenAgendaVirtual;
@@ -242,7 +243,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'tipo_doc' => 'required|string',
+            'tipo_doc' => 'nullable|string',
             'usuario'  => 'required|string', 
             'passwd'   => 'required|string',
         ]);
@@ -255,6 +256,35 @@ class AuthController extends Controller
             ], 400); 
         }
 
+        // 1. Intentar buscar en system_usuarios (Admins)
+        $admin = SystemUsuario::where('usuario', $request->usuario)
+            ->where('activo', '1')
+            ->where('sw_admin', '1')
+            ->first();
+
+        if ($admin) {
+            // Validar password MD5 para admins internos
+            if (md5($request->passwd) === $admin->passwd) {
+                auth()->login($admin);
+                $token = $admin->createToken('auth_token')->plainTextToken;
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Inicio de sesión administrativo exitoso',
+                    'data' => [
+                        'token' => $token,
+                        'usuario' => [
+                            'id' => $admin->usuario_id,
+                            'usuario' => $admin->usuario,
+                            'nombre' => $admin->nombre,
+                            'sw_admin' => true
+                        ]
+                    ]
+                ]);
+            }
+        }
+
+        // 2. Si no es admin, buscar en SystemUsuarioVirtual (Pacientes)
         $usuario = SystemUsuarioVirtual::where('paciente_id', $request->usuario)
             ->where('tipo_documento', $request->tipo_doc)
             ->first();

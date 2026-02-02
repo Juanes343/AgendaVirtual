@@ -7,12 +7,15 @@ import RegisterPage from './features/Auth/pages/RegisterPage';
 import ResetPasswordView from './features/Auth/views/ResetPasswordView';
 import ActivateAccountView from './features/Auth/views/ActivateAccountView';
 import DashboardView from './features/Home/views/DashboardView';
+import AdminSettingsView from './features/Admin/views/AdminSettingsView';
 
 const Home = () => <DashboardView />;
+const AdminDashboard = () => <AdminSettingsView />;
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user } = useUser();
   if (!user) return <Navigate to="/login" replace />;
+  if (adminOnly && !user.usuario?.sw_admin) return <Navigate to="/home" replace />;
   return children;
 };
 
@@ -28,6 +31,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Home />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminDashboard />
           </ProtectedRoute>
         }
       />
