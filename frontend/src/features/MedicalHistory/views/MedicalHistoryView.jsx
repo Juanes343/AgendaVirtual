@@ -285,7 +285,7 @@ export default function MedicalHistoryView() {
                         <Calendar size={14} /> {item.fecha_registro}
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
+                    <h3 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors">
                       {item.nombre_original}
                     </h3>
                     {item.observacion && (
@@ -342,10 +342,10 @@ export default function MedicalHistoryView() {
                           </span>
                         </div>
                       </div>
-                      <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
-                        {item.descripcion || "EXAMEN DIAGNÓSTICO"}
+                      <h3 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">
+                        {item.cargo ? `${item.cargo} - ` : ""}{item.descripcion || "EXAMEN DIAGNÓSTICO"}
                       </h3>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-xs text-gray-400">
                         {item.servicio_descripcion || item.servicio}
                       </p>
                     </div>
@@ -369,7 +369,7 @@ export default function MedicalHistoryView() {
                         title="Imprimir Archivo Adjunto"
                         style={{ pointerEvents: !item.nombre_archivo_carpeta ? 'none' : 'auto', opacity: !item.nombre_archivo_carpeta ? 0.5 : 1 }}
                       >
-                        <Printer size={18} /> Imprimir Archivo
+                        <Printer size={18} /> Ver Detalle
                       </a>
                     </div>
                   </div>
@@ -418,7 +418,7 @@ export default function MedicalHistoryView() {
                           <span>{item.cirujano_nombre}</span>
                         </div>
                       </div>
-                      <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
+                      <h3 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors">
                         {item.procedimiento_principal ||
                           item.tipo_cirugia ||
                           "PROCEDIMIENTO QUIRÚRGICO"}
