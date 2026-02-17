@@ -511,7 +511,7 @@ class AuthController extends Controller
 
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
-            'celular' => 'nullable|string',
+            'celular_telefono' => 'nullable|string',
             'direccion' => 'nullable|string',
             'primer_nombre' => 'nullable|string|max:50',
             'segundo_nombre' => 'nullable|string|max:50',
@@ -538,7 +538,7 @@ class AuthController extends Controller
                 ->where('tipo_id_paciente', $user->tipo_documento)
                 ->update([
                     'email' => $request->email,
-                    'celular_telefono' => $request->celular,
+                    'celular_telefono' => $request->celular_telefono,
                     'residencia_direccion' => $request->direccion,
                     'primer_nombre' => strtoupper($request->primer_nombre),
                     'segundo_nombre' => strtoupper($request->segundo_nombre),

@@ -4,7 +4,7 @@ import { useUser } from "../../../contexts/UserContext/UserContext";
 import ProfileService from "../services/ProfileService";
 
 export default function ProfileView() {
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ show: false, type: 'success', message: '' });
 
@@ -18,7 +18,7 @@ export default function ProfileView() {
   const [formData, setFormData] = useState({
     direccion: "",
     email: "",
-    celular: "",
+    celular_telefono: "",
     
     // Campos de solo lectura
     primer_nombre: "",
@@ -37,7 +37,7 @@ export default function ProfileView() {
       setFormData({
         direccion: user.paciente.residencia_direccion || user.paciente.direccion || "",
         email: user.paciente.email || user.email || "",
-        celular: user.paciente.celular || user.paciente.celular_telefono || "",
+        celular_telefono: user.paciente.celular_telefono || "",
         primer_nombre: user.paciente.primer_nombre || "",
         segundo_nombre: user.paciente.segundo_nombre || "",
         primer_apellido: user.paciente.primer_apellido || "",
@@ -75,7 +75,13 @@ export default function ProfileView() {
     e.preventDefault();
     setLoading(true);
     try {
-        await ProfileService.updateProfile(formData);
+        const response = await ProfileService.updateProfile(formData);
+        
+        // Actualizar el estado global del usuario con los nuevos datos del paciente
+        if (response && response.paciente) {
+          updateUser(response.paciente);
+        }
+
         setModal({ 
             show: true, 
             type: 'success', 
@@ -274,8 +280,8 @@ export default function ProfileView() {
               </label>
               <input
                 type="tel"
-                name="celular"
-                value={formData.celular}
+                name="celular_telefono"
+                value={formData.celular_telefono}
                 onChange={handleInputChange}
                 className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 placeholder="Número de celular"

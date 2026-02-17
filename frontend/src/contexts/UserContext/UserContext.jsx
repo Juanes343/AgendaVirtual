@@ -41,8 +41,23 @@ export const UserProvider = ({ children }) => {
         window.location.href = '#/login';
     };
 
+    const updateUser = (newPacienteData) => {
+        setUser(prevUser => {
+            if (!prevUser) return null;
+            const updatedUser = {
+                ...prevUser,
+                paciente: {
+                    ...prevUser.paciente,
+                    ...newPacienteData
+                }
+            };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            return updatedUser;
+        });
+    };
+
     return (
-        <UserContext.Provider value={{ user, login, logout }}>
+        <UserContext.Provider value={{ user, login, logout, updateUser }}>
             {children}
         </UserContext.Provider>
     );
