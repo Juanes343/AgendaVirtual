@@ -533,17 +533,61 @@ class AuthController extends Controller
         try {
             DB::beginTransaction();
 
+            // 1. Obtener datos anteriores para auditoría
+            $oldPaciente = DB::table('pacientes')
+                ->where('paciente_id', $user->paciente_id)
+                ->where('tipo_id_paciente', $user->tipo_documento)
+                ->first();
+
+            if (!$oldPaciente) {
+                throw new \Exception('Registro de paciente no encontrado sistemáticamente.');
+            }
+
+            $newEmail = $request->email;
+            $newCelular = $request->celular_telefono;
+            $newDireccion = $request->direccion;
+            $newPrimerNombre = strtoupper($request->primer_nombre);
+            $newSegundoNombre = strtoupper($request->segundo_nombre);
+            $newPrimerApellido = strtoupper($request->primer_apellido);
+            $newSegundoApellido = strtoupper($request->segundo_apellido);
+
+            // 2. Auditar cada campo que cambie
+            $ip = $request->ip();
+            
+            if (trim($oldPaciente->email) !== trim($newEmail)) {
+                $this->logAudit($user->paciente_id, $user->tipo_documento, 'Email', $oldPaciente->email, $newEmail, $ip);
+            }
+            if (trim($oldPaciente->celular_telefono) !== trim($newCelular)) {
+                $this->logAudit($user->paciente_id, $user->tipo_documento, 'Celular', $oldPaciente->celular_telefono, $newCelular, $ip);
+            }
+            if (trim($oldPaciente->residencia_direccion) !== trim($newDireccion)) {
+                $this->logAudit($user->paciente_id, $user->tipo_documento, 'Dirección de Residencia', $oldPaciente->residencia_direccion, $newDireccion, $ip);
+            }
+            
+            // Auditoría para Nombres y Apellidos
+            if (trim($oldPaciente->primer_nombre) !== trim($newPrimerNombre) || trim($oldPaciente->segundo_nombre) !== trim($newSegundoNombre)) {
+                 $nombreAnterior = trim(($oldPaciente->primer_nombre ?? '') . ' ' . ($oldPaciente->segundo_nombre ?? ''));
+                 $nombreNuevo = trim("$newPrimerNombre $newSegundoNombre");
+                 $this->logAudit($user->paciente_id, $user->tipo_documento, 'Nombres', $nombreAnterior, $nombreNuevo, $ip);
+            }
+            if (trim($oldPaciente->primer_apellido) !== trim($newPrimerApellido) || trim($oldPaciente->segundo_apellido) !== trim($newSegundoApellido)) {
+                 $apellidoAnterior = trim(($oldPaciente->primer_apellido ?? '') . ' ' . ($oldPaciente->segundo_apellido ?? ''));
+                 $apellidoNuevo = trim("$newPrimerApellido $newSegundoApellido");
+                 $this->logAudit($user->paciente_id, $user->tipo_documento, 'Apellidos', $apellidoAnterior, $apellidoNuevo, $ip);
+            }
+
+            // 3. Actualizar datos en la tabla
             DB::table('pacientes')
                 ->where('paciente_id', $user->paciente_id)
                 ->where('tipo_id_paciente', $user->tipo_documento)
                 ->update([
-                    'email' => $request->email,
-                    'celular_telefono' => $request->celular_telefono,
-                    'residencia_direccion' => $request->direccion,
-                    'primer_nombre' => strtoupper($request->primer_nombre),
-                    'segundo_nombre' => strtoupper($request->segundo_nombre),
-                    'primer_apellido' => strtoupper($request->primer_apellido),
-                    'segundo_apellido' => strtoupper($request->segundo_apellido),
+                    'email' => $newEmail,
+                    'celular_telefono' => $newCelular,
+                    'residencia_direccion' => $newDireccion,
+                    'primer_nombre' => $newPrimerNombre,
+                    'segundo_nombre' => $newSegundoNombre,
+                    'primer_apellido' => $newPrimerApellido,
+                    'segundo_apellido' => $newSegundoApellido,
                 ]);
 
             DB::commit();
@@ -582,8 +626,14 @@ class AuthController extends Controller
         }
 
         $user = $request->user();
-        $user->passwd = Hash::make($request->newPassword);
+        $oldPassword = $user->passwd; // Hash actual
+        $newPasswordHash = Hash::make($request->newPassword);
+
+        $user->passwd = $newPasswordHash;
         $user->save();
+
+        // Auditoría del cambio de contraseña guardando el hash (encriptada)
+        $this->logAudit($user->paciente_id, $user->tipo_documento, 'Contraseña', $oldPassword, $newPasswordHash, $request->ip());
 
         return response()->json(['success' => true, 'message' => 'Contraseña actualizada correctamente']);
     }
@@ -595,6 +645,26 @@ class AuthController extends Controller
             return response()->json($types);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error fetching document types', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Registrar auditoría de modificaciones del paciente
+     */
+    private function logAudit($pacienteId, $tipoId, $campo, $anterior, $nuevo, $ip)
+    {
+        try {
+            DB::table('audit_paciente_modificaciones')->insert([
+                'paciente_id' => $pacienteId,
+                'tipo_id_paciente' => $tipoId,
+                'campo' => $campo,
+                'valor_anterior' => $anterior,
+                'valor_nuevo' => $nuevo,
+                'fecha_registro' => now(),
+                'ip' => $ip
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Error en auditoría ($campo): " . $e->getMessage());
         }
     }
 }
