@@ -30,6 +30,7 @@ class HospitalizationController extends Controller
             })
             ->join('departamentos as dp', 'dp.departamento', '=', 'i.departamento')
             ->join('servicios as s', 's.servicio', '=', 'dp.servicio')
+            ->leftJoin('hc_encuesta_satisfaccion as enc', 'd.ingreso', '=', 'enc.ingreso')
             ->where('a.sw_estado', '1')
             ->whereNotIn('s.servicio', ['0', '3', '5', '99'])
             ->where('d.paciente_id', $pacienteId)
@@ -41,7 +42,8 @@ class HospitalizationController extends Controller
                 'd.ingreso',
                 DB::raw("TO_CHAR(d.fecha_ingreso, 'DD/MM/YYYY') as fecha_ingreso"),
                 'd.fecha_ingreso as fecha_sort',
-                 'd.estado'
+                'd.estado',
+                DB::raw("CASE WHEN enc.ingreso IS NOT NULL THEN 1 ELSE 0 END as encuesta_completada")
             );
 
         // 2. Solicitudes con Estado '1','2','3' unidas con os_maestro
@@ -55,6 +57,7 @@ class HospitalizationController extends Controller
             })
             ->join('departamentos as dp', 'dp.departamento', '=', 'i.departamento')
             ->join('servicios as s', 's.servicio', '=', 'dp.servicio')
+            ->leftJoin('hc_encuesta_satisfaccion as enc', 'd.ingreso', '=', 'enc.ingreso')
             ->whereIn('c.sw_estado', ['1', '2', '3'])
             ->whereNotIn('s.servicio', ['0', '3', '5', '99'])
             ->where('d.paciente_id', $pacienteId)
@@ -66,7 +69,8 @@ class HospitalizationController extends Controller
                 'd.ingreso',
                 DB::raw("TO_CHAR(d.fecha_ingreso, 'DD/MM/YYYY') as fecha_ingreso"),
                 'd.fecha_ingreso as fecha_sort',
-                'd.estado'
+                'd.estado',
+                DB::raw("CASE WHEN enc.ingreso IS NOT NULL THEN 1 ELSE 0 END as encuesta_completada")
             );
 
         // 3. Medicamentos Recetados (hc_medicamentos_recetados_amb)
@@ -79,6 +83,7 @@ class HospitalizationController extends Controller
             })
             ->join('departamentos as dp', 'dp.departamento', '=', 'd.departamento')
             ->join('servicios as s', 's.servicio', '=', 'dp.servicio')
+            ->leftJoin('hc_encuesta_satisfaccion as enc', 'd.ingreso', '=', 'enc.ingreso')
             ->whereNotIn('s.servicio', ['0', '3', '5', '99'])
             ->where('d.paciente_id', $pacienteId)
             ->where('d.tipo_id_paciente', $tipoDoc)
@@ -89,7 +94,8 @@ class HospitalizationController extends Controller
                 'd.ingreso',
                 DB::raw("TO_CHAR(d.fecha_ingreso, 'DD/MM/YYYY') as fecha_ingreso"),
                 'd.fecha_ingreso as fecha_sort',
-                'd.estado'
+                'd.estado',
+                DB::raw("CASE WHEN enc.ingreso IS NOT NULL THEN 1 ELSE 0 END as encuesta_completada")
             );
 
         // 4. Incapacidades (hc_incapacidades + hc_evoluciones)
@@ -102,6 +108,7 @@ class HospitalizationController extends Controller
             })
             ->join('departamentos as dp', 'dp.departamento', '=', 'f.departamento')
             ->join('servicios as s', 's.servicio', '=', 'dp.servicio')
+            ->leftJoin('hc_encuesta_satisfaccion as enc', 'd.ingreso', '=', 'enc.ingreso')
             ->whereNotIn('s.servicio', ['0', '3', '5', '99'])
             ->where('d.paciente_id', $pacienteId)
             ->where('d.tipo_id_paciente', $tipoDoc)
@@ -112,7 +119,8 @@ class HospitalizationController extends Controller
                 'd.ingreso',
                 DB::raw("TO_CHAR(d.fecha_ingreso, 'DD/MM/YYYY') as fecha_ingreso"),
                 'd.fecha_ingreso as fecha_sort',
-                'd.estado'
+                'd.estado',
+                DB::raw("CASE WHEN enc.ingreso IS NOT NULL THEN 1 ELSE 0 END as encuesta_completada")
             );
 
         // Combinar todos con UNION DISTINCT
@@ -130,6 +138,7 @@ class HospitalizationController extends Controller
                 'codigo_servicio' => null,
                 'estado' => $item->estado,
                 'tipo_consulta_id' => 4, // ID Fijo para Hospitalización
+                'encuesta_completada' => $item->encuesta_completada ?? 0
             ];
         });
 

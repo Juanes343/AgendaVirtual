@@ -44,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Módulo de Historia Clínica y Reportes
     Route::get('/medical-history', [\App\Http\Controllers\ReportController::class, 'getMedicalHistory']);
+    Route::post('/medical-history/satisfaction-survey', [\App\Http\Controllers\ReportController::class, 'storeSurvey']);
     Route::get('/medical-history/attachments', [\App\Http\Controllers\ReportController::class, 'getAttachments']);
     Route::get('/medical-history/{ingreso}', [\App\Http\Controllers\ReportController::class, 'getHistoryDetail']);
     

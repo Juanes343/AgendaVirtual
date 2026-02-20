@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Services\SurgeryReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 
 class SurgeryController extends Controller
 {
@@ -29,6 +30,23 @@ class SurgeryController extends Controller
             } else {
                 // Comportamiento anterior (fallback)
                 $surgeries = $this->surgeryService->getSurgeriesByIngreso($ingresoId);
+            }
+            
+            // Post-procesar para añadir encuesta_completada (Gatekeeping)
+            foreach ($surgeries as &$surgery) {
+                // Si ya viene del service no hace falta, pero usualmente es un objeto o array
+                $ing = is_object($surgery) ? $surgery->ingreso : ($surgery['ingreso'] ?? null);
+                if ($ing) {
+                    $hasSurvey = DB::table('hc_encuesta_satisfaccion')->where('ingreso', $ing)->exists();
+                    if (is_object($surgery)) {
+                        $surgery->encuesta_completada = $hasSurvey ? 1 : 0;
+                    } else {
+                        $surgery['encuesta_completada'] = $hasSurvey ? 1 : 0;
+                    }
+                } else {
+                    if (is_object($surgery)) $surgery->encuesta_completada = 0;
+                    else $surgery['encuesta_completada'] = 0;
+                }
             }
             
             return response()->json(['success' => true, 'data' => $surgeries]);

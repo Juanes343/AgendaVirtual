@@ -74,6 +74,7 @@ class ReportController extends Controller
             })
             ->leftJoin('cups', 'a.cargo_cita', '=', 'cups.cargo')
             ->leftJoin('tipos_consulta as tc', 'a.tipo_consulta_id', '=', 'tc.tipo_consulta_id')
+            ->leftJoin('hc_encuesta_satisfaccion as enc', 'a.ingreso', '=', 'enc.ingreso')
             ->select(
                 'a.ingreso',
                 DB::raw("MAX(DATE(a.fecha)) as fecha"), // Solo fecha
@@ -81,11 +82,12 @@ class ReportController extends Controller
                 DB::raw("MAX(cups.descripcion) as servicio"),
                 DB::raw("MAX(cups.cargo) as codigo_servicio"),
                 'b.estado',
-                DB::raw("MAX(tc.tipo) as tipo_consulta_id") // Se asume nombre de columna 'tipo'
+                DB::raw("MAX(tc.tipo) as tipo_consulta_id"), // Se asume nombre de columna 'tipo'
+                DB::raw("CASE WHEN enc.ingreso IS NOT NULL THEN 1 ELSE 0 END as encuesta_completada")
             )
             ->where('b.paciente_id', $pacienteId)
             ->where('b.tipo_id_paciente', $tipoDoc)
-            ->groupBy('a.ingreso', 'b.estado')
+            ->groupBy('a.ingreso', 'b.estado', 'enc.ingreso')
             ->orderBy('fecha', 'desc')
             ->get();
 
@@ -1431,5 +1433,58 @@ public function generateHistoryPdf($ingreso)
         $pdf->setOption('encoding', 'utf-8');
 
         return $pdf->download("HC_{$ingreso}.pdf");
+    }
+
+    /**
+     * Guarda la respuesta de la encuesta de satisfacción por ingreso
+     */
+    public function storeSurvey(Request $request)
+    {
+        try {
+            $user = $request->user();
+            if (!$user || !isset($user->paciente_id)) {
+                return response()->json(['success' => false, 'message' => 'Usuario no identificado'], 401);
+            }
+
+            $validated = $request->validate([
+                'ingreso' => 'required',
+                'pregunta_1' => 'required|string',
+                'pregunta_2' => 'required|string'
+            ]);
+
+            // Verificar si el ingreso ya tiene encuesta
+            $exists = DB::table('hc_encuesta_satisfaccion')
+                ->where('ingreso', $validated['ingreso'])
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'success' => true, 
+                    'message' => 'Ya se ha registrado una respuesta para este ingreso'
+                ]);
+            }
+
+            // Insertar respuesta
+            DB::table('hc_encuesta_satisfaccion')->insert([
+                'tipo_id_paciente' => $user->tipo_documento,
+                'paciente_id' => $user->paciente_id,
+                'ingreso' => $validated['ingreso'],
+                'pregunta_1' => $validated['pregunta_1'],
+                'pregunta_2' => $validated['pregunta_2'],
+                'fecha_registro' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => '¡Gracias por tu participación! Tus respuestas han sido guardadas'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error guardando encuesta de satisfacción: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar la encuesta: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -92,6 +92,10 @@ const historyService = {
         const response = await api.get(`/medical-history/surgeries/${ingresoId}`);
         return response.data;
     },
+    saveSurvey: async (formData) => {
+        const response = await api.post('/medical-history/satisfaction-survey', formData);
+        return response.data;
+    },
     printNotaOperatoria: (notaId) => {
         return api.get(`/medical-history/surgeries/${notaId}/pdf`, { responseType: 'blob' })
             .then((response) => {

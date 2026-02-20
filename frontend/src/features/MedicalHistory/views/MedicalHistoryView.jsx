@@ -219,6 +219,92 @@ export default function MedicalHistoryView() {
     }
   };
 
+  const handleSurvey = async (item) => {
+    const { value: formValues } = await Swal.fire({
+      title: "Encuesta de Satisfacción",
+      html: `
+        <div class="text-left space-y-4">
+          <p class="text-sm text-gray-400 mb-4">Para continuar viendo su historia clínica, por favor califique nuestro servicio en este ingreso (${item.ingreso}).</p>
+          
+          <div class="space-y-2">
+            <label class="block text-sm font-medium text-white">1. ¿Cómo califica la atención recibida por parte del personal médico?</label>
+            <select id="p1" class="w-full p-2 rounded bg-slate-700 border border-slate-600 text-white focus:ring-2 focus:ring-blue-500">
+              <option value="">Seleccione...</option>
+              <option value="Excelente">Excelente</option>
+              <option value="Bueno">Bueno</option>
+              <option value="Regular">Regular</option>
+              <option value="Malo">Malo</option>
+            </select>
+          </div>
+
+          <div class="space-y-2 pt-2">
+            <label class="block text-sm font-medium text-white">2. ¿Recomendaría nuestros servicios a familiares y amigos?</label>
+            <select id="p2" class="w-full p-2 rounded bg-slate-700 border border-slate-600 text-white focus:ring-2 focus:ring-blue-500">
+              <option value="">Seleccione...</option>
+              <option value="Definitivamente sí">Definitivamente sí</option>
+              <option value="Probablemente sí">Probablemente sí</option>
+              <option value="No estoy seguro">No estoy seguro</option>
+              <option value="No">No</option>
+            </select>
+          </div>
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Enviar y Continuar",
+      cancelButtonText: "Cancelar",
+      background: "#1e293b",
+      color: "#fff",
+      confirmButtonColor: "#3b82f6",
+      preConfirm: () => {
+        const p1 = document.getElementById("p1").value;
+        const p2 = document.getElementById("p2").value;
+        if (!p1 || !p2) {
+          Swal.showValidationMessage("Por favor responda ambas preguntas");
+          return false;
+        }
+        return { p1, p2 };
+      },
+    });
+
+    if (formValues) {
+      try {
+        const payload = {
+          ingreso: item.ingreso,
+          pregunta_1: formValues.p1,
+          pregunta_2: formValues.p2,
+        };
+        const res = await historyService.saveSurvey(payload);
+        if (res.success) {
+          Swal.fire({
+            icon: "success",
+            title: "¡Gracias!",
+            text: "Su respuesta ha sido registrada. Ya puede ver su información.",
+            timer: 2000,
+            showConfirmButton: false,
+            background: "#1e293b",
+            color: "#fff",
+          });
+          // Recargar datos para actualizar el flag de encuesta_completada
+          loadHistory();
+          loadHospitalization();
+          loadDiagnosticSupport();
+          loadSurgeries();
+          // Abrir el detalle automáticamente
+          setSelectedIngreso(item.ingreso);
+        }
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "No se pudo guardar la encuesta. Intente nuevamente.",
+          background: "#1e293b",
+          color: "#fff",
+        });
+      }
+    }
+  };
+
   if (selectedIngreso) {
     return (
       <HistoryDetail
@@ -378,11 +464,13 @@ export default function MedicalHistoryView() {
 
                     <div className="flex items-center gap-2 w-full md:w-auto">
                       <button
-                        onClick={() =>
-                          historyService.printDiagnosticSupport(
-                            item.resultado_id,
-                          )
-                        }
+                        onClick={() => {
+                          if (parseInt(item.encuesta_completada) === 1) {
+                            historyService.printDiagnosticSupport(item.resultado_id);
+                          } else {
+                            handleSurvey(item);
+                          }
+                        }}
                         title="Ver/Imprimir Resultado PDF"
                         className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 justify-center bg-blue-600 hover:bg-blue-500 text-white"
                       >
@@ -391,12 +479,13 @@ export default function MedicalHistoryView() {
 
                       {getModulePermissions(2).sw_correo && (
                         <button
-                          onClick={() =>
-                            handleSendDiagnosticEmail(
-                              item.resultado_id,
-                              item.descripcion,
-                            )
-                          }
+                          onClick={() => {
+                            if (parseInt(item.encuesta_completada) === 1) {
+                              handleSendDiagnosticEmail(item.resultado_id, item.descripcion);
+                            } else {
+                              handleSurvey(item);
+                            }
+                          }}
                           disabled={sendingEmail}
                           title="Enviar Resultado al Correo"
                           className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 justify-center bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50"
@@ -406,16 +495,20 @@ export default function MedicalHistoryView() {
                         </button>
                       )}
 
-                      <a
-                        href={getDiagnosticSupportFileUrl(item)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => {
+                          if (parseInt(item.encuesta_completada) === 1) {
+                            window.open(getDiagnosticSupportFileUrl(item), '_blank');
+                          } else {
+                            handleSurvey(item);
+                          }
+                        }}
                         className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 justify-center bg-purple-700 hover:bg-purple-600 text-white"
                         title="Imprimir Archivo Adjunto (Original)"
                         style={{ pointerEvents: !item.nombre_archivo_carpeta ? 'none' : 'auto', opacity: !item.nombre_archivo_carpeta ? 0.5 : 1 }}
                       >
                         <Printer size={18} /> Ver Detalle
-                      </a>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -477,9 +570,13 @@ export default function MedicalHistoryView() {
                     <div className="flex items-center gap-2 w-full md:w-auto">
                       {getModulePermissions(3).sw_imprime && (
                         <button
-                          onClick={() =>
-                            historyService.printHistoryComplete(item.ingreso)
-                          }
+                          onClick={() => {
+                            if (parseInt(item.encuesta_completada) === 1) {
+                              historyService.printHistoryComplete(item.ingreso);
+                            } else {
+                              handleSurvey(item);
+                            }
+                          }}
                           className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600"
                           title="Imprimir Historia Clínica del Ingreso"
                         >
@@ -488,11 +585,13 @@ export default function MedicalHistoryView() {
                       )}
 
                       <button
-                        onClick={() =>
-                          historyService.printNotaOperatoria(
-                            item.hc_nota_operatoria_cirugia_id,
-                          )
-                        }
+                        onClick={() => {
+                          if (parseInt(item.encuesta_completada) === 1) {
+                            historyService.printNotaOperatoria(item.hc_nota_operatoria_cirugia_id);
+                          } else {
+                            handleSurvey(item);
+                          }
+                        }}
                         className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white"
                         title="Imprimir Nota Operatoria"
                       >
@@ -502,6 +601,10 @@ export default function MedicalHistoryView() {
                       {getModulePermissions(3).sw_correo && (
                         <button
                           onClick={async () => {
+                            if (parseInt(item.encuesta_completada) !== 1) {
+                              handleSurvey(item);
+                              return;
+                            }
                             const result = await Swal.fire({
                               title: "¿Enviar Nota Operatoria?",
                               text: `Se enviará la Nota Operatoria al correo registrado: ${
@@ -587,7 +690,13 @@ export default function MedicalHistoryView() {
 
                   <div className="flex items-center gap-2 w-full md:w-auto">
                     <button
-                      onClick={() => setSelectedIngreso(item.ingreso)}
+                      onClick={() => {
+                        if (parseInt(item.encuesta_completada) === 1) {
+                          setSelectedIngreso(item.ingreso);
+                        } else {
+                          handleSurvey(item);
+                        }
+                      }}
                       className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 flex-1 justify-center bg-blue-600 hover:bg-blue-500 text-white"
                     >
                       <Eye size={18} /> Ver Ordenes y Solicitudes
@@ -646,7 +755,13 @@ export default function MedicalHistoryView() {
                 {/* Botón Acción */}
                 <div className="flex items-center gap-2 w-full md:w-auto">
                   <button
-                    onClick={() => setSelectedIngreso(item.ingreso)}
+                    onClick={() => {
+                      if (parseInt(item.encuesta_completada) === 1) {
+                        setSelectedIngreso(item.ingreso);
+                      } else {
+                        handleSurvey(item);
+                      }
+                    }}
                     className={`px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 flex-1 justify-center ${
                       activeTab === 1
                         ? "bg-blue-600 hover:bg-blue-500 text-white"
