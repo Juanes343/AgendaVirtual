@@ -429,9 +429,11 @@ class AppointmentController extends Controller
 
         $citasActivas = DB::select($sqlCheck, $bindings);
 
+        /* COMENTADO POR SOLICITUD - PERMITIR MAS DE UNA CITA ACTIVA
         if ($citasActivas[0]->total > 0) {
             return response()->json(['message' => 'Ya cuenta con una cita activa vigente. Solo puede tener una cita asignada.'], 400);
         }
+        */
 
         // 1. Obtener datos detallados del paciente
         $paciente = DB::table('pacientes')

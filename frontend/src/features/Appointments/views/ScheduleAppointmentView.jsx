@@ -410,7 +410,8 @@ export default function ScheduleAppointmentView({ onBack }) {
       }
   };
 
-  const hasActiveAppointments = assignedAppointments.some(isCitaVigente);
+  // const hasActiveAppointments = assignedAppointments.some(isCitaVigente);
+  const hasActiveAppointments = false; // Desactivado temporalmente por solicitud
 
   return (
     <div className="space-y-6">
