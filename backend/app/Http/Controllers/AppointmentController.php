@@ -689,7 +689,20 @@ class AppointmentController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Error al agendar cita: ' . $e->getMessage()], 500);
+            $message = $e->getMessage();
+            
+            // Log for debugging (storage/logs/laravel.log)
+            \Log::error("Agendamiento fallido: " . $message);
+
+            // Manejar error específico de la base de datos (Trigger/Procedure)
+            // Se usa búsqueda flexible por si el mensaje tiene ligeras variaciones
+            if (str_contains($message, 'ASIGNADA') || str_contains($message, 'P0001')) {
+                $message = 'El turno ya fue ocupado por otro paciente. Por favor, intente con otro horario.';
+            } else {
+                $message = 'No se pudo completar el agendamiento: ' . $message;
+            }
+            
+            return response()->json(['message' => $message], 500);
         }
     }
 

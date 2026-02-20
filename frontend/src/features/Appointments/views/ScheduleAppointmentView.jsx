@@ -239,7 +239,14 @@ export default function ScheduleAppointmentView({ onBack }) {
 
           } catch (e) {
               console.error(e);
-              Swal.fire('Error', e.response?.data?.message || 'No se pudo agendar la cita.', 'error');
+              let errorMsg = e.response?.data?.message || 'No se pudo agendar la cita.';
+              
+              // Fallback Frontend por si el Backend no filtra el mensaje de Postgres
+              if (errorMsg.includes('ESTA CITA YA FUE ASIGNADA') || errorMsg.includes('P0001')) {
+                  errorMsg = 'El turno ya fue ocupado por otro paciente. Por favor, intente con otro horario.';
+              }
+              
+              Swal.fire('Error', errorMsg, 'error');
           }
       }
   };
