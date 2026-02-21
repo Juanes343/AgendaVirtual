@@ -64,7 +64,7 @@ export default function DashboardView() {
 
   return (
     <div
-      className="min-h-screen font-sans text-white relative"
+      className="min-h-screen font-sans text-white relative flex flex-col"
       style={{
         background:
           "radial-gradient(circle at center, #0F3460 0%, #0a192f 100%)",
@@ -99,7 +99,7 @@ export default function DashboardView() {
 
       {/* Header */}
       <header className="bg-[#0f172a]/80 backdrop-blur-xl border-b border-blue-900/30 sticky top-0 z-50 relative shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="w-[98%] mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-2">
@@ -204,7 +204,7 @@ export default function DashboardView() {
       </header>
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
+      <main className="w-[98%] mx-auto px-4 sm:px-6 py-8 relative z-10">
         {activeTab === "inicio" && (
           <InicioTab user={user} setActiveTab={setActiveTab} canSchedule={canSchedule} />
         )}
@@ -217,7 +217,7 @@ export default function DashboardView() {
 
       {/* Footer */}
       {/* Footer Global Reintegrado */}
-      <footer className="w-full max-w-7xl mx-auto px-4 py-12 relative z-10 flex flex-col items-center justify-center gap-6 mt-12 mb-8">
+      <footer className="w-full max-w-[95%] mx-auto px-4 py-12 relative z-10 flex flex-col items-center justify-center gap-6 mt-auto pb-12">
         <img
           src={simdeLogo}
           alt="SIMDE SAS"
