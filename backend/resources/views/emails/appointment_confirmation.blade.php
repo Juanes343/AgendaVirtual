@@ -29,7 +29,7 @@
                 <p><strong>Hora:</strong> {{ $hora }}</p>
                 <p><strong>Profesional:</strong> {{ $profesional }}</p>
                 <p><strong>Servicio:</strong> {{ $servicio }}</p>
-                <p><strong>Consultorio:</strong> {{ $consultorio ?? 'Sede Principal' }}</p>
+                <p><strong>SEDE:</strong> {{ $sede ?? 'Sede Principal' }}</p>
             </div>
 
             <p style="background-color: #e8f5e9; padding: 10px; border-radius: 4px; border: 1px dashed #4caf50; color: #2e7d32;">

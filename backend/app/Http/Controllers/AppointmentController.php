@@ -665,13 +665,31 @@ class AppointmentController extends Controller
                     
                     $servicioNombre = DB::table('cups')->where('cargo', $tarifarioInfo->cargo_cups)->value('descripcion');
 
+                    // Obtener la SEDE (Ubicación)
+                    $sedeInfo = DB::table('departamentos as d')
+                        ->leftJoin('centros_utilidad as c', function($join) {
+                             $join->on('d.centro_utilidad','=','c.centro_utilidad')
+                                  ->on('d.empresa_id','=','c.empresa_id');
+                        })
+                        ->where('d.departamento', $departamento)
+                        ->where('d.empresa_id', $turno->empresa_id)
+                        ->select('d.ubicacion as ubic_dep', 'c.ubicacion as ubic_cu', 'c.descripcion as nombre_cu')
+                        ->first();
+
+                    $sedeFinal = 'Sede Principal';
+                    if ($sedeInfo) {
+                        $nombreSede = $sedeInfo->nombre_cu ?: 'Sede Principal';
+                        $ubicacion = $sedeInfo->ubic_dep ?: ($sedeInfo->ubic_cu ?: '');
+                        $sedeFinal = trim($nombreSede . ' ' . $ubicacion);
+                    }
+
                     $dataMail = [
                         'nombre' => trim(($paciente->primer_nombre ?? '') . ' ' . ($paciente->primer_apellido ?? '')),
                         'fecha' => $turno->fecha_turno,
                         'hora' => $horaCita,
                         'profesional' => $profesionalNombre,
                         'servicio' => $servicioNombre,
-                        'consultorio' => 'Sede Principal', // Ajustar si hay info de consultorio
+                        'sede' => $sedeFinal,
                         'identificacion' => $paciente->paciente_id
                     ];
 
