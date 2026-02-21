@@ -123,13 +123,21 @@ class DiagnosticSupportController extends Controller
         try {
                 $results = DB::select($sql, [$pacienteId, $tipoDoc]);
 
-                // Agregar nombre_archivo_carpeta a cada resultado
+                // Agregar nombre_archivo_carpeta a cada resultado (incluyendo lógica de detalles)
                 foreach ($results as &$row) {
-                    $archivo = DB::selectOne(
+                    // Buscar en tabla de subida directa
+                    $archivoDir = DB::selectOne(
                         "SELECT nombre_archivo_carpeta FROM hc_apoyod_resultados_subirarchivo WHERE resultado_id = ?",
                         [$row->resultado_id]
                     );
-                    $row->nombre_archivo_carpeta = $archivo ? $archivo->nombre_archivo_carpeta : null;
+                    
+                    // Buscar en tabla de detalles (laboratorios/otros con sw_archivo)
+                    $archivoDet = DB::selectOne(
+                        "SELECT resultado as nombre_archivo FROM hc_apoyod_resultados_detalles WHERE resultado_id = ? AND sw_archivo = '1' LIMIT 1",
+                        [$row->resultado_id]
+                    );
+
+                    $row->nombre_archivo_carpeta = $archivoDir ? $archivoDir->nombre_archivo_carpeta : ($archivoDet ? $archivoDet->nombre_archivo : null);
                 }
                 unset($row);
 

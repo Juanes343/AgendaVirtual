@@ -409,17 +409,94 @@ export default function MedicalHistoryView() {
     return parseInt(item.tipo_consulta_id) === activeTab;
   });
 
-  const getFileUrl = (item) => {
-    if (!item || !item.nombre_asignado) return "#";
+  // Función para manejar la apertura de resultados de Apoyos Diagnósticos
+  // Valida entre la raíz del repositorio y la carpeta específica del paciente
+  const handleOpenDiagnosticSupportFile = async (item) => {
+    if (parseInt(item.encuesta_completada) !== 1) {
+      handleSurvey(item);
+      return;
+    }
+
+    if (!item.nombre_archivo_carpeta) return;
+
     const baseUrl = import.meta.env.VITE_LEGACY_REPO_URL;
-    return `${baseUrl}/${item.tipo_id_paciente}-${item.paciente_id}/${item.nombre_asignado}`;
+    const fileName = item.nombre_archivo_carpeta;
+    const patientFolder = `${item.tipo_id_paciente}-${item.paciente_id}`;
+    const patientFolderAis = `${item.tipo_id_paciente}-${item.paciente_id}-ais`;
+
+    // URLs para probar
+    const urlsToTry = [
+      // 1. Raíz (o ruta directa)
+      `${baseUrl}/${fileName}`,
+      // 2. Carpeta del paciente
+      `${baseUrl}/${patientFolder}/${fileName}`,
+      // 3. Carpeta del paciente + hc_resultados (Nueva ruta solicitada)
+      `${baseUrl}/${patientFolder}/hc_resultados/${fileName}`,
+      // 4. Carpeta AIS
+      `${baseUrl}/${patientFolderAis}/${fileName}`,
+      // 5. Carpeta AIS + hc_resultados
+      `${baseUrl}/${patientFolderAis}/hc_resultados/${fileName}`
+    ];
+
+    try {
+      // Probar URLs una por una
+      for (const url of urlsToTry) {
+        try {
+          const res = await fetch(url, { method: "HEAD" });
+          if (res.ok) {
+            window.open(url, "_blank");
+            return;
+          }
+        } catch (e) {
+          // Ignorar errores de red/CORS y seguir probando
+          continue;
+        }
+      }
+
+      // Fallback si nada funcionó: Abrimos el más probable (raíz o paciente)
+      if (fileName.includes("/") || fileName.includes(item.paciente_id)) {
+        window.open(`${baseUrl}/${fileName}`, "_blank");
+      } else {
+        window.open(`${baseUrl}/${patientFolder}/hc_resultados/${fileName}`, "_blank");
+      }
+    } catch (err) {
+      window.open(`${baseUrl}/${fileName}`, "_blank");
+    }
   };
 
-    // Devuelve la URL legacy SOLO para Apoyos Diagnósticos
-  const getDiagnosticSupportFileUrl = (item) => {
-    if (!item || !item.nombre_archivo_carpeta) return "#";
+  // Función similar para adjuntos generales
+  const handleOpenAttachment = async (item) => {
+    if (!item.nombre_asignado) return;
+
     const baseUrl = import.meta.env.VITE_LEGACY_REPO_URL;
-    return `${baseUrl}/${item.nombre_archivo_carpeta}`;
+    const fileName = item.nombre_asignado;
+    const patientFolder = `${item.tipo_id_paciente}-${item.paciente_id}`;
+    const patientFolderAis = `${item.tipo_id_paciente}-${item.paciente_id}-ais`;
+
+    const urlsToTry = [
+      `${baseUrl}/${patientFolder}/${fileName}`,
+      `${baseUrl}/${patientFolder}/hc_resultados/${fileName}`, // Nueva carpeta para adjuntos también
+      `${baseUrl}/${patientFolderAis}/${fileName}`,
+      `${baseUrl}/${patientFolderAis}/hc_resultados/${fileName}`,
+      `${baseUrl}/${fileName}`
+    ];
+
+    try {
+      for (const url of urlsToTry) {
+        try {
+          const res = await fetch(url, { method: "HEAD" });
+          if (res.ok) {
+            window.open(url, "_blank");
+            return;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      window.open(`${baseUrl}/${patientFolder}/hc_resultados/${fileName}`, "_blank"); // Fallback
+    } catch (err) {
+      window.open(`${baseUrl}/${patientFolder}/${fileName}`, "_blank");
+    }
   };
 
   return (
@@ -496,14 +573,12 @@ export default function MedicalHistoryView() {
                   </div>
 
                   <div className="flex items-center gap-2 w-full md:w-auto">
-                    <a
-                      href={getFileUrl(item)}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => handleOpenAttachment(item)}
                       className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 flex-1 justify-center bg-blue-600 hover:bg-blue-500 text-white"
                     >
                       <Eye size={18} /> Ver Archivo
-                    </a>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -584,13 +659,7 @@ export default function MedicalHistoryView() {
                       )}
 
                       <button
-                        onClick={() => {
-                          if (parseInt(item.encuesta_completada) === 1) {
-                            window.open(getDiagnosticSupportFileUrl(item), '_blank');
-                          } else {
-                            handleSurvey(item);
-                          }
-                        }}
+                        onClick={() => handleOpenDiagnosticSupportFile(item)}
                         className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 justify-center bg-purple-700 hover:bg-purple-600 text-white"
                         title="Imprimir Archivo Adjunto (Original)"
                         style={{ pointerEvents: !item.nombre_archivo_carpeta ? 'none' : 'auto', opacity: !item.nombre_archivo_carpeta ? 0.5 : 1 }}
