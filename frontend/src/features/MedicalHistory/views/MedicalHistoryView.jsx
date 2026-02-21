@@ -290,8 +290,12 @@ export default function MedicalHistoryView() {
           loadHospitalization();
           loadDiagnosticSupport();
           loadSurgeries();
-          // Abrir el detalle automáticamente
-          setSelectedIngreso(item.ingreso);
+
+          // Solo abrir el detalle automáticamente para Consulta Externa (1) u Hospitalización (4)
+          // Para Apoyos y Cirugía nos quedamos en el listado para mostrar la tarjeta de resultados
+          if (activeTab === 1 || activeTab === 4) {
+            setSelectedIngreso(item.ingreso);
+          }
         }
       } catch (error) {
         Swal.fire({
@@ -337,40 +341,60 @@ export default function MedicalHistoryView() {
   const renderItemEncuesta = (item) => {
     if (parseInt(item.encuesta_completada) !== 1) return null;
 
+    const pregunta1 = item.encuesta_pregunta_1 || '';
+    const pregunta2 = item.encuesta_pregunta_2 || '';
+    const fecha = item.encuesta_fecha_registro || item.fecha_encuesta || '';
+    const fechaSolo = fecha.split(' ')[0];
+
     return (
-      <div className="mt-4 bg-blue-900/10 rounded-xl border border-blue-800/20 p-4 animate-fade-in-up">
-        {/* Header Compacto */}
-        <div className="flex items-center gap-2 mb-4 pb-2 border-b border-blue-800/10">
-           <CheckCircle className="w-4 h-4 text-blue-400" />
-           <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">Encuesta de Satisfacción</span>
-        </div>
-
-        <div className="space-y-4">
-          {/* Pregunta 1 */}
-          <div>
-            <p className="text-xs font-semibold text-blue-200/70 mb-1">
-              1. ¿Cómo califica la atención recibida por parte del personal médico?
-            </p>
-            <p className="text-sm font-bold text-white">
-              {item.encuesta_pregunta_1 || 'Excelente'}
-            </p>
+      <div className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mt-6 animate-fade-in-up">
+        <div className="bg-blue-900/40 px-6 py-3 border-b border-blue-900/30 flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-blue-500/20">
+            <CheckCircle className="w-5 h-5 text-blue-400" />
           </div>
-
-          {/* Pregunta 2 */}
           <div>
-            <p className="text-xs font-semibold text-blue-200/70 mb-1">
-              2. ¿Recomendaría nuestros servicios a familiares y amigos?
-            </p>
-            <p className="text-sm font-bold text-white">
-              {item.encuesta_pregunta_2 || 'Definitivamente sí'}
+            <h3 className="text-lg font-bold text-white uppercase tracking-wider">
+              Encuesta de Satisfacción
+            </h3>
+            <p className="text-xs text-blue-400 font-medium">
+              Calificación registrada para este ingreso
             </p>
           </div>
         </div>
 
-        {/* Footer Fecha */}
-        <div className="mt-3 pt-2 border-t border-blue-800/10 text-right">
-          <p className="text-[10px] sm:text-xs text-blue-400/60 italic font-medium">
-            Registrado el: {item.encuesta_fecha_registro || item.fecha_encuesta || ''}
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Pregunta 1 Card */}
+          <div className="bg-blue-950/40 rounded-xl p-5 border border-blue-800/20 shadow-inner group hover:border-blue-700/40 transition-all duration-300">
+            <p className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center text-xs text-blue-100 font-bold border border-blue-500/20 group-hover:scale-110 transition-transform">1</span>
+              ¿Cómo califica la atención recibida por parte del personal médico?
+            </p>
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-lg shadow-sm
+              ${pregunta1 === 'Excelente' ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 
+                pregunta1 === 'Bueno' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 
+                'bg-orange-600/20 text-orange-400 border border-orange-500/30'}`}>
+              {pregunta1}
+            </div>
+          </div>
+
+          {/* Pregunta 2 Card */}
+          <div className="bg-blue-950/40 rounded-xl p-5 border border-blue-800/20 shadow-inner group hover:border-blue-700/40 transition-all duration-300">
+            <p className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center text-xs text-blue-100 font-bold border border-blue-500/20 group-hover:scale-110 transition-transform">2</span>
+              ¿Recomendaría nuestros servicios a familiares y amigos?
+            </p>
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-lg shadow-sm
+              ${pregunta2 === 'Definitivamente sí' ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 
+                pregunta2 === 'Probablemente sí' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 
+                'bg-orange-600/20 text-orange-400 border border-orange-500/30'}`}>
+              {pregunta2}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-blue-900/10 px-6 py-4 border-t border-blue-900/30 text-right">
+          <p className="text-sm md:text-base text-blue-300 font-medium italic">
+            Registrado el: {fechaSolo}
           </p>
         </div>
       </div>
