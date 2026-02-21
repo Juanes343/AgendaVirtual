@@ -250,6 +250,11 @@ class ReportController extends Controller
             ->orderBy('a.fecha_solicitud', 'desc')
             ->get();
 
+        // 7. Encuesta de Satisfacción (Nuevo)
+        $encuesta = DB::table('hc_encuesta_satisfaccion')
+            ->where('ingreso', $ingreso)
+            ->first();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -258,7 +263,8 @@ class ReportController extends Controller
                 'incapacidades' => $incapacidades,
                 'diagnosticos' => $diagnosticos,
                 'notas' => $notas,
-                'procedimientos_no_qx' => $procedimientosNoQx
+                'procedimientos_no_qx' => $procedimientosNoQx,
+                'encuesta' => $encuesta
             ]
         ]);
     }

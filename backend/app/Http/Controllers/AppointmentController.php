@@ -556,7 +556,8 @@ class AppointmentController extends Controller
                 'fecha_deseada' => $turno->fecha_turno, 
                 'observacion' => 'Agendado desde Web',
                 'sw_tipo_atencion' => '1',
-                'modalidad_atencion_id' => '01'
+                'modalidad_atencion_id' => '01',
+                'sw_estado' => '1'
             ]);
 
             // D. Orden Servicio (OS)
@@ -636,7 +637,8 @@ class AppointmentController extends Controller
             DB::table('os_maestro_cargos')->insert([
                 'numero_orden_id' => $numOrdenSeq,
                 'tarifario_id' => $tarifarioInfo->tarifario_id,
-                'cargo' => $tarifarioInfo->cargo
+                'cargo' => $tarifarioInfo->cargo,
+                'cargo_cups' => $tarifarioInfo->cargo_cups
             ]);
 
             DB::commit();
