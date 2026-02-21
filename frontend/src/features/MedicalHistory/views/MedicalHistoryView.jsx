@@ -17,9 +17,93 @@ import {
   CheckCircle,
   Send,
   Paperclip,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
 } from "lucide-react";
 import { useUser } from "../../../contexts/UserContext/UserContext";
 import Swal from "sweetalert2";
+
+const EncuestaCard = ({ item }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  if (!item || parseInt(item.encuesta_completada) !== 1) return null;
+
+  const pregunta1 = item.encuesta_pregunta_1 || '';
+  const pregunta2 = item.encuesta_pregunta_2 || '';
+  const fecha = item.encuesta_fecha_registro || item.fecha_encuesta || '';
+  const fechaSolo = fecha ? fecha.split(' ')[0] : '';
+
+  return (
+    <div className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mt-6 animate-fade-in-up transition-all duration-300">
+      <button 
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-blue-900/40 px-6 py-4 flex items-center justify-between hover:bg-blue-800/40 transition-colors cursor-pointer group/card"
+      >
+        <div className="flex items-center gap-3 text-left">
+          <div className="p-2 rounded-lg bg-blue-500/20 group-hover/card:bg-blue-500/30 transition-colors">
+            <CheckCircle className="w-5 h-5 text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+              Encuesta de Satisfacción
+            </h3>
+            <p className="text-xs text-blue-400 font-medium italic">
+              Respuesta registrada el {fechaSolo}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+           <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-600/20 text-blue-300 uppercase border border-blue-500/20 group-hover/card:bg-blue-600/30 transition-all">
+             {isOpen ? 'Ocultar Detalle' : 'Ver Respuesta'}
+           </span>
+           {isOpen ? <ChevronUp className="text-blue-400 w-5 h-5" /> : <ChevronDown className="text-blue-400 w-5 h-5" />}
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="border-t border-blue-900/30 animate-fade-in">
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Pregunta 1 Card */}
+            <div className="bg-blue-950/40 rounded-xl p-5 border border-blue-800/20 shadow-inner group/q hover:border-blue-700/40 transition-all duration-300">
+              <p className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center text-xs text-blue-100 font-bold border border-blue-500/20 group-hover/q:scale-110 transition-transform">1</span>
+                ¿Cómo califica la atención recibida por parte del personal médico?
+              </p>
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-lg shadow-sm
+                ${pregunta1 === 'Excelente' ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 
+                  pregunta1 === 'Bueno' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 
+                  'bg-orange-600/20 text-orange-400 border border-orange-500/30'}`}>
+                {pregunta1}
+              </div>
+            </div>
+
+            {/* Pregunta 2 Card */}
+            <div className="bg-blue-950/40 rounded-xl p-5 border border-blue-800/20 shadow-inner group/q hover:border-blue-700/40 transition-all duration-300">
+              <p className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center text-xs text-blue-100 font-bold border border-blue-500/20 group-hover/q:scale-110 transition-transform">2</span>
+                ¿Recomendaría nuestros servicios a familiares y amigos?
+              </p>
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-lg shadow-sm
+                ${pregunta2 === 'Definitivamente sí' ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 
+                  pregunta2 === 'Probablemente sí' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 
+                  'bg-orange-600/20 text-orange-400 border border-orange-500/30'}`}>
+                {pregunta2}
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-blue-900/10 px-6 py-4 border-t border-blue-900/30 text-right">
+            <p className="text-xs md:text-sm text-blue-300 font-medium italic">
+              Registrado el: {fechaSolo}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function MedicalHistoryView() {
   const location = useLocation();
@@ -338,69 +422,6 @@ export default function MedicalHistoryView() {
     return `${baseUrl}/${item.nombre_archivo_carpeta}`;
   };
 
-  const renderItemEncuesta = (item) => {
-    if (parseInt(item.encuesta_completada) !== 1) return null;
-
-    const pregunta1 = item.encuesta_pregunta_1 || '';
-    const pregunta2 = item.encuesta_pregunta_2 || '';
-    const fecha = item.encuesta_fecha_registro || item.fecha_encuesta || '';
-    const fechaSolo = fecha.split(' ')[0];
-
-    return (
-      <div className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mt-6 animate-fade-in-up">
-        <div className="bg-blue-900/40 px-6 py-3 border-b border-blue-900/30 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-blue-500/20">
-            <CheckCircle className="w-5 h-5 text-blue-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-white uppercase tracking-wider">
-              Encuesta de Satisfacción
-            </h3>
-            <p className="text-xs text-blue-400 font-medium">
-              Calificación registrada para este ingreso
-            </p>
-          </div>
-        </div>
-
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Pregunta 1 Card */}
-          <div className="bg-blue-950/40 rounded-xl p-5 border border-blue-800/20 shadow-inner group hover:border-blue-700/40 transition-all duration-300">
-            <p className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center text-xs text-blue-100 font-bold border border-blue-500/20 group-hover:scale-110 transition-transform">1</span>
-              ¿Cómo califica la atención recibida por parte del personal médico?
-            </p>
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-lg shadow-sm
-              ${pregunta1 === 'Excelente' ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 
-                pregunta1 === 'Bueno' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 
-                'bg-orange-600/20 text-orange-400 border border-orange-500/30'}`}>
-              {pregunta1}
-            </div>
-          </div>
-
-          {/* Pregunta 2 Card */}
-          <div className="bg-blue-950/40 rounded-xl p-5 border border-blue-800/20 shadow-inner group hover:border-blue-700/40 transition-all duration-300">
-            <p className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center text-xs text-blue-100 font-bold border border-blue-500/20 group-hover:scale-110 transition-transform">2</span>
-              ¿Recomendaría nuestros servicios a familiares y amigos?
-            </p>
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-lg shadow-sm
-              ${pregunta2 === 'Definitivamente sí' ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 
-                pregunta2 === 'Probablemente sí' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 
-                'bg-orange-600/20 text-orange-400 border border-orange-500/30'}`}>
-              {pregunta2}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-blue-900/10 px-6 py-4 border-t border-blue-900/30 text-right">
-          <p className="text-sm md:text-base text-blue-300 font-medium italic">
-            Registrado el: {fechaSolo}
-          </p>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -580,7 +601,7 @@ export default function MedicalHistoryView() {
                   </div>
                   {/* Encuesta de Satisfacción Integrada */}
                   <div className="px-6 pb-6">
-                    {renderItemEncuesta(item)}
+                    <EncuestaCard item={item} />
                   </div>
                 </div>
               );
@@ -720,7 +741,7 @@ export default function MedicalHistoryView() {
                   </div>
                   {/* Encuesta de Satisfacción Integrada */}
                   <div className="px-6 pb-6">
-                    {renderItemEncuesta(item)}
+                    <EncuestaCard item={item} />
                   </div>
                 </div>
               ))

@@ -664,7 +664,7 @@ export default function ScheduleAppointmentView({ onBack }) {
       {!loading && availability.length === 0 && (
            <div className="p-12 text-center bg-red-50 border-t border-red-100 rounded-b-xl">
             <AlertCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
-            <h3 className="text-3xl font-black text-red-700 uppercase tracking-tighter">Sin Horarios Disponibles</h3>
+            <h3 className="text-3xl font-black text-black uppercase tracking-tighter">Sin Horarios Disponibles</h3>
             <p className="text-gray-900 font-bold max-w-sm mx-auto mt-2">
                 No encontramos turnos para el <span className="text-blue-800">{currentDate.toLocaleDateString()}</span>. 
             </p>

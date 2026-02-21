@@ -259,7 +259,7 @@ class AppointmentController extends Controller
             WHERE a.fecha_turno BETWEEN ? AND ?
             AND ac.sw_estado = '0' -- 0: Disponible
             AND (ac.sw_separada != '1' OR ac.sw_separada IS NULL)
-            -- AND ac.sw_bloqueada != '1'
+            AND (ac.sw_bloqueada != '1' OR ac.sw_bloqueada IS NULL)
         ";
         
         $bindings = [$fechaInicio, $fechaFin];

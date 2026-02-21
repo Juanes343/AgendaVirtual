@@ -57,7 +57,7 @@ class DiagnosticSupportController extends Controller
                     TO_CHAR(om.fecha_resgistro,'DD/MM/YYYY HH24:MI') as fecha_solicitud_manual, 
                     om.profesional as nombre_profesional_manual, 
                     oc.os_maestro_cargos_id,
-                    he.ingreso
+                    COALESCE(he.ingreso, (SELECT MAX(ingreso) FROM ingresos WHERE paciente_id = c.paciente_id AND tipo_id_paciente = c.tipo_id_paciente)) as ingreso
                 FROM 
                     view_os_cumplimientos_grupos a, 
                     pacientes c, 
