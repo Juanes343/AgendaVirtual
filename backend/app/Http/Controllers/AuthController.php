@@ -78,6 +78,7 @@ class AuthController extends Controller
                 $paciente->celular_telefono = $request->celular ?? '';
                 $paciente->email = $request->email ?? '';
                 $paciente->usuario_id = 1;
+                $paciente->ocupacion_id = 'NA';
                 $paciente->fecha_registro = now();
                 $paciente->save();
             }
@@ -180,22 +181,26 @@ class AuthController extends Controller
     }
 
     /**
-     * Endpoint para verificar existencia de paciente
+     * Endpoint para Validar si el paciente existe antes del paso 2
+     * POST /api/check-patient
      */
     public function checkPatient(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'tipo_doc' => 'required|string',
             'usuario'  => 'required|string',
+            'email'    => 'nullable|email'
         ]);
 
         if ($validator->fails()) {
              return response()->json(['success' => false, 'message' => 'Faltan datos'], 400);
         }
 
-        $pacienteId = $request->usuario;
-        $tipoDoc = $request->tipo_doc;
+        $pacienteId = trim($request->usuario);
+        $tipoDoc = trim($request->tipo_doc);
+        $inputEmail = strtolower(trim($request->email ?? ''));
 
+        // 1. Validamos si YA TIENE CUENTA en el portal virtual
         $usuarioVirtual = SystemUsuarioVirtual::where('paciente_id', $pacienteId)
             ->where('tipo_documento', $tipoDoc)
             ->first();
@@ -204,36 +209,119 @@ class AuthController extends Controller
             return response()->json([
                 'success' => true,
                 'status' => 'has_account',
-                'message' => 'El usuario ya tiene cuenta activa.'
+                'exists' => true,
+                'message' => 'Usted ya tiene una cuenta activa. Por favor inicie sesión.'
             ]);
         }
 
-        $paciente = Paciente::where('paciente_id', $pacienteId)
-            ->where('tipo_id_paciente', $tipoDoc)
+        // 2. Buscamos en la tabla maestra de PACIENTES (Legacy)
+        $paciente = Paciente::whereRaw('trim(paciente_id) = ?', [$pacienteId])
+            ->whereRaw('trim(tipo_id_paciente) = ?', [$tipoDoc])
             ->first();
 
         if ($paciente) {
+            // Existe como paciente pero NO tiene cuenta portal aún.
+            // MODIFICACIÓN: Obligatorio validar correo ingresado vs correo en DB
+            $dbEmail = strtolower(trim($paciente->email ?? ''));
+
+            if (empty($inputEmail)) {
+                 return response()->json([
+                    'success' => false,
+                    'status' => 'email_required',
+                    'message' => 'Ingrese su correo para validar su identidad.'
+                ], 400);
+            }
+
+            // Debug logger opcional (si se tiene configurado, útil para producción)
+            // \Log::info("Validando registro: Input[$inputEmail] vs DB[$dbEmail]");
+
+            if ($inputEmail !== $dbEmail) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 'email_mismatch',
+                    'message' => 'El correo ingresado no coincide con nuestros registros. Por favor, solicite la actualización de su correo en el centro de atención.'
+                ], 403);
+            }
+
+            // CORREO COINCIDE! - Generamos Token de Verificación
+            $token = Str::random(64);
+            TokenAgendaVirtual::create([
+                'incriptacion' => $token,
+                'paciente_id' => $pacienteId,
+                'tipo_documento' => $tipoDoc,
+                'fecha_registro' => now(),
+                'estado' => '1',
+            ]);
+
+            $frontendUrl = rtrim(env('FRONTEND_URL'), '/');
+            $verificationUrl = $frontendUrl . '/#/register?token=' . $token;
+
+            Mail::send('emails.verify_identity', [
+                'nombre' => trim("{$paciente->primer_nombre} {$paciente->primer_apellido}"),
+                'documento' => $pacienteId,
+                'activationUrl' => $verificationUrl
+            ], function ($message) use ($paciente) {
+                $message->to($paciente->email)
+                    ->subject('Verifique su identidad - SanDi•Med');
+            });
+
             return response()->json([
                 'success' => true,
-                'exists' => true,
-                'paciente' => [
-                    'primer_nombre' => $paciente->primer_nombre,
-                    'segundo_nombre' => $paciente->segundo_nombre,
-                    'primer_apellido' => $paciente->primer_apellido,
-                    'segundo_apellido' => $paciente->segundo_apellido,
-                    'fecha_nacimiento' => $paciente->fecha_nacimiento,
-                    'sexo' => $paciente->sexo_id,
-                    'celular' => $paciente->celular_telefono,
-                    'email' => $paciente->email,
-                ],
-                'message' => 'Paciente encontrado'
+                'status' => 'needs_verification',
+                'message' => 'Se ha enviado un correo para su verificación.',
+                'email' => $paciente->email
             ]);
+        }
+
+        // 3. No existe como paciente. Puede registrarse libremente sin validar correo previo
+        return response()->json([
+            'success' => true,
+            'status' => 'not_found',
+            'exists' => false,
+            'message' => 'Paciente no encontrado. Puede proceder con el registro.'
+        ]);
+    }
+
+    /**
+     * Endpoint para validar token de verificación de registro y devolver datos precargados
+     * GET /api/verify-registration-token/{token}
+     */
+    public function verifyRegistrationToken($token)
+    {
+        $tokenRow = TokenAgendaVirtual::where('incriptacion', $token)
+            ->where('estado', '1')
+            ->first();
+
+        if (!$tokenRow) {
+            return response()->json(['success' => false, 'message' => 'El enlace es inválido o ya ha sido utilizado.'], 400);
+        }
+
+        if (\Carbon\Carbon::parse($tokenRow->fecha_registro)->addHours(24)->isPast()) {
+             return response()->json(['success' => false, 'message' => 'El enlace ha expirado.'], 400);
+        }
+
+        $paciente = Paciente::where('paciente_id', $tokenRow->paciente_id)
+            ->where('tipo_id_paciente', $tokenRow->tipo_documento)
+            ->first();
+
+        if (!$paciente) {
+            return response()->json(['success' => false, 'message' => 'Paciente no encontrado.'], 404);
         }
 
         return response()->json([
             'success' => true,
-            'exists' => false,
-            'message' => 'Paciente nuevo'
+            'paciente' => [
+                'primer_nombre' => $paciente->primer_nombre,
+                'segundo_nombre' => $paciente->segundo_nombre,
+                'primer_apellido' => $paciente->primer_apellido,
+                'segundo_apellido' => $paciente->segundo_apellido,
+                'fecha_nacimiento' => $paciente->fecha_nacimiento,
+                'sexo' => $paciente->sexo_id,
+                'celular' => $paciente->celular_telefono,
+                'email' => $paciente->email,
+                'tipo_doc' => $paciente->tipo_id_paciente,
+                'usuario' => $paciente->paciente_id
+            ]
         ]);
     }
 

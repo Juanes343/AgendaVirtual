@@ -13,6 +13,7 @@ Route::get('/activate-account/{token}', [AuthController::class, 'activateAccount
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/check-patient', [AuthController::class, 'checkPatient']);
+Route::get('/verify-registration-token/{token}', [AuthController::class, 'verifyRegistrationToken']);
 Route::post('/recover-password', [AuthController::class, 'recoverPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/manual', [AuthController::class, 'downloadManual']);

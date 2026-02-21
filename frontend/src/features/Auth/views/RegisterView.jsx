@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, FileText, Bell, Shield, Eye, EyeOff, Check, ChevronDown, User, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Calendar, FileText, Bell, Shield, Eye, EyeOff, Check, ChevronDown, User, ArrowRight, ArrowLeft, Mail } from 'lucide-react';
 import { useUser } from '../../../contexts/UserContext/UserContext';
 import authService from '../services/authService';
 import api from '../../../services/api'; // Import instance
@@ -9,6 +9,7 @@ import logo from '../../../assets/images/sandi_virtual.png';
 export default function RegisterView() {
     const { login } = useUser();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     // Estado local para tipos de documento
     const [documentTypes, setDocumentTypes] = useState([
@@ -21,6 +22,7 @@ export default function RegisterView() {
     const [formData, setFormData] = useState({
         tipo_doc: 'CC',
         usuario: '',
+        email_step1: '', // Nuevo campo para validación inicial
         primer_nombre: '',
         segundo_nombre: '',
         primer_apellido: '',
@@ -39,7 +41,51 @@ export default function RegisterView() {
     const [loading, setLoading] = useState(false);
     const [isExistingPatient, setIsExistingPatient] = useState(false); // Si el paciente existe en DB
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showVerificationModal, setShowVerificationModal] = useState(false); // Modal "Correo enviado"
+    const [showMismatchModal, setShowMismatchModal] = useState(false); // Modal "Correo no cumple"
     const [maskedEmail, setMaskedEmail] = useState('');
+
+    // --- EFFECT: Verificación por Token ---
+    useEffect(() => {
+        const token = searchParams.get('token');
+        if (token && step === 1) {
+            handleVerifyToken(token);
+        }
+    }, [searchParams]);
+
+    const handleVerifyToken = async (token) => {
+        setLoading(true);
+        try {
+            const response = await authService.verifyRegistrationToken(token);
+            if (response.success) {
+                const p = response.paciente;
+                setFormData(prev => ({
+                    ...prev,
+                    tipo_doc: p.tipo_doc,
+                    usuario: p.usuario,
+                    primer_nombre: p.primer_nombre || '',
+                    segundo_nombre: p.segundo_nombre || '',
+                    primer_apellido: p.primer_apellido || '',
+                    segundo_apellido: p.segundo_apellido || '',
+                    fecha_nacimiento: p.fecha_nacimiento || '',
+                    sexo: p.sexo || '',
+                    celular: p.celular || '',
+                    email: p.email || ''
+                }));
+                setIsExistingPatient(true);
+                // Si ya fue verificado, no necesitamos enmascarar en el paso 2
+                setMaskedEmail(p.email); 
+                setStep(2);
+                // Limpiar parámetros para no re-ejecutar al cambiar estados
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash.split('?')[0]);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'El enlace de verificación es inválido o expiró.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Enmascarar email (ej: simde***@gmail.com)
     const maskEmail = (email) => {
         if (!email) return '';
@@ -81,7 +127,6 @@ export default function RegisterView() {
         setIsDropdownOpen(false);
     };
 
-    // Step 1: Validate User
     const handleValidation = async (e) => {
         e.preventDefault();
         setError('');
@@ -89,34 +134,31 @@ export default function RegisterView() {
         try {
             const response = await authService.checkPatient({
                 tipo_doc: formData.tipo_doc,
-                usuario: formData.usuario
+                usuario: formData.usuario,
+                email: formData.email_step1
             });
+
             if (response.success) {
-                if (response.exists) {
-                    // Precargar datos
-                    const p = response.paciente;
-                    setFormData(prev => ({
-                        ...prev,
-                        primer_nombre: p.primer_nombre || '',
-                        segundo_nombre: p.segundo_nombre || '',
-                        primer_apellido: p.primer_apellido || '',
-                        segundo_apellido: p.segundo_apellido || '',
-                        fecha_nacimiento: p.fecha_nacimiento || '',
-                        sexo: p.sexo || '',
-                        celular: p.celular || '',
-                        email: p.email || ''
-                    }));
-                    setMaskedEmail(maskEmail(p.email));
-                    setIsExistingPatient(true);
-                    setStep(2);
-                } else {
+                if (response.status === 'has_account') {
+                    setError('Ya tiene una cuenta activa. Por favor inicie sesión.');
+                } else if (response.status === 'needs_verification') {
+                    // SE HA ENVIADO CORREO
+                    setMaskedEmail(maskEmail(response.email));
+                    setShowVerificationModal(true);
+                } else if (response.status === 'not_found') {
+                    // NO EXISTE EN DB, PROCEDER NORMAL
                     setIsExistingPatient(false);
+                    setFormData(prev => ({ ...prev, email: formData.email_step1 }));
                     setStep(2);
                 }
             }
         } catch (err) {
             console.error(err);
-            setError('Error al validar el documento. Intente nuevamente.');
+            if (err.response?.status === 403 && err.response?.data?.status === 'email_mismatch') {
+                setShowMismatchModal(true);
+            } else {
+                setError(err.response?.data?.message || 'Error al validar el documento. Intente nuevamente.');
+            }
         } finally {
             setLoading(false);
         }
@@ -304,22 +346,40 @@ export default function RegisterView() {
                                             />
                                         </div>
                                     </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-foreground">Correo electrónico registrado</label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <Mail className="h-4 w-4 text-muted-foreground" />
+                                            </div>
+                                            <input
+                                                type="email"
+                                                name="email_step1"
+                                                value={formData.email_step1}
+                                                onChange={handleChange}
+                                                className="w-full pl-10 pr-3 py-2 bg-input/50 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none"
+                                                placeholder="Ej: usuario@correo.com"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <button
                                     type="submit"
-                                    disabled={loading || !formData.usuario}
-                                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-2.5 rounded-lg font-medium shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none flex justify-center items-center gap-2"
+                                    disabled={loading || !formData.usuario || !formData.email_step1}
+                                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-3 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none flex justify-center items-center gap-2"
                                 >
                                     {loading ? (
                                         <>
-                                            <span className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></span>
+                                            <span className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></span>
                                             Validando...
                                         </>
                                     ) : (
                                         <>
-                                            Validar
-                                            <ArrowRight className="w-4 h-4" />
+                                            Validar y Continuar
+                                            <ArrowRight className="w-5 h-5" />
                                         </>
                                     )}
                                 </button>
@@ -529,6 +589,58 @@ export default function RegisterView() {
                             className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 active:scale-[0.98] flex items-center justify-center gap-2"
                         >
                             Entendido, ir al Login
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Verification Sent Modal (Step 1 -> Email Sent) */}
+            {showVerificationModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in zoom-in-95 duration-300">
+                    <div className="bg-card w-full max-w-md rounded-3xl border border-primary/20 shadow-2xl p-10 text-center relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-blue-500"></div>
+                        
+                        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-8 ring-8 ring-primary/5">
+                            <Mail className="w-12 h-12 text-primary" />
+                        </div>
+                        
+                        <h3 className="text-3xl font-black mb-4 text-foreground tracking-tight uppercase">Verifique su Identidad</h3>
+                        <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
+                            Hemos detectado que ya es paciente de nuestra institución. Para continuar con su registro web, por favor revise el correo enviado a <b className="text-blue-500 select-all">{maskedEmail}</b> y haga clic en el enlace para validar su cuenta.
+                        </p>
+                        
+                        <button 
+                            onClick={() => setShowVerificationModal(false)}
+                            className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-black text-lg hover:bg-primary/90 transition-all shadow-xl shadow-primary/30 active:scale-[0.95]"
+                        >
+                            Entendido
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Email Mismatch Modal */}
+            {showMismatchModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in zoom-in-95 duration-300">
+                    <div className="bg-card w-full max-w-md rounded-3xl border border-destructive/20 shadow-2xl p-10 text-center relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-destructive"></div>
+                        
+                        <div className="w-24 h-24 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-8 ring-8 ring-destructive/5">
+                            <span className="text-5xl">⚠️</span>
+                        </div>
+                        
+                        <h3 className="text-3xl font-black mb-4 text-foreground tracking-tight uppercase">Datos no Coinciden</h3>
+                        <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
+                            El correo ingresado <b>no coincide</b> con el que tenemos registrado en nuestra base de datos. 
+                            <br/><br/>
+                            Por favor, <b>acuda a una de nuestras sedes</b> para solicitar la actualización de su información personal y poder completar su registro.
+                        </p>
+                        
+                        <button 
+                            onClick={() => setShowMismatchModal(false)}
+                            className="w-full bg-slate-800 text-white py-4 rounded-2xl font-black text-lg hover:bg-slate-700 transition-all shadow-xl active:scale-[0.95]"
+                        >
+                            Cerrar
                         </button>
                     </div>
                 </div>

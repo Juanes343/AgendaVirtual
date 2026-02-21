@@ -16,6 +16,11 @@ const authService = {
         const response = await api.post('/check-patient', data);
         return response.data;
     },
+
+    verifyRegistrationToken: async (token) => {
+        const response = await api.get(`/verify-registration-token/${token}`);
+        return response.data;
+    },
     
     recoverPassword: async (data) => {
         const response = await api.post('/recover-password', data);
