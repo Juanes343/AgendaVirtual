@@ -32,20 +32,37 @@ class SurgeryController extends Controller
                 $surgeries = $this->surgeryService->getSurgeriesByIngreso($ingresoId);
             }
             
-            // Post-procesar para añadir encuesta_completada (Gatekeeping)
+            // Post-procesar para añadir encuesta_completada y datos de encuesta
             foreach ($surgeries as &$surgery) {
                 // Si ya viene del service no hace falta, pero usualmente es un objeto o array
                 $ing = is_object($surgery) ? $surgery->ingreso : ($surgery['ingreso'] ?? null);
                 if ($ing) {
-                    $hasSurvey = DB::table('hc_encuesta_satisfaccion')->where('ingreso', $ing)->exists();
+                    $survey = DB::table('hc_encuesta_satisfaccion')->where('ingreso', $ing)->first();
+                    $hasSurvey = !empty($survey);
+                    
                     if (is_object($surgery)) {
                         $surgery->encuesta_completada = $hasSurvey ? 1 : 0;
+                        $surgery->encuesta_pregunta_1 = $hasSurvey ? $survey->pregunta_1 : null;
+                        $surgery->encuesta_pregunta_2 = $hasSurvey ? $survey->pregunta_2 : null;
+                        $surgery->encuesta_fecha_registro = $hasSurvey ? substr($survey->fecha_registro, 0, 10) : null;
                     } else {
                         $surgery['encuesta_completada'] = $hasSurvey ? 1 : 0;
+                        $surgery['encuesta_pregunta_1'] = $hasSurvey ? $survey->pregunta_1 : null;
+                        $surgery['encuesta_pregunta_2'] = $hasSurvey ? $survey->pregunta_2 : null;
+                        $surgery['encuesta_fecha_registro'] = $hasSurvey ? substr($survey->fecha_registro, 0, 10) : null;
                     }
                 } else {
-                    if (is_object($surgery)) $surgery->encuesta_completada = 0;
-                    else $surgery['encuesta_completada'] = 0;
+                    if (is_object($surgery)) {
+                        $surgery->encuesta_completada = 0;
+                        $surgery->encuesta_pregunta_1 = null;
+                        $surgery->encuesta_pregunta_2 = null;
+                        $surgery->encuesta_fecha_registro = null;
+                    } else {
+                        $surgery['encuesta_completada'] = 0;
+                        $surgery['encuesta_pregunta_1'] = null;
+                        $surgery['encuesta_pregunta_2'] = null;
+                        $surgery['encuesta_fecha_registro'] = null;
+                    }
                 }
             }
             

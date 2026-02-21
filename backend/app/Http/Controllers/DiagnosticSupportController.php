@@ -28,97 +28,11 @@ class DiagnosticSupportController extends Controller
                 rs.resultado_id,
                 rs.usuario_id_profesional,
                 rs.usuario_id_profesional_autoriza,
-                rs.nombre_profesional
-            FROM (
-                SELECT DISTINCT 
-                    a.tipo_id_paciente, 
-                    a.paciente_id, 
-                    j.servicio, 
-                    a.numero_cumplimiento, 
-                    a.departamento, 
-                    TO_CHAR(a.fecha_cumplimiento,'DD/MM/YYYY') as fecha_cumplimiento, 
-                    l.evolucion_id, 
-                    d.tipo_os_lista_id, 
-                    k.descripcion as servicio_descripcion, 
-                    i.descripcion, 
-                    d.nombre_lista, 
-                    a.numero_orden_id, 
-                    i.cargo, 
-                    oc.tarifario_id, 
-                    oc.cargo as cargo_tari, 
-                    oc.transaccion, 
-                    btrim(c.primer_nombre||' '||c.segundo_nombre||' '|| c.primer_apellido||' '||c.segundo_apellido) as nombre, 
-                    h.hc_os_solicitud_id, 
-                    TO_CHAR(l.fecha_solicitud,'DD/MM/YYYY HH24:MI') as fecha_solicitud, 
-                    TO_CHAR(om.fecha_resgistro,'DD/MM/YYYY HH24:MI') as fecha_solicitud_manual, 
-                    om.profesional as nombre_profesional_manual, 
-                    oc.os_maestro_cargos_id,
-                    he.ingreso
-                FROM 
-                    view_os_cumplimientos_grupos a, 
-                    pacientes c, 
-                    tipos_os_listas_trabajo d, 
-                    tipos_os_listas_trabajo_detalle e, 
-                    os_maestro h, 
-                    os_maestro_cargos oc, 
-                    tarifarios_equivalencias te, 
-                    cups i, 
-                    hc_os_solicitudes l 
-                    LEFT JOIN hc_os_solicitudes_manuales as om ON (l.hc_os_solicitud_id = om.hc_os_solicitud_id) 
-                    LEFT JOIN hc_evoluciones he ON (l.evolucion_id = he.evolucion_id), 
-                    os_ordenes_servicios j, 
-                    servicios k 
-                WHERE 
-                    a.paciente_id = ? 
-                    AND a.tipo_id_paciente = ? 
-                    AND a.paciente_id = c.paciente_id 
-                    AND a.tipo_id_paciente = c.tipo_id_paciente 
-                    AND a.departamento = d.departamento 
-                    AND a.cargo = i.cargo 
-                    AND oc.cargo_cups = i.cargo 
-                    AND d.tipo_os_lista_id = e.tipo_os_lista_id 
-                    --AND e.tipo_os_lista_id IN ('7','8','9','10','11','12','17','20') 
-                    AND a.numero_orden_id = h.numero_orden_id 
-                    AND h.sw_estado IN ('1','2','3','4') 
-                    AND h.orden_servicio_id = j.orden_servicio_id 
-                    AND j.servicio = k.servicio 
-                    AND h.numero_orden_id = oc.numero_orden_id 
-                    AND oc.transaccion IS NOT NULL 
-                    AND oc.tarifario_id = te.tarifario_id 
-                    AND oc.cargo = te.cargo 
-                    AND te.cargo_base = i.cargo 
-                    AND i.grupo_tipo_cargo = e.grupo_tipo_cargo 
-                    AND i.tipo_cargo = e.tipo_cargo 
-                    AND h.hc_os_solicitud_id = l.hc_os_solicitud_id 
-                    --AND a.grupo_departamento_id = 3 
-            ) q 
-            LEFT JOIN ( 
-                SELECT 
-                    r.resultado_id, 
-                    r.cargo, 
-                    b.numero_orden_id, 
-                    b.usuario_id_profesional, 
-                    b.usuario_id_profesional_autoriza, 
-                    pr.nombre as nombre_profesional 
-                FROM 
-                    hc_resultados AS r, 
-                    hc_resultados_sistema AS b 
-                    LEFT JOIN profesionales_usuarios pu ON (b.usuario_id_profesional = pu.usuario_id) 
-                    LEFT JOIN profesionales pr ON (pu.tipo_tercero_id = pr.tipo_id_tercero AND pu.tercero_id = pr.tercero_id) 
-                WHERE 
-                    r.resultado_id = b.resultado_id 
-            ) rs ON (q.numero_orden_id = rs.numero_orden_id AND q.cargo = rs.cargo) 
-            LEFT JOIN hc_encuesta_satisfaccion enc ON (q.ingreso = enc.ingreso)
-            WHERE 
-                rs.resultado_id IS NOT NULL 
-                AND rs.usuario_id_profesional_autoriza IS NOT NULL 
-            SELECT 
-                q.*,
-                rs.resultado_id,
-                rs.usuario_id_profesional,
-                rs.usuario_id_profesional_autoriza,
                 rs.nombre_profesional,
-                CASE WHEN enc.ingreso IS NOT NULL THEN 1 ELSE 0 END as encuesta_completada
+                CASE WHEN enc.ingreso IS NOT NULL THEN 1 ELSE 0 END as encuesta_completada,
+                enc.pregunta_1 as encuesta_pregunta_1,
+                enc.pregunta_2 as encuesta_pregunta_2,
+                TO_CHAR(enc.fecha_registro, 'YYYY-MM-DD') as encuesta_fecha_registro
             FROM (
                 SELECT DISTINCT 
                     a.tipo_id_paciente, 

@@ -334,6 +334,49 @@ export default function MedicalHistoryView() {
     return `${baseUrl}/${item.nombre_archivo_carpeta}`;
   };
 
+  const renderItemEncuesta = (item) => {
+    if (parseInt(item.encuesta_completada) !== 1) return null;
+
+    return (
+      <div className="mt-4 bg-blue-900/10 rounded-xl border border-blue-800/20 p-4 animate-fade-in-up">
+        {/* Header Compacto */}
+        <div className="flex items-center gap-2 mb-4 pb-2 border-b border-blue-800/10">
+           <CheckCircle className="w-4 h-4 text-blue-400" />
+           <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">Encuesta de Satisfacción</span>
+        </div>
+
+        <div className="space-y-4">
+          {/* Pregunta 1 */}
+          <div>
+            <p className="text-xs font-semibold text-blue-200/70 mb-1">
+              1. ¿Cómo califica la atención recibida por parte del personal médico?
+            </p>
+            <p className="text-sm font-bold text-white">
+              {item.encuesta_pregunta_1 || 'Excelente'}
+            </p>
+          </div>
+
+          {/* Pregunta 2 */}
+          <div>
+            <p className="text-xs font-semibold text-blue-200/70 mb-1">
+              2. ¿Recomendaría nuestros servicios a familiares y amigos?
+            </p>
+            <p className="text-sm font-bold text-white">
+              {item.encuesta_pregunta_2 || 'Definitivamente sí'}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer Fecha */}
+        <div className="mt-3 pt-2 border-t border-blue-800/10 text-right">
+          <p className="text-[10px] sm:text-xs text-blue-400/60 italic font-medium">
+            Registrado el: {item.encuesta_fecha_registro || item.fecha_encuesta || ''}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -477,20 +520,6 @@ export default function MedicalHistoryView() {
                         <Printer size={18} /> Ver Resultado
                       </button>
 
-                      <button
-                        onClick={() => {
-                          if (parseInt(item.encuesta_completada) === 1) {
-                            setSelectedIngreso(item.ingreso);
-                          } else {
-                            handleSurvey(item);
-                          }
-                        }}
-                        className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 justify-center bg-slate-700 hover:bg-slate-600 text-white"
-                        title="Ver Detalles del Ingreso"
-                      >
-                        <Eye size={18} /> Ver Detalles
-                      </button>
-
                       {getModulePermissions(2).sw_correo && (
                         <button
                           onClick={() => {
@@ -524,6 +553,10 @@ export default function MedicalHistoryView() {
                         <Printer size={18} /> Ver Detalle
                       </button>
                     </div>
+                  </div>
+                  {/* Encuesta de Satisfacción Integrada */}
+                  <div className="px-6 pb-6">
+                    {renderItemEncuesta(item)}
                   </div>
                 </div>
               );
@@ -612,20 +645,6 @@ export default function MedicalHistoryView() {
                         <Printer size={16} /> Imprimir Nota Operatoria
                       </button>
 
-                      <button
-                        onClick={() => {
-                          if (parseInt(item.encuesta_completada) === 1) {
-                            setSelectedIngreso(item.ingreso);
-                          } else {
-                            handleSurvey(item);
-                          }
-                        }}
-                        className="px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600"
-                        title="Ver Detalles del Ingreso"
-                      >
-                        <Eye size={16} /> Ver Detalles
-                      </button>
-
                       {getModulePermissions(3).sw_correo && (
                         <button
                           onClick={async () => {
@@ -674,6 +693,10 @@ export default function MedicalHistoryView() {
                         </button>
                       )}
                     </div>
+                  </div>
+                  {/* Encuesta de Satisfacción Integrada */}
+                  <div className="px-6 pb-6">
+                    {renderItemEncuesta(item)}
                   </div>
                 </div>
               ))
@@ -1339,9 +1362,9 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
           </div>
         </div>
 
-        <div className="bg-blue-900/10 px-6 py-3 border-t border-blue-900/30 text-right">
-          <p className="text-[10px] text-gray-400 italic">
-            Registrado el: {details.encuesta.fecha_registro}
+        <div className="bg-blue-900/10 px-6 py-4 border-t border-blue-900/30 text-right">
+          <p className="text-sm md:text-base text-blue-300 font-medium italic">
+            Registrado el: {details.encuesta.fecha_registro ? details.encuesta.fecha_registro.split(' ')[0] : ''}
           </p>
         </div>
       </div>
