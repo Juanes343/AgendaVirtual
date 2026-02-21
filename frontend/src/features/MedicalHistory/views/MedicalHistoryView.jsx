@@ -658,14 +658,15 @@ export default function MedicalHistoryView() {
                         </button>
                       )}
 
-                      <button
-                        onClick={() => handleOpenDiagnosticSupportFile(item)}
-                        className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 justify-center bg-purple-700 hover:bg-purple-600 text-white"
-                        title="Imprimir Archivo Adjunto (Original)"
-                        style={{ pointerEvents: !item.nombre_archivo_carpeta ? 'none' : 'auto', opacity: !item.nombre_archivo_carpeta ? 0.5 : 1 }}
-                      >
-                        <Printer size={18} /> Ver Detalle
-                      </button>
+                      {item.nombre_archivo_carpeta && (
+                        <button
+                          onClick={() => handleOpenDiagnosticSupportFile(item)}
+                          className="px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 justify-center bg-purple-700 hover:bg-purple-600 text-white"
+                          title="Imprimir Archivo Adjunto (Original)"
+                        >
+                          <Printer size={18} /> Ver Adjuntos
+                        </button>
+                      )}
                     </div>
                   </div>
                   {/* Encuesta de Satisfacción Integrada */}
