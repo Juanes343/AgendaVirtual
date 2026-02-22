@@ -699,6 +699,7 @@ class ReportController extends Controller
                     ->on('d.tipo_id_tercero', '=', 'pe.tipo_id_tercero');
             })
             ->leftJoin('especialidades as esp', 'pe.especialidad', '=', 'esp.especialidad')
+            ->leftJoin('tipos_afiliado as ta', 'cu.tipo_afiliado_id', '=', 'ta.tipo_afiliado_id')
             ->where('a.evolucion_id', $evolucion_id)
             ->select(
                 'p.paciente_id',
@@ -728,6 +729,7 @@ class ReportController extends Controller
                 'pl.plan_descripcion',
                 'cli.nombre_tercero as cliente_nombre',
                 'cu.tipo_afiliado_id',
+                'ta.tipo_afiliado_nombre as tipo_afiliado_descripcion',
                 'cu.rango'
             )
             ->first();

@@ -83,7 +83,7 @@
             <td class="label">EPS / Aseguradora:</td>
             <td>{{ $paciente->nombre_aseguradora ?? '' }}</td>
             <td class="label">Tipo Afiliado:</td>
-            <td>{{ $paciente->tipo_afiliado_id ?? '' }} - {{ $paciente->rango ?? '' }}</td>
+            <td>{{ $paciente->tipo_afiliado_descripcion ?? ($paciente->tipo_afiliado_id ?? '') }} - {{ $paciente->rango ?? '' }}</td>
         </tr>
         <tr>
             <td class="label">Dirección:</td>

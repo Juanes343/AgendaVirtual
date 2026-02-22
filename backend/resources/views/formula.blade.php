@@ -187,7 +187,11 @@
             <td class="header-label">PLAN</td>
             <td colspan="3">
                 {{ $header->plan_descripcion ?? '' }}
-                <span style="font-weight:normal; margin-left: 20px;">TIPO AFILIADO: {{ $header->tipo_afiliado_id ?? '' }}</span>
+                @if(!empty($header->tipo_afiliado_descripcion))
+                    <span style="font-weight:normal; margin-left: 20px;">TIPO AFILIADO: {{ $header->tipo_afiliado_descripcion }}</span>
+                @elseif(!empty($header->tipo_afiliado_id))
+                    <span style="font-weight:normal; margin-left: 20px;">TIPO AFILIADO: {{ $header->tipo_afiliado_id }}</span>
+                @endif
                 <span style="font-weight:normal; margin-left: 20px;">RANGO: {{ $header->rango ?? '' }}</span>
             </td>
         </tr>
