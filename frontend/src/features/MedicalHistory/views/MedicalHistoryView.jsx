@@ -1114,95 +1114,106 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
   const renderSolicitudes = () => {
     if (!details.solicitudes || details.solicitudes.length === 0) return null;
 
-    const grouped = details.solicitudes.reduce((acc, curr) => {
+    const groupedByEvol = details.solicitudes.reduce((acc, curr) => {
       (acc[curr.evolucion_id] = acc[curr.evolucion_id] || []).push(curr);
       return acc;
     }, {});
 
-    return Object.entries(grouped).map(([evolucionId, sols]) => {
-      // Tomar datos del primer elemento del grupo para los parámetros (si los usas luego)
-      const sol0 = sols[0];
-
-      // Parámetros legacy (por si los necesitas)
-      const tipoIdPaciente = user?.paciente?.tipo_id_paciente || "CC";
-      const pacienteId = user?.paciente?.paciente_id || "";
-      const nombres = user?.paciente?.nombre_completo || "";
-
-      // Buscar ingreso asociado
-      let ingreso = "";
-      if (sol0?.ingreso) {
-        ingreso = sol0.ingreso;
-      } else {
-        const found = details.solicitudes.find(
-          (s) => s.evolucion_id === evolucionId,
-        );
-        if (found?.ingreso) ingreso = found.ingreso;
-      }
-
-      const nroImpresionTabla = 0;
+    return Object.entries(groupedByEvol).map(([evolucionId, sols]) => {
+      // Agrupamiento por SERVICIO dentro de la evolución
+      const groupedByServ = sols.reduce((acc, curr) => {
+        const servName = curr.servicio_descripcion || "SERVICIO NO DEFINIDO";
+        (acc[servName] = acc[servName] || []).push(curr);
+        return acc;
+      }, {});
 
       return (
         <div
-          key={`sol-${evolucionId}`}
-          className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-sm mb-4"
+          key={`sol-evol-${evolucionId}`}
+          className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-sm mb-6"
         >
-          {/* Header más compacto */}
-          <div className="bg-purple-900/20 px-4 py-2 border-b border-blue-900/30 flex justify-between items-center">
-            <h4 className="font-bold text-purple-300 flex items-center gap-2 uppercase text-base">
+          {/* Header de Evolución */}
+          <div className="bg-blue-900/30 px-4 py-2 border-b border-blue-900/30 flex justify-between items-center">
+            <h4 className="font-bold text-blue-300 flex items-center gap-2 uppercase text-base">
               <Stethoscope size={18} /> Órdenes y Solicitudes
             </h4>
-            <span className="text-sm text-purple-400 font-semibold">
+            <span className="text-sm text-blue-400 font-semibold px-2 py-0.5 rounded bg-blue-900/50">
               Ref: {evolucionId}
             </span>
           </div>
 
-          <div className="divide-y divide-blue-900/30">
-            {sols.map((sol, i) => (
-              <div key={i} className="p-3 hover:bg-white/5 transition-colors">
-                {/* UNA SOLA LÍNEA: CARGO | DESCRIPCIÓN | FECHA */}
-                <div className="flex items-center gap-3 w-full">
-                  {/* Cargo fijo */}
-                  <span className="text-sm font-bold font-mono text-gray-300 shrink-0">
-                    {sol.cargo}
-                  </span>
-
-                  {/* Descripción ocupa lo restante y se corta con ... */}
-                  <span className="text-sm font-semibold text-purple-100 flex-1 min-w-0 truncate">
-                    {sol.descripcion}
-                  </span>
-
-                  {/* Fecha fija a la derecha */}
-                  <span className="text-sm font-mono text-gray-300 shrink-0">
-                    {sol.fecha_solicitud}
-                  </span>
+          <div className="p-1 space-y-4">
+            {Object.entries(groupedByServ).map(([servName, servSols], idx) => (
+              <div
+                key={idx}
+                className="bg-slate-900/30 rounded-lg border border-slate-700/50 overflow-hidden shadow-inner"
+              >
+                {/* Header de Servicio/Depto (Estilo tabla SIIS) */}
+                <div className="bg-blue-800/30 px-4 py-2 border-b border-slate-700/50 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">
+                      Servicio:
+                    </span>
+                    <span className="text-sm font-bold text-white uppercase">
+                      {servName}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">
+                      Departamento:
+                    </span>
+                    <span className="text-sm font-semibold text-gray-300 italic">
+                      {servSols[0].departamento_descripcion || "NO DEFINIDO"}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Observación opcional (si quieres también en 1 línea compacta) */}
-                {!!sol.observacion && (
-                  <div className="text-xs text-gray-300 italic truncate mt-1">
-                    Obs: {sol.observacion}
-                  </div>
-                )}
+                {/* Listado de items */}
+                <div className="divide-y divide-slate-700/30">
+                  {servSols.map((sol, i) => (
+                    <div
+                      key={i}
+                      className="px-4 py-3 hover:bg-white/5 transition-colors grid grid-cols-1 md:grid-cols-12 items-center gap-3"
+                    >
+                      <div className="md:col-span-2 text-xs font-mono text-blue-400 font-bold">
+                        {sol.fecha_solicitud}
+                      </div>
+                      <div className="md:col-span-1 text-sm font-bold font-mono text-gray-300">
+                        {sol.cargo}
+                      </div>
+                      <div className="md:col-span-9">
+                        <span className="text-sm font-bold text-white leading-tight">
+                          {sol.descripcion}
+                        </span>
+                        {!!sol.observacion && (
+                          <div className="text-[11px] text-yellow-400 italic mt-1 px-2 py-1 bg-yellow-400/5 rounded border border-yellow-400/10">
+                            Obs: {sol.observacion}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Footer compacto */}
-          <div className="bg-purple-950/20 p-2 text-center border-t border-blue-900/30">
+          {/* Footer acciones */}
+          <div className="bg-blue-950/20 p-2 text-center border-t border-blue-900/30">
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
               <button
                 onClick={() => historyService.printOrder(evolucionId)}
-                className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide"
+                className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide"
               >
-                <Printer size={14} /> Imprimir Orden
+                <Printer size={14} /> Imprimir Orden Completa
               </button>
               {permissions?.sw_correo && (
                 <button
                   onClick={() => handleSendEmail("ordenes", evolucionId)}
                   disabled={sendingEmail}
-                  className="text-purple-400 hover:text-purple-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide disabled:opacity-50"
+                  className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide disabled:opacity-50"
                 >
-                  <Mail size={14} /> Enviar al Correo
+                  <Mail size={14} /> Enviar por Correo
                 </button>
               )}
             </div>

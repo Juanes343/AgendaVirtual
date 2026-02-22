@@ -161,23 +161,29 @@ class ReportController extends Controller
             ->get();
 
         
-            // 2. Solicitudes / Ordenes
+            // 2. Solicitudes / Ordenes (Agrupadas por servicio para la vista de Hospitalización)
         $solicitudes = DB::table('hc_os_solicitudes as a')
             ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
+            ->leftJoin('os_maestro as om', 'a.hc_os_solicitud_id', '=', 'om.hc_os_solicitud_id')
+            ->leftJoin('os_ordenes_servicios as osv', 'om.orden_servicio_id', '=', 'osv.orden_servicio_id')
+            ->leftJoin('departamentos as dpto', 'osv.departamento', '=', 'dpto.departamento')
+            ->leftJoin('servicios as serv', 'dpto.servicio', '=', 'serv.servicio')
             ->where('e.ingreso', $ingreso)
             ->select(
                 'e.evolucion_id',
-                // 'a.fecha_solicitud as fecha_solicitud',
-                DB::raw("DATE(a.fecha_solicitud) as fecha_solicitud"),
+                DB::raw("TO_CHAR(a.fecha_solicitud, 'DD/MM/YYYY HH24:MI') as fecha_solicitud"),
                 'a.cargo as cargo',
-                'a.cargo as codigo', // Alias adicional para compatibilidad vistas
+                'a.cargo as codigo',
                 'b.descripcion as descripcion',
-                'b.descripcion as nombre_examen', // Alias adicional para compatibilidad vistas
+                'b.descripcion as nombre_examen',
                 'a.hc_os_solicitud_id',
                 'a.cantidad',
-                DB::raw("'' as observacion")
+                DB::raw("'' as observacion"),
+                DB::raw("COALESCE(serv.descripcion, 'SERVICIO NO DEFINIDO') as servicio_descripcion"),
+                DB::raw("COALESCE(dpto.descripcion, 'DEPTO NO DEFINIDO') as departamento_descripcion")
             )
+            ->orderBy('a.fecha_solicitud', 'desc')
             ->get();
 
         // 3. Incapacidades
