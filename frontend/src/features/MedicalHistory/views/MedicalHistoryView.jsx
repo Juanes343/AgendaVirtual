@@ -112,6 +112,8 @@ export default function MedicalHistoryView() {
   const [attachments, setAttachments] = useState([]);
   const [surgeries, setSurgeries] = useState([]); // Nuevo estado para cirugías
   const [diagnosticSupport, setDiagnosticSupport] = useState([]); // Nuevo estado para Apoyos Diagnósticos
+  const [diagnosticSearchTerm, setDiagnosticSearchTerm] = useState("");
+  const [diagnosticDateFilter, setDiagnosticDateFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedIngreso, setSelectedIngreso] = useState(null);
   const [activeTab, setActiveTab] = useState(1); // 1: Consulta Externa, 2: Apoyos Diagnósticos, 3: Cirugía
@@ -586,15 +588,99 @@ export default function MedicalHistoryView() {
           )
         ) : activeTab === 2 ? (
           /* ================= APOYOS DIAGNÓSTICOS (LISTA DEDICADA) ================= */
-          diagnosticSupport.length === 0 ? (
-            <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
-              <Activity className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-400">
-                No hay registros de Apoyos Diagnósticos para mostrar.
-              </p>
-            </div>
-          ) : (
-            diagnosticSupport.map(function (item, i) {
+          <div className="space-y-4">
+             {/* Buscador de Apoyos Diagnósticos */}
+             {diagnosticSupport.length > 0 && (
+              <div className="bg-white/5 backdrop-blur-md p-4 rounded-xl border border-white/10 mb-2 flex flex-col md:flex-row gap-4 items-center animate-fade-in shadow-xl">
+                <div className="flex-1 w-full relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-blue-400 group-focus-within:text-blue-300 transition-colors" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Buscar por descripción, profesional o #orden..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#0f172a]/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+                    value={diagnosticSearchTerm}
+                    onChange={(e) => setDiagnosticSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="w-full md:w-56 relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Calendar className="h-4 w-4 text-blue-400 group-focus-within:text-blue-300 transition-colors" />
+                  </div>
+                  <input
+                    type="date"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#0f172a]/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all font-bold cursor-pointer [color-scheme:dark]"
+                    value={diagnosticDateFilter}
+                    onChange={(e) => setDiagnosticDateFilter(e.target.value)}
+                  />
+                </div>
+                {(diagnosticSearchTerm || diagnosticDateFilter) && (
+                   <button 
+                     onClick={() => { setDiagnosticSearchTerm(""); setDiagnosticDateFilter(""); }}
+                     className="text-xs text-red-400 hover:text-red-300 transition-colors font-bold px-2 flex items-center gap-1"
+                   >
+                     Limpiar filtros
+                   </button>
+                )}
+              </div>
+            )}
+
+            {diagnosticSupport
+              .filter(item => {
+                  const term = diagnosticSearchTerm.toLowerCase();
+                  const searchMatch = !term || 
+                      item.descripcion?.toLowerCase().includes(term) ||
+                      item.cargo?.toLowerCase().includes(term) ||
+                      item.nombre_profesional?.toLowerCase().includes(term) ||
+                      (item.numero_cumplimiento || item.numero_orden_id)?.toString().includes(term);
+                  
+                  let dateMatch = true;
+                  if (diagnosticDateFilter) {
+                      const [y, m, d] = diagnosticDateFilter.split("-");
+                      const formattedFilterDate = `${d}/${m}/${y}`;
+                      dateMatch = item.fecha_cumplimiento?.includes(formattedFilterDate);
+                  }
+                  
+                  return searchMatch && dateMatch;
+              })
+              .length === 0 ? (
+              <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/10">
+                <Activity className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-400">
+                   {diagnosticSupport.length === 0 
+                    ? "No hay registros de Apoyos Diagnósticos para mostrar."
+                    : "No se encontraron registros para los filtros aplicados."}
+                </p>
+                {(diagnosticSearchTerm || diagnosticDateFilter) && (
+                    <button 
+                      onClick={() => { setDiagnosticSearchTerm(""); setDiagnosticDateFilter(""); }}
+                      className="mt-4 text-sm text-blue-500 hover:underline font-bold"
+                    >
+                      Mostrar todo el historial
+                    </button>
+                )}
+              </div>
+            ) : (
+              diagnosticSupport
+              .filter(item => {
+                  const term = diagnosticSearchTerm.toLowerCase();
+                  const searchMatch = !term || 
+                      item.descripcion?.toLowerCase().includes(term) ||
+                      item.cargo?.toLowerCase().includes(term) ||
+                      item.nombre_profesional?.toLowerCase().includes(term) ||
+                      (item.numero_cumplimiento || item.numero_orden_id)?.toString().includes(term);
+                  
+                  let dateMatch = true;
+                  if (diagnosticDateFilter) {
+                      const [y, m, d] = diagnosticDateFilter.split("-");
+                      const formattedFilterDate = `${d}/${m}/${y}`;
+                      dateMatch = item.fecha_cumplimiento?.includes(formattedFilterDate);
+                  }
+                  
+                  return searchMatch && dateMatch;
+              })
+              .map(function (item, i) {
               return (
                 <div
                   key={i}
@@ -676,7 +762,8 @@ export default function MedicalHistoryView() {
                 </div>
               );
             })
-          )
+          )}
+          </div>
         ) : activeTab === 3 ? (
           <div>
             {/* Navegación interna de Cirugía */}
