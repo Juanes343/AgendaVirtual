@@ -16,7 +16,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>SanDi•Med</h1>
+            <h1>{{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}</h1>
             <p>Portal del Paciente</p>
         </div>
         <div class="content">
@@ -39,7 +39,7 @@
             <p style="font-size:13px; color:#888; text-align:center;">Este enlace es válido por 24 horas. Si no solicitaste este registro, puedes ignorar este mensaje.</p>
         </div>
         <div class="footer">
-            <p>&copy; {{ date('Y') }} SanDi•Med. Todos los derechos reservados.</p>
+            <p>&copy; {{ date('Y') }} {{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}. Todos los derechos reservados.</p>
         </div>
     </div>
 </body>

@@ -4,7 +4,7 @@
     <h2 style="margin-top: 0;">Recuperación de Contraseña</h2>
     <p>Hola <strong>{{ $nombre }}</strong>,</p>
     
-    <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <strong>SanDi•Med</strong>.</p>
+    <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <strong>{{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}</strong>.</p>
     
     <p>Para continuar con el proceso, haz clic en el siguiente botón. Este enlace es válido por 60 minutos.</p>
     
@@ -21,5 +21,5 @@
 
     <p style="margin-top: 30px;">Si no solicitaste este cambio, puedes ignorar este mensaje con seguridad.</p>
     
-    <p>Saludos,<br>El equipo de SanDi•Med</p>
+    <p>Saludos,<br>El equipo de {{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}</p>
 @endsection

@@ -110,7 +110,7 @@ class AuthController extends Controller
                     'activationUrl' => $activationUrl
                 ], function ($message) use ($pacienteFinal) {
                     $message->to($pacienteFinal->email)
-                        ->subject('¡Bienvenido a SanDi•Med! - Activa tu cuenta');
+                        ->subject('¡Bienvenido a ' . env('APP_DISPLAY_NAME', 'SanDi•Med') . '! - Activa tu cuenta');
                 });
             }
 
@@ -262,7 +262,7 @@ class AuthController extends Controller
                 'activationUrl' => $verificationUrl
             ], function ($message) use ($paciente) {
                 $message->to($paciente->email)
-                    ->subject('Verifique su identidad - SanDi•Med');
+                    ->subject('Verifique su identidad - ' . env('APP_DISPLAY_NAME', 'SanDi•Med'));
             });
 
             return response()->json([

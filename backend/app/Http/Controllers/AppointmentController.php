@@ -695,7 +695,7 @@ class AppointmentController extends Controller
 
                     Mail::send('emails.appointment_confirmation', $dataMail, function ($message) use ($paciente) {
                         $message->to($paciente->email)
-                                ->subject('Confirmación de Cita Médica - SanDi•Med');
+                                ->subject('Confirmación de Cita Médica - ' . env('APP_DISPLAY_NAME', 'SanDi•Med'));
                     });
 
                     $msg = 'Cita agendada con éxito. La información fue enviada al correo registrado: ' . $paciente->email;
@@ -852,7 +852,7 @@ class AppointmentController extends Controller
  
                      Mail::send('emails.appointment_cancellation', $dataMail, function ($message) use ($citaCanceladaInfo) {
                          $message->to($citaCanceladaInfo->email)
-                                 ->subject('Cancelación de Cita - SanDi•Med');
+                                 ->subject('Cancelación de Cita - ' . env('APP_DISPLAY_NAME', 'SanDi•Med'));
                      });
  
                      $msg = 'Cita cancelada correctamente. La información fue enviada al correo registrado: ' . $citaCanceladaInfo->email;

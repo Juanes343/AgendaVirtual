@@ -28,7 +28,7 @@
                     <div class="main">
                         <!-- HEADER -->
                         <div class="header">
-                            <h1>SanDi•Med</h1>
+                            <h1>{{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}</h1>
                         </div>
                         
                         <!-- CONTENT -->
@@ -43,7 +43,7 @@
                         <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                             <tr>
                                 <td class="content-block">
-                                    <span class="apple-link">SanDi•Med Portal del Paciente</span>
+                                    <span class="apple-link">{{ env('APP_DISPLAY_NAME', 'SanDi•Med') }} Portal del Paciente</span>
                                     <br> No respondas a este correo electrónico.
                                 </td>
                             </tr>

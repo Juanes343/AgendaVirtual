@@ -109,7 +109,7 @@ export default function DashboardView() {
                 className="w-12 h-12 rounded-lg object-contain bg-blue-500/10 p-1"
               />
               <span className="text-2xl font-bold hidden sm:block">
-                SanDi•Med
+                {import.meta.env.VITE_APP_TITLE || "SanDi•Med"}
               </span>
             </div>
 
@@ -272,7 +272,7 @@ function InicioTab({ user, setActiveTab, canSchedule = true }) {
               ¡Hola, {user?.paciente?.primer_nombre || "Paciente"}!
             </h1>
             <p className="text-xl text-blue-200/60 font-semibold uppercase tracking-wide">
-              Portal del Paciente SanDi•Med
+              Portal del Paciente {import.meta.env.VITE_APP_TITLE || "SanDi•Med"}
             </p>
           </div>
           {canSchedule && (

@@ -116,7 +116,7 @@ export default function ActivateAccountView() {
                     <div className="mt-8 pt-6 border-t border-border/50">
                         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                             <ShieldCheck className="w-3 h-3" />
-                            <span>Sistema de Seguridad SanDi•Med</span>
+                            <span>Sistema de Seguridad {import.meta.env.VITE_APP_TITLE || "SanDi•Med"}</span>
                         </div>
                     </div>
                 </div>

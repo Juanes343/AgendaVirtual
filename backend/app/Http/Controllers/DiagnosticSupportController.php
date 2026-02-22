@@ -217,7 +217,7 @@ class DiagnosticSupportController extends Controller
 
             Mail::send('emails.diagnostic_result', $mailData, function($message) use ($paciente, $pdfContent, $resultado_id, $extraAttachment) {
                 $message->to($paciente->email)
-                        ->subject('Resultado de Apoyo Diagnóstico - SanDi•Med')
+                        ->subject('Resultado de Apoyo Diagnóstico - ' . env('APP_DISPLAY_NAME', 'SanDi•Med'))
                         ->attachData($pdfContent, 'resultado_examen_'.$resultado_id.'.pdf', [
                             'mime' => 'application/pdf',
                         ]);

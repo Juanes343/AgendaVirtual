@@ -19,7 +19,7 @@
 <body>
     <div class="container">
         <div class="logo">
-            <h1>SanDi•Med</h1>
+            <h1>{{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}</h1>
         </div>
         <div class="content">
             <div class="greeting">Hola, {{ $nombre }}</div>
@@ -32,10 +32,10 @@
 
             <p>Este enlace es válido por las próximas <b>24 horas</b>. Si usted no realizó esta solicitud, puede ignorar este mensaje.</p>
             
-            <p>Atentamente,<br><strong>El equipo de SanDi•Med</strong></p>
+            <p>Atentamente,<br><strong>El equipo de {{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}</strong></p>
         </div>
         <div class="footer">
-            © {{ date('Y') }} SanDi•Med - Portal del Paciente. Todos los derechos reservados.<br>
+            © {{ date('Y') }} {{ env('APP_DISPLAY_NAME', 'SanDi•Med') }} - Portal del Paciente. Todos los derechos reservados.<br>
             Este es un correo automático, por favor no responda.
         </div>
     </div>

@@ -17,7 +17,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>SanDi•Med</h1>
+            <h1>{{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}</h1>
             <p>Confirmación de Cita Médica</p>
         </div>
         <div class="content">
@@ -46,7 +46,7 @@
             </div>
         </div>
         <div class="footer">
-            <p>&copy; {{ date('Y') }} SanDi•Med. Todos los derechos reservados.</p>
+            <p>&copy; {{ date('Y') }} {{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}. Todos los derechos reservados.</p>
         </div>
     </div>
 </body>

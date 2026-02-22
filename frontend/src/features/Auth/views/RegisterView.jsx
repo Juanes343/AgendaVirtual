@@ -229,7 +229,7 @@ export default function RegisterView() {
                     <div className="flex items-center gap-3">
                         <img src={logo} alt="Logo" className="w-20 h-20 rounded-xl object-contain bg-primary/10 p-1" />
                         <div>
-                            <h1 className="text-3xl font-bold text-foreground">SanDi•Med</h1>
+                            <h1 className="text-3xl font-bold text-foreground">{import.meta.env.VITE_APP_TITLE || "SanDi•Med"}</h1>
                             <p className="text-base text-muted-foreground">Portal del Paciente</p>
                         </div>
                     </div>
