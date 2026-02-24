@@ -1182,7 +1182,7 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
             <button
               onClick={() => historyService.printFormula(evolucionId)}
-              className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide"
+              className="text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md"
             >
               <Printer size={14} /> Imprimir Fórmula
             </button>
@@ -1191,7 +1191,7 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
               <button
                 onClick={() => handleSendEmail("formula", evolucionId)}
                 disabled={sendingEmail}
-                className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide"
+                className="text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md disabled:opacity-50"
               >
                 <Mail size={14} /> Enviar al Correo
               </button>
@@ -1387,7 +1387,7 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
                 historyService.printIncapacidad &&
                 historyService.printIncapacidad(evolucionId)
               }
-              className="text-amber-400 hover:text-amber-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide"
+              className="text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md"
             >
               <Printer size={14} /> Imprimir Incapacidad
             </button>
@@ -1396,11 +1396,7 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
               <button
                 onClick={() => handleSendEmail("incapacidad", evolucionId)}
                 disabled={sendingEmail}
-                className={`flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide ${
-                  sendingEmail
-                    ? "text-gray-500 cursor-not-allowed"
-                    : "text-amber-400 hover:text-amber-300 hover:underline"
-                }`}
+                className="text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md disabled:opacity-50"
               >
                 <Mail size={14} /> Enviar al Correo
               </button>
@@ -1474,7 +1470,7 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
               <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
                 <button
                   onClick={() => historyService.printNoQx(ingresoId)}
-                  className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide"
+                  className="text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md"
                 >
                   <Printer size={14} /> Imprimir Formato
                 </button>
@@ -1518,11 +1514,7 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
                       }
                     }}
                     disabled={sendingEmail}
-                    className={`flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide ${
-                      sendingEmail
-                        ? "text-gray-500 cursor-not-allowed"
-                        : "text-blue-400 hover:text-blue-300 hover:underline"
-                    }`}
+                    className="text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md disabled:opacity-50"
                   >
                     <Mail size={14} /> Enviar al Correo
                   </button>

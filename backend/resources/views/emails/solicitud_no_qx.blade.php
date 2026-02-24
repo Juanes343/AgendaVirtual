@@ -26,7 +26,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>SanDi&bull;Med</h1>
+            <h1>{{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}</h1>
             <p>Reporte de Procedimientos No Quirúrgicos</p>
         </div>
         <div class="content">
@@ -55,7 +55,7 @@
         <div class="footer">
             <p>Este mensaje y sus adjuntos pueden contener información confidencial sometida a secreto profesional.</p>
             <p class="legal">Si usted no es el destinatario, por favor notifique al remitente y elimine este mensaje.</p>
-            <p>&copy; {{ date('Y') }} SanDi-Med. Todos los derechos reservados.</p>
+            <p>&copy; {{ date('Y') }} {{ env('APP_DISPLAY_NAME', 'SanDi•Med') }}. Todos los derechos reservados.</p>
         </div>
     </div>
 </body>
