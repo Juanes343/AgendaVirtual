@@ -1052,10 +1052,14 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
     });
   }, [ingresoId]);
 
-  const handleSendEmail = async (type = "all", evolucionId = null) => {
+  const handleSendEmail = async (type = "all", evolucionId = null, servicio = null) => {
     let msg = `Se enviará el reporte completo`;
     if (type === "formula") msg = `Se enviará la fórmula médica`;
-    if (type === "ordenes") msg = `Se enviarán las órdenes médicas`;
+    if (type === "ordenes") {
+      msg = servicio 
+        ? `Se enviarán las órdenes del servicio: ${servicio}`
+        : `Se enviarán las órdenes médicas`;
+    }
 
     const result = await Swal.fire({
       title: "¿Enviar reporte por correo?",
@@ -1074,7 +1078,7 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
 
     setSendingEmail(true);
     try {
-      await historyService.sendReportEmail(ingresoId, type, evolucionId);
+      await historyService.sendReportEmail(ingresoId, type, evolucionId, servicio);
       Swal.fire({
         title: "¡Enviado!",
         text: "El reporte ha sido enviado exitosamente a tu correo.",
@@ -1237,21 +1241,45 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
               >
                 {/* Header de Servicio/Depto (Estilo tabla SIIS) */}
                 <div className="bg-blue-800/30 px-4 py-2 border-b border-slate-700/50 flex flex-col md:flex-row md:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">
-                      Servicio:
-                    </span>
-                    <span className="text-sm font-bold text-white uppercase">
-                      {servName}
-                    </span>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">
+                        Servicio:
+                      </span>
+                      <span className="text-sm font-bold text-white uppercase">
+                        {servName}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">
+                        Departamento:
+                      </span>
+                      <span className="text-sm font-semibold text-gray-300 italic">
+                        {servSols[0].departamento_descripcion || "NO DEFINIDO"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">
-                      Departamento:
-                    </span>
-                    <span className="text-sm font-semibold text-gray-300 italic">
-                      {servSols[0].departamento_descripcion || "NO DEFINIDO"}
-                    </span>
+
+                  {/* Acciones por cada Tarjeta/Servicio */}
+                  <div className="flex items-center gap-4 border-l border-white/10 pl-4">
+                      <button
+                        onClick={() => historyService.printOrder(evolucionId, servName)}
+                        className="text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md"
+                        title="Imprimir solo las órdenes de este servicio"
+                      >
+                        <Printer size={14} /> Imprimir Orden
+                      </button>
+                      
+                      {permissions?.sw_correo && (
+                        <button
+                          onClick={() => handleSendEmail("ordenes", evolucionId, servName)}
+                          disabled={sendingEmail}
+                          className="text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md disabled:opacity-50"
+                          title="Enviar por correo las órdenes de este servicio"
+                        >
+                          <Mail size={14} /> Enviar por Correo
+                        </button>
+                      )}
                   </div>
                 </div>
 
@@ -1285,26 +1313,7 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
             ))}
           </div>
 
-          {/* Footer acciones */}
-          <div className="bg-blue-950/20 p-2 text-center border-t border-blue-900/30">
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-              <button
-                onClick={() => historyService.printOrder(evolucionId)}
-                className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide"
-              >
-                <Printer size={14} /> Imprimir Orden Completa
-              </button>
-              {permissions?.sw_correo && (
-                <button
-                  onClick={() => handleSendEmail("ordenes", evolucionId)}
-                  disabled={sendingEmail}
-                  className="text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wide disabled:opacity-50"
-                >
-                  <Mail size={14} /> Enviar por Correo
-                </button>
-              )}
-            </div>
-          </div>
+          {/* Footer acciones omitido para priorizar impresión individual por servicio */}
         </div>
       );
     });

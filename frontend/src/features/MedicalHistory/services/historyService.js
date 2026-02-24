@@ -27,8 +27,9 @@ const historyService = {
             })
             .catch(err => console.error("Error descargando PDF", err));
     },
-    printOrder: (evolucionId) => {
-        return api.get(`/medical-history/${evolucionId}/pdf-orden`, { responseType: 'blob' })
+    printOrder: (evolucionId, servicio = null) => {
+        const queryParams = servicio ? `?servicio=${encodeURIComponent(servicio)}` : '';
+        return api.get(`/medical-history/${evolucionId}/pdf-orden${queryParams}`, { responseType: 'blob' })
             .then((response) => {
                 const file = new Blob([response.data], { type: 'application/pdf' });
                 const fileURL = URL.createObjectURL(file);
@@ -109,10 +110,11 @@ const historyService = {
         const response = await api.post(`/medical-history/surgeries/${notaId}/send-email`);
         return response.data;
     },
-    sendReportEmail: async (ingresoId, type = 'all', evolucionId = null) => {
+    sendReportEmail: async (ingresoId, type = 'all', evolucionId = null, servicio = null) => {
         const response = await api.post(`/medical-history/${ingresoId}/send-email`, {
             type,
-            evolucion_id: evolucionId
+            evolucion_id: evolucionId,
+            servicio: servicio
         });
         return response.data;
     },

@@ -285,6 +285,7 @@ class ReportController extends Controller
     {
         $type = $request->input('type', 'all'); // 'all', 'formula', 'ordenes'
         $evolucionIdFilter = $request->input('evolucion_id', null);
+        $servicioFilter = $request->input('servicio', null);
 
         // 1. Obtener datos del ingreso 
         $detailResponse = $this->getHistoryDetail($ingreso);
@@ -307,6 +308,13 @@ class ReportController extends Controller
             }));
             $data->notas = array_values(array_filter($data->notas, function ($n) use ($evolucionIdFilter) {
                 return $n->evolucion_id == $evolucionIdFilter;
+            }));
+        }
+
+        // --- NUEVO: Filtro por Servicio ---
+        if ($servicioFilter && $type === 'ordenes') {
+            $data->solicitudes = array_values(array_filter($data->solicitudes, function ($s) use ($servicioFilter) {
+                return $s->servicio_descripcion === $servicioFilter;
             }));
         }
 
@@ -912,10 +920,12 @@ class ReportController extends Controller
     }
 
 
-    public function generateOrderPdf($evolucion_id)
+    public function generateOrderPdf(Request $request, $evolucion_id)
     {
         $header = $this->getHeaderData($evolucion_id);
         if (!$header) return response()->json(['error' => 'No encontrado'], 404);
+
+        $servicioFilter = $request->query('servicio');
 
         // --- Empresa ---
         $empresa = DB::table('empresas as e')
@@ -954,16 +964,27 @@ class ReportController extends Controller
         }
 
         // --- Solicitudes ---
-        $solicitudes = DB::table('hc_os_solicitudes as a')
+        $query = DB::table('hc_os_solicitudes as a')
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
+            ->leftJoin('os_maestro as om', 'a.hc_os_solicitud_id', '=', 'om.hc_os_solicitud_id')
+            ->leftJoin('os_ordenes_servicios as osv', 'om.orden_servicio_id', '=', 'osv.orden_servicio_id')
+            ->leftJoin('departamentos as dpto', 'osv.departamento', '=', 'dpto.departamento')
+            ->leftJoin('servicios as serv', 'dpto.servicio', '=', 'serv.servicio')
             ->where('a.evolucion_id', $evolucion_id)
-            ->where('a.sw_ambulatorio', '1')
-            ->select(
+            ->where('a.sw_ambulatorio', '1');
+
+        if ($servicioFilter) {
+            $query->where(DB::raw("COALESCE(serv.descripcion, 'SERVICIO NO DEFINIDO')"), $servicioFilter);
+        }
+
+        $solicitudes = $query->select(
                 'a.fecha_solicitud as fecha_solicitud',
                 'a.cargo',
                 'b.descripcion',
                 'a.hc_os_solicitud_id',
-                'a.cantidad'
+                'a.cantidad',
+                DB::raw("COALESCE(serv.descripcion, 'SERVICIO NO DEFINIDO') as servicio_descripcion"),
+                DB::raw("COALESCE(dpto.descripcion, 'DEPTO NO DEFINIDO') as departamento_descripcion")
             )
             ->get();
 
