@@ -824,11 +824,13 @@ class ReportController extends Controller
         // Calcular edad
         $edad = $header->fecha_nacimiento ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '';
 
-        // Diagnósticos
+        // Diagnósticos (Se buscan por ingreso para incluir todos los del episodio actual)
         $diagnosticos = DB::table('hc_diagnosticos_ingreso as a')
-            ->join('diagnosticos as b', 'a.tipo_diagnostico_id', '=', 'b.diagnostico_id')
-            ->where('a.evolucion_id', $evolucion_id)
+            ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
+            ->leftJoin('diagnosticos as b', 'a.tipo_diagnostico_id', '=', 'b.diagnostico_id')
+            ->where('e.ingreso', $header->ingreso)
             ->select('a.tipo_diagnostico_id as diagnostico_id', 'b.diagnostico_nombre')
+            ->distinct()
             ->get();
 
         // Medicamentos
@@ -991,11 +993,13 @@ class ReportController extends Controller
         $numero_orden = $solicitudes->min('hc_os_solicitud_id');
         $edad = $header->fecha_nacimiento ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '';
 
-        // --- Diagnósticos ---
+        // --- Diagnósticos (Todos los del ingreso) ---
         $diagnosticos = DB::table('hc_diagnosticos_ingreso as a')
-            ->join('diagnosticos as b', 'a.tipo_diagnostico_id', '=', 'b.diagnostico_id')
-            ->where('a.evolucion_id', $evolucion_id)
+            ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
+            ->leftJoin('diagnosticos as b', 'a.tipo_diagnostico_id', '=', 'b.diagnostico_id')
+            ->where('e.ingreso', $header->ingreso)
             ->select('a.tipo_diagnostico_id as diagnostico_id', 'b.diagnostico_nombre')
+            ->distinct()
             ->get();
 
         $diagnostico_principal = $diagnosticos->first()
@@ -1079,7 +1083,7 @@ class ReportController extends Controller
 
         // --- Incapacidades ---
         $incapacidades = DB::table('hc_incapacidades as a')
-            ->join('diagnosticos as d', 'a.diagnostico_id', '=', 'd.diagnostico_id')
+            ->leftJoin('diagnosticos as d', 'a.diagnostico_id', '=', 'd.diagnostico_id')
             ->leftJoin('hc_tipos_incapacidad as ti', 'a.tipo_incapacidad_id', '=', 'ti.tipo_incapacidad_id')
             ->where('a.evolucion_id', $evolucion_id)
             ->select(
