@@ -160,7 +160,7 @@
         <tr>
             <td class="header-label">NO. ORDEN</td>
             <td width="35%">{{ $header->numero_orden_id ?? '' }}</td>
-            <td class="header-label">FECHA</td>
+            <td class="header-label">FECHA CUMPLIMIENTO</td>
             <td>{{ $header->fecha_cumplimiento ?? '' }}</td>
         </tr>
         <tr>
@@ -171,7 +171,7 @@
         </tr>
         <tr>
             <td class="header-label">PLAN / ENTIDAD</td>
-            <td colspan="3">{{ $header->plan_descripcion ?? '' }} - {{ $header->laboratorio ?? '' }}</td>
+            <td colspan="3">{{ $header->plan_descripcion ?? '' }}</td>
         </tr>
         @if($header->eps_punto_atencion_nombre)
         <tr>

@@ -169,7 +169,7 @@
             <td class="header-label">NO. INGRESO</td>
             <td width="35%">{{ $ingreso }}</td>
             <td class="header-label">FECHA SOLICITUD</td>
-            <td>{{ $fecha ?? date('Y-m-d') }}</td>
+            <td>{{ isset($fecha) ? date('Y-m-d', strtotime($fecha)) : date('Y-m-d') }}</td>
         </tr>
         <tr>
             <td class="header-label">IDENTIFICACION</td>
@@ -206,7 +206,7 @@
 
                     <!-- Derecha -->
                     <td style="width:15%; font-weight:bold;">FECHA:</td>
-                    <td style="width:35%;">{{ $proc->fecha ?? $fecha }}</td>
+                    <td style="width:35%;">{{ isset($proc->fecha) ? date('Y-m-d', strtotime($proc->fecha)) : (isset($fecha) ? date('Y-m-d', strtotime($fecha)) : date('Y-m-d')) }}</td>
                 </tr>
 
                 <!-- OBSERVACIÓN -->

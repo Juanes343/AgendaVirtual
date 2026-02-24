@@ -32,6 +32,7 @@ class HospitalizationController extends Controller
             ->join('servicios as s', 's.servicio', '=', 'dp.servicio')
             ->leftJoin('hc_encuesta_satisfaccion as enc', 'd.ingreso', '=', 'enc.ingreso')
             ->where('a.sw_estado', '1')
+            ->where('a.sw_ambulatorio', '1')
             ->whereNotIn('s.servicio', ['0', '3', '5', '99'])
             ->where('d.paciente_id', $pacienteId)
             ->where('d.tipo_id_paciente', $tipoDoc)
@@ -59,6 +60,7 @@ class HospitalizationController extends Controller
             ->join('servicios as s', 's.servicio', '=', 'dp.servicio')
             ->leftJoin('hc_encuesta_satisfaccion as enc', 'd.ingreso', '=', 'enc.ingreso')
             ->whereIn('c.sw_estado', ['1', '2', '3'])
+            ->where('a.sw_ambulatorio', '1')
             ->whereNotIn('s.servicio', ['0', '3', '5', '99'])
             ->where('d.paciente_id', $pacienteId)
             ->where('d.tipo_id_paciente', $tipoDoc)
@@ -235,6 +237,7 @@ class HospitalizationController extends Controller
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
             ->join('hc_evoluciones as d', 'a.evolucion_id', '=', 'd.evolucion_id')
             ->where('d.ingreso', $ingreso)
+            ->where('a.sw_ambulatorio', '1')
             ->select(
                 'a.cargo',
                 'b.descripcion',
@@ -427,6 +430,7 @@ class HospitalizationController extends Controller
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
             ->join('hc_evoluciones as d', 'a.evolucion_id', '=', 'd.evolucion_id')
             ->where('d.ingreso', $ingreso)
+            ->where('a.sw_ambulatorio', '1')
             ->select(
                 'a.cargo',
                 'b.descripcion',

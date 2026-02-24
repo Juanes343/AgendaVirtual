@@ -137,7 +137,7 @@ class SurgeryReportService
             ->select(
                 'a.*',
                 'e.ingreso',
-                'i.fecha_ingreso',
+                DB::raw("TO_CHAR(i.fecha_ingreso, 'YYYY-MM-DD') as fecha_ingreso"),
                 'cu.numerodecuenta',
                 'pl.plan_descripcion',
                 'pl.plan_descripcion as nombre_plan_full',

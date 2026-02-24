@@ -170,6 +170,7 @@ class ReportController extends Controller
             ->leftJoin('departamentos as dpto', 'osv.departamento', '=', 'dpto.departamento')
             ->leftJoin('servicios as serv', 'dpto.servicio', '=', 'serv.servicio')
             ->where('e.ingreso', $ingreso)
+            ->where('a.sw_ambulatorio', '1')
             ->select(
                 'e.evolucion_id',
                 DB::raw("TO_CHAR(a.fecha_solicitud, 'DD/MM/YYYY HH24:MI') as fecha_solicitud"),
@@ -244,6 +245,7 @@ class ReportController extends Controller
             ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
             ->where('e.ingreso', $ingreso)
+            ->where('a.sw_ambulatorio', '1')
             ->select(
                 'a.hc_os_solicitud_id',
                 'a.hc_os_solicitud_id as numero_solicitud',
@@ -955,6 +957,7 @@ class ReportController extends Controller
         $solicitudes = DB::table('hc_os_solicitudes as a')
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
             ->where('a.evolucion_id', $evolucion_id)
+            ->where('a.sw_ambulatorio', '1')
             ->select(
                 'a.fecha_solicitud as fecha_solicitud',
                 'a.cargo',
