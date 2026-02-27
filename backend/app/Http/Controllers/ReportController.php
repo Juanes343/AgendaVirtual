@@ -342,6 +342,7 @@ class ReportController extends Controller
         $type = $request->input('type', 'all'); // 'all', 'formula', 'ordenes'
         $evolucionIdFilter = $request->input('evolucion_id', null);
         $servicioFilter = $request->input('servicio', null);
+        $idsFilter = $request->input('ids', null);
 
         // 1. Obtener datos del ingreso 
         $detailResponse = $this->getHistoryDetail($ingreso);
@@ -367,8 +368,15 @@ class ReportController extends Controller
             }));
         }
 
-        // --- NUEVO: Filtro por Servicio ---
-        if ($servicioFilter && $type === 'ordenes') {
+        // --- NUEVO: Filtro por IDs (Prioridad) ---
+        if ($idsFilter && $type === 'ordenes') {
+            $ids = is_array($idsFilter) ? $idsFilter : explode(',', $idsFilter);
+            $data->solicitudes = array_values(array_filter($data->solicitudes, function ($s) use ($ids) {
+                return in_array($s->hc_os_solicitud_id, $ids);
+            }));
+        }
+        // --- NUEVO: Filtro por Servicio (Fallback) ---
+        elseif ($servicioFilter && $type === 'ordenes') {
             $data->solicitudes = array_values(array_filter($data->solicitudes, function ($s) use ($servicioFilter) {
                 return $s->servicio_descripcion === $servicioFilter;
             }));

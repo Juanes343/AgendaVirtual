@@ -1053,7 +1053,7 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
     });
   }, [ingresoId]);
 
-  const handleSendEmail = async (type = "all", evolucionId = null, servicio = null) => {
+  const handleSendEmail = async (type = "all", evolucionId = null, servicio = null, ids = null) => {
     let msg = `Se enviará el reporte completo`;
     if (type === "formula") msg = `Se enviará la fórmula médica`;
     if (type === "ordenes") {
@@ -1079,7 +1079,7 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
 
     setSendingEmail(true);
     try {
-      await historyService.sendReportEmail(ingresoId, type, evolucionId, servicio);
+      await historyService.sendReportEmail(ingresoId, type, evolucionId, servicio, ids);
       Swal.fire({
         title: "¡Enviado!",
         text: "El reporte ha sido enviado exitosamente a tu correo.",
@@ -1360,7 +1360,10 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
                           
                           {permissions?.sw_correo && (
                             <button
-                              onClick={() => handleSendEmail("ordenes", evolucionId, typeSols[0].servicio_descripcion)}
+                              onClick={() => {
+                                const ids = typeSols.map(s => s.hc_os_solicitud_id).join(',');
+                                handleSendEmail("ordenes", evolucionId, typeSols[0].servicio_descripcion, ids);
+                              }}
                               disabled={sendingEmail}
                               className="text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md disabled:opacity-50"
                             >
@@ -1509,7 +1512,10 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
                   {/* Acciones por cada Tarjeta/Servicio */}
                   <div className="flex items-center gap-4 border-l border-white/10 pl-4">
                       <button
-                        onClick={() => historyService.printOrder(evolucionId, servName)}
+                        onClick={() => {
+                           const ids = servSols.map(s => s.hc_os_solicitud_id).join(',');
+                           historyService.printOrder(evolucionId, servName, null, ids);
+                        }}
                         className="text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md"
                         title="Imprimir solo las órdenes de este servicio"
                       >
@@ -1518,7 +1524,10 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
                       
                       {permissions?.sw_correo && (
                         <button
-                          onClick={() => handleSendEmail("ordenes", evolucionId, servName)}
+                          onClick={() => {
+                             const ids = servSols.map(s => s.hc_os_solicitud_id).join(',');
+                             handleSendEmail("ordenes", evolucionId, servName, ids);
+                          }}
                           disabled={sendingEmail}
                           className="text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md disabled:opacity-50"
                           title="Enviar por correo las órdenes de este servicio"
