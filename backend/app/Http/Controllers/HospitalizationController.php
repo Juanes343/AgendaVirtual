@@ -32,7 +32,7 @@ class HospitalizationController extends Controller
             ->join('servicios as s', 's.servicio', '=', 'dp.servicio')
             ->leftJoin('hc_encuesta_satisfaccion as enc', 'd.ingreso', '=', 'enc.ingreso')
             ->where('a.sw_estado', '1')
-            ->where('a.sw_ambulatorio', '1')
+            ->where('a.sw_ambulatorio', '1') // MANTENER: En hospitalización SOLO mostramos ambulatorias/pendientes para imprimir
             ->whereNotIn('s.servicio', ['0', '3', '5', '99'])
             ->where('d.paciente_id', $pacienteId)
             ->where('d.tipo_id_paciente', $tipoDoc)

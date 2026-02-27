@@ -401,6 +401,7 @@ export default function MedicalHistoryView() {
         ingresoId={selectedIngreso}
         onBack={() => setSelectedIngreso(null)}
         permissions={getModulePermissions(activeTab)}
+        activeTab={activeTab}
       />
     );
   }
@@ -1033,7 +1034,7 @@ export default function MedicalHistoryView() {
   );
 }
 
-function HistoryDetail({ ingresoId, onBack, permissions }) {
+function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
   const [details, setDetails] = useState({
     medicamentos: [],
     solicitudes: [],
@@ -1205,7 +1206,36 @@ function HistoryDetail({ ingresoId, onBack, permissions }) {
   const renderSolicitudes = () => {
     if (!details.solicitudes || details.solicitudes.length === 0) return null;
 
-    const groupedByEvol = details.solicitudes.reduce((acc, curr) => {
+    // FILTRO ADICIONAL: Si estamos en Hospitalización (Tab 4), mostrar SOLO las órdenes ambulatorias
+    // En el backend quitamos el filtro para Consulta Externa, así que aquí lo re-aplicamos según el contexto.
+    // Nota: El backend no envía 'sw_ambulatorio', pero podemos inferirlo o filtrar por tipo si es necesario.
+    // Si la solicitud es intrahospitalaria, usualmente no se imprime al paciente.
+    // Sin embargo, si no tenemos la marca 'sw_ambulatorio' en el JSON, dependemos del backend.
+    
+    // CORRECCIÓN: Como el backend ya manda TODO, filtramos en el frontend si es Hospitalización.
+    // Pero necesitamos saber cuál es ambulatoria. Vamos a asumir que en Consulta Externa se ven todas,
+    // y en Hospitalización el usuario quiere ver las que son "de egreso" (Ambulatorias).
+    // Si no tenemos el campo, es mejor pedir que se agregue al SELECT del backend.
+    
+    // INTENTO 1: Filtrar visualmente basado en reglas de negocio o mostrar todo pero indicando.
+    // Dado que el usuario pide específicamente que en hospitalización salgan solo un tipo,
+    // y no tenemos el campo sw_ambulatorio en el proptype actual del frontend, voy a modificar el backend
+    // para que nos envíe ese campo ("sw_ambulatorio") y poder filtrar aquí.
+    
+    let solicitudesFiltradas = details.solicitudes;
+
+    // FILTRO ESPECÍFICO PARA HOSPITALIZACIÓN (Tab 4): Mostrar SOLO órdenes ambulatorias (Ej. Egresos)
+    // El backend ahora envía 'sw_ambulatorio'. '1' = Ambulatorio, '0' = Intrahospitalario/Urgencias
+    if (activeTab === 4) {
+      solicitudesFiltradas = details.solicitudes.filter(
+        (s) => s.sw_ambulatorio === "1" || s.sw_ambulatorio === 1
+      );
+    }
+  
+    // Si no hay solicitudes después del filtro, retornar null
+    if (!solicitudesFiltradas || solicitudesFiltradas.length === 0) return null;
+
+    const groupedByEvol = solicitudesFiltradas.reduce((acc, curr) => {
       (acc[curr.evolucion_id] = acc[curr.evolucion_id] || []).push(curr);
       return acc;
     }, {});

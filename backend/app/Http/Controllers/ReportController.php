@@ -169,9 +169,15 @@ class ReportController extends Controller
             ->leftJoin('os_ordenes_servicios as osv', 'om.orden_servicio_id', '=', 'osv.orden_servicio_id')
             ->leftJoin('departamentos as dpto', 'osv.departamento', '=', 'dpto.departamento')
             ->leftJoin('servicios as serv', 'dpto.servicio', '=', 'serv.servicio')
+            
+            // JOINS ADICIONALES para obtener servicio/depto cuando no hay orden de servicio (os_maestro/os_ordenes_servicios)
+            // Esto corrige el problema de "SERVICIO NO DEFINIDO" en solicitudes ambulatorias sin orden generada aún
+            ->leftJoin('departamentos as dpto_ev', 'e.departamento', '=', 'dpto_ev.departamento')
+            ->leftJoin('servicios as serv_ev', 'dpto_ev.servicio', '=', 'serv_ev.servicio')
+
             ->where('e.ingreso', $ingreso)
-            ->where('a.sw_ambulatorio', '1')
-            ->select(
+            // ->where('a.sw_ambulatorio', '1') // COMENTADO: Se eliminó el filtro global para permitir ver todo en Consulta Externa
+             ->select(
                 'e.evolucion_id',
                 DB::raw("TO_CHAR(a.fecha_solicitud, 'DD/MM/YYYY HH24:MI') as fecha_solicitud"),
                 'a.cargo as cargo',
@@ -180,9 +186,12 @@ class ReportController extends Controller
                 'b.descripcion as nombre_examen',
                 'a.hc_os_solicitud_id',
                 'a.cantidad',
+                'a.sw_ambulatorio', // AGREGADO: Para filtro en Frontend Hospitalización
                 DB::raw("'' as observacion"),
-                DB::raw("COALESCE(serv.descripcion, 'SERVICIO NO DEFINIDO') as servicio_descripcion"),
-                DB::raw("COALESCE(dpto.descripcion, 'DEPTO NO DEFINIDO') as departamento_descripcion")
+                // Prioridad: 1. Servicio de la Orden Generada, 2. Servicio de la Evolución (Origen), 3. Indefinido
+                DB::raw("COALESCE(serv.descripcion, serv_ev.descripcion, 'SERVICIO NO DEFINIDO') as servicio_descripcion"),
+                DB::raw("COALESCE(dpto.descripcion, dpto_ev.descripcion, 'DEPTO NO DEFINIDO') as departamento_descripcion"),
+                'b.grupo_tipo_cargo' // Añadir grupo para facilitar agrupación en Frontend si se requiere
             )
             ->orderBy('a.fecha_solicitud', 'desc')
             ->get();
