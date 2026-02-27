@@ -27,9 +27,15 @@ const historyService = {
             })
             .catch(err => console.error("Error descargando PDF", err));
     },
-    printOrder: (evolucionId, servicio = null) => {
-        const queryParams = servicio ? `?servicio=${encodeURIComponent(servicio)}` : '';
-        return api.get(`/medical-history/${evolucionId}/pdf-orden${queryParams}`, { responseType: 'blob' })
+    printOrder: (evolucionId, servicio = null, tipo = null, ids = null) => {
+        const params = new URLSearchParams();
+        if (servicio) params.append('servicio', servicio);
+        if (tipo) params.append('tipo', tipo);
+        if (ids) params.append('ids', ids);
+        
+        const queryString = params.toString() ? `?${params.toString()}` : '';
+
+        return api.get(`/medical-history/${evolucionId}/pdf-orden${queryString}`, { responseType: 'blob' })
             .then((response) => {
                 const file = new Blob([response.data], { type: 'application/pdf' });
                 const fileURL = URL.createObjectURL(file);

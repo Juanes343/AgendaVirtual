@@ -127,21 +127,15 @@
       <td class="header-label">EDAD / SEXO</td>
       <td>{{ $edad ?? '' }} Años / {{ $paciente->sexo_id ?? '' }}</td>
     </tr>
-
+    
+    <!-- 
     <tr>
       <td class="header-label">PLAN</td>
       <td colspan="3">
-        {{ $paciente->plan_descripcion ?? '' }}
-        @if(!empty($paciente->tipo_afiliado_descripcion))
-          <span style="font-weight:normal; margin-left: 20px;">TIPO AFILIADO: {{ $paciente->tipo_afiliado_descripcion }}</span>
-        @elseif(!empty($paciente->tipo_afiliado_id))
-          <span style="font-weight:normal; margin-left: 20px;">TIPO AFILIADO: {{ $paciente->tipo_afiliado_id }}</span>
-        @endif
-        @if(!empty($paciente->rango))
-          <span style="font-weight:normal; margin-left: 20px;">RANGO: {{ $paciente->rango }}</span>
-        @endif
+        ...
       </td>
     </tr>
+    -->
 
     <tr>
       <td class="header-label">ESPECIALIDAD</td>

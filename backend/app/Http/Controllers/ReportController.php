@@ -165,33 +165,80 @@ class ReportController extends Controller
         $solicitudes = DB::table('hc_os_solicitudes as a')
             ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
+            ->leftJoin('planes as pl', 'a.plan_id', '=', 'pl.plan_id')
+            ->leftJoin('os_tipos_solicitudes as ts', 'a.os_tipo_solicitud_id', '=', 'ts.os_tipo_solicitud_id')
+            
+            // JOINS para Apoyos Diagnosticos y Tipos
+            ->leftJoin('apoyod_cargos as ac', 'a.cargo', '=', 'ac.cargo')
+            ->leftJoin('apoyod_tipos as at', 'ac.apoyod_tipo_id', '=', 'at.apoyod_tipo_id') // Corrección: join con at en lugar de n
+
+            // JOINS de Observaciones y Justificaciones (Basado en Legacy)
+            ->leftJoin('hc_os_solicitudes_apoyod as obs_apo', 'a.hc_os_solicitud_id', '=', 'obs_apo.hc_os_solicitud_id')
+            ->leftJoin('hc_os_solicitudes_interconsultas as obs_int', 'a.hc_os_solicitud_id', '=', 'obs_int.hc_os_solicitud_id')
+            ->leftJoin('hc_os_solicitudes_no_quirurgicos as obs_noqx', 'a.hc_os_solicitud_id', '=', 'obs_noqx.hc_os_solicitud_id')
+            ->leftJoin('hc_os_solicitudes_acto_qx as obs_qx', 'a.hc_os_solicitud_id', '=', 'obs_qx.hc_os_solicitud_id') // Corrección: tabla real es hc_os_solicitudes_acto_qx
+            
+            // JOINS para Justificaciones NO POS (Tablas separadas, no columnas en hc_os_solicitudes)
+            ->leftJoin('hc_justificacion_procedimientos_no_pos_d as jd', 'a.hc_os_solicitud_id', '=', 'jd.hc_os_solicitud_id')
+            ->leftJoin('hc_justificacion_procedimientos_no_pos_qx_detalle as jx', 'a.hc_os_solicitud_id', '=', 'jx.hc_os_solicitud_id')
+
             ->leftJoin('os_maestro as om', 'a.hc_os_solicitud_id', '=', 'om.hc_os_solicitud_id')
             ->leftJoin('os_ordenes_servicios as osv', 'om.orden_servicio_id', '=', 'osv.orden_servicio_id')
             ->leftJoin('departamentos as dpto', 'osv.departamento', '=', 'dpto.departamento')
             ->leftJoin('servicios as serv', 'dpto.servicio', '=', 'serv.servicio')
             
-            // JOINS ADICIONALES para obtener servicio/depto cuando no hay orden de servicio (os_maestro/os_ordenes_servicios)
-            // Esto corrige el problema de "SERVICIO NO DEFINIDO" en solicitudes ambulatorias sin orden generada aún
+            // JOINS ADICIONALES para obtener servicio/depto cuando no hay orden de servicio 
             ->leftJoin('departamentos as dpto_ev', 'e.departamento', '=', 'dpto_ev.departamento')
             ->leftJoin('servicios as serv_ev', 'dpto_ev.servicio', '=', 'serv_ev.servicio')
 
             ->where('e.ingreso', $ingreso)
-            // ->where('a.sw_ambulatorio', '1') // COMENTADO: Se eliminó el filtro global para permitir ver todo en Consulta Externa
              ->select(
                 'e.evolucion_id',
                 DB::raw("TO_CHAR(a.fecha_solicitud, 'DD/MM/YYYY HH24:MI') as fecha_solicitud"),
+                'a.fecha_registro',
                 'a.cargo as cargo',
                 'a.cargo as codigo',
+                'b.descripcion as descar', 
                 'b.descripcion as descripcion',
                 'b.descripcion as nombre_examen',
                 'a.hc_os_solicitud_id',
                 'a.cantidad',
-                'a.sw_ambulatorio', // AGREGADO: Para filtro en Frontend Hospitalización
-                DB::raw("'' as observacion"),
-                // Prioridad: 1. Servicio de la Orden Generada, 2. Servicio de la Evolución (Origen), 3. Indefinido
+                'a.sw_ambulatorio',
+                
+                // Tipo de solicitud y descripción
+                'a.os_tipo_solicitud_id',
+                'ts.descripcion as desos', 
+                
+                // Apoyo Diagnostico Tipo (Subtipo)
+                'at.apoyod_tipo_id',
+                'at.descripcion as apoyod_tipo_descripcion', // Descripción del subtipo (ej. IMAGENOLOGIA)
+
+                // Plan descripcion
+                'pl.plan_descripcion',
+                
+                // Justificaciones NO POS (Aliases calculados si existe el ID en la tabla joined)
+                DB::raw("CASE WHEN jd.hc_os_solicitud_id IS NOT NULL THEN jd.hc_os_solicitud_id ELSE NULL END as justificacion_nopos"),
+                DB::raw("CASE WHEN jx.hc_os_solicitud_id IS NOT NULL THEN jx.hc_os_solicitud_id ELSE NULL END as justificacion_nopos_qx"),
+
+                // Observaciones Específicas
+                // 'a.observacion', // ERROR: No existe columna observacion en hc_os_solicitudes
+                'obs_apo.observacion as obsapoyo',
+                'obs_int.observacion as obsinter',
+                'obs_noqx.observacion as obsnoqx',
+                'obs_qx.observacion as obsqx',
+                
+                // Unificar observaciones en una sola columna para facilitar visualización si se quiere genérico, 
+                // o dejarlas separadas como están arriba.
+                // En el legacy se muestran por separado.
+                DB::raw("COALESCE(obs_apo.observacion, obs_int.observacion, obs_noqx.observacion, obs_qx.observacion, '') as observacion"),
+
+                // Servicio y Depto
                 DB::raw("COALESCE(serv.descripcion, serv_ev.descripcion, 'SERVICIO NO DEFINIDO') as servicio_descripcion"),
+                DB::raw("COALESCE(serv.descripcion, serv_ev.descripcion, 'SERVICIO NO DEFINIDO') as desserv"), 
                 DB::raw("COALESCE(dpto.descripcion, dpto_ev.descripcion, 'DEPTO NO DEFINIDO') as departamento_descripcion"),
-                'b.grupo_tipo_cargo' // Añadir grupo para facilitar agrupación en Frontend si se requiere
+                DB::raw("COALESCE(dpto.descripcion, dpto_ev.descripcion, 'DEPTO NO DEFINIDO') as despto"),
+
+                'b.grupo_tipo_cargo'
             )
             ->orderBy('a.fecha_solicitud', 'desc')
             ->get();
@@ -937,6 +984,11 @@ class ReportController extends Controller
         if (!$header) return response()->json(['error' => 'No encontrado'], 404);
 
         $servicioFilter = $request->query('servicio');
+        $tipoFilter = $request->query('tipo'); 
+        
+        // Nuevo: Filtro por IDs específicos (para impresión exacta de lo que ve el usuario)
+        // Se espera ?ids=123,124,125
+        $idsFilter = $request->query('ids'); 
 
         // --- Empresa ---
         $empresa = DB::table('empresas as e')
@@ -977,15 +1029,47 @@ class ReportController extends Controller
         // --- Solicitudes ---
         $query = DB::table('hc_os_solicitudes as a')
             ->join('cups as b', 'a.cargo', '=', 'b.cargo')
+            ->join('hc_evoluciones as e', 'a.evolucion_id', '=', 'e.evolucion_id')
+            ->leftJoin('planes as pl', 'a.plan_id', '=', 'pl.plan_id')
+            ->leftJoin('os_tipos_solicitudes as ts', 'a.os_tipo_solicitud_id', '=', 'ts.os_tipo_solicitud_id')
+            ->leftJoin('apoyod_cargos as ac', 'a.cargo', '=', 'ac.cargo')
+            ->leftJoin('apoyod_tipos as at', 'ac.apoyod_tipo_id', '=', 'at.apoyod_tipo_id')
+            
+            // JOINS de Observaciones (Separadas para mostrarlas si existen)
+            ->leftJoin('hc_os_solicitudes_apoyod as obs_apo', 'a.hc_os_solicitud_id', '=', 'obs_apo.hc_os_solicitud_id')
+            ->leftJoin('hc_os_solicitudes_interconsultas as obs_int', 'a.hc_os_solicitud_id', '=', 'obs_int.hc_os_solicitud_id')
+            ->leftJoin('hc_os_solicitudes_no_quirurgicos as obs_noqx', 'a.hc_os_solicitud_id', '=', 'obs_noqx.hc_os_solicitud_id')
+            ->leftJoin('hc_os_solicitudes_acto_qx as obs_qx', 'a.hc_os_solicitud_id', '=', 'obs_qx.hc_os_solicitud_id')
+
             ->leftJoin('os_maestro as om', 'a.hc_os_solicitud_id', '=', 'om.hc_os_solicitud_id')
             ->leftJoin('os_ordenes_servicios as osv', 'om.orden_servicio_id', '=', 'osv.orden_servicio_id')
             ->leftJoin('departamentos as dpto', 'osv.departamento', '=', 'dpto.departamento')
             ->leftJoin('servicios as serv', 'dpto.servicio', '=', 'serv.servicio')
-            ->where('a.evolucion_id', $evolucion_id)
-            ->where('a.sw_ambulatorio', '1');
+            
+            ->leftJoin('departamentos as dpto_ev', 'e.departamento', '=', 'dpto_ev.departamento')
+            ->leftJoin('servicios as serv_ev', 'dpto_ev.servicio', '=', 'serv_ev.servicio')
+
+            ->where('a.evolucion_id', $evolucion_id);
+            // ->where('a.sw_ambulatorio', '1');
 
         if ($servicioFilter) {
-            $query->where(DB::raw("COALESCE(serv.descripcion, 'SERVICIO NO DEFINIDO')"), $servicioFilter);
+            $query->where(DB::raw("COALESCE(serv.descripcion, serv_ev.descripcion, 'SERVICIO NO DEFINIDO')"), $servicioFilter);
+        }
+
+        // Nuevo: Filtrar por IDs específicos si se envían (prioridad más alta)
+        if ($idsFilter) {
+            $ids = is_array($idsFilter) ? $idsFilter : explode(',', $idsFilter);
+            $query->whereIn('a.hc_os_solicitud_id', $ids);
+        }
+        // Si no hay IDs, usar el filtro por Tipo como fallback
+        elseif ($tipoFilter) {
+            // Replicar la logica de agrupamiento del blade para filtrar
+            $query->where(function($q) use ($tipoFilter) {
+                // Caso 1: Tiene subtipo (ej. 'Apoyos Diagnosticos - IMAGENOLOGIA')
+                $q->whereRaw("CONCAT(ts.descripcion, ' - ', at.descripcion) = ?", [$tipoFilter])
+                  // Caso 2: Solo tipo (ej. 'Interconsultas')
+                  ->orWhere('ts.descripcion', '=', $tipoFilter);
+            });
         }
 
         $solicitudes = $query->select(
@@ -994,8 +1078,16 @@ class ReportController extends Controller
                 'b.descripcion',
                 'a.hc_os_solicitud_id',
                 'a.cantidad',
-                DB::raw("COALESCE(serv.descripcion, 'SERVICIO NO DEFINIDO') as servicio_descripcion"),
-                DB::raw("COALESCE(dpto.descripcion, 'DEPTO NO DEFINIDO') as departamento_descripcion")
+                'pl.plan_descripcion',
+                'ts.descripcion as tipo_solicitud_descripcion',
+                'at.descripcion as apoyod_tipo_descripcion',
+                'ts.os_tipo_solicitud_id',
+                
+                // Observaciones concatenadas o individuales según necesidad
+                DB::raw("COALESCE(obs_apo.observacion, obs_int.observacion, obs_noqx.observacion, obs_qx.observacion, '') as observacion"),
+
+                DB::raw("COALESCE(serv.descripcion, serv_ev.descripcion, 'AMBULATORIO') as servicio_descripcion"),
+                DB::raw("COALESCE(dpto.descripcion, dpto_ev.descripcion, 'CONSULTA EXTERNA') as departamento_descripcion")
             )
             ->get();
 

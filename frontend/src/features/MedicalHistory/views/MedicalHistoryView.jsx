@@ -1241,7 +1241,223 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
     }, {});
 
     return Object.entries(groupedByEvol).map(([evolucionId, sols]) => {
-      // Agrupamiento por SERVICIO dentro de la evolución
+      
+      // LOGICA DIFERENCIADA: Consulta Externa (Tab 1) vs Otros
+      if (activeTab === 1) {
+         // Agrupar por TIPO DE SOLICITUD combinando 'desos' y subtipo
+         // Segun el PHP, hay dos bloques grandes: NO Laboratorios y Laboratorios.
+         // Pero visualmente en el frontend moderno, simplemente agrupamos por tipo/subtipo.
+         
+         const groupedByType = sols.reduce((acc, curr) => {
+            // Lógica replicada del PHP: 
+            // TIPO: tapoyo['desos'] + " - " + tapoyo['descripcion'] (si existe apoyod_tipo_id y descripcion)
+            
+            let groupKey = curr.desos || "SOLICITUDES";
+            let subTipo = "";
+            
+            // En el PHP:
+            // if ((!empty($tapoyo[apoyod_tipo_id])) && (!empty($tapoyo[descripcion])))
+            //    $descApoyo = " - " . $tapoyo[descripcion];
+            
+            // Nota importante: En el query SQL original provisto anteriormente:
+            // at.descripcion era el nombre del tipo de apoyo (LABORATORIO CLINICO, IMAGENOLOGIA, etc)
+            // p.descripcion as descar era el nombre del examen.
+            // Si el backend entrega 'at.descripcion' como 'apoyod_tipo_descripcion' o similar:
+            if (curr.apoyod_tipo_id && curr.apoyod_tipo_descripcion) {
+                 subTipo = curr.apoyod_tipo_descripcion;
+            } 
+            // Si el backend entrega 'at.descripcion' como 'descripcion' (y el examen como 'descar'):
+            else if (curr.apoyod_tipo_id && curr.descripcion && curr.descripcion !== curr.descar) {
+                 subTipo = curr.descripcion;
+            }
+            // Mapeo manual si falla lo anterior y tenemos IDs conocidos
+            else if (curr.apoyod_tipo_id === 'LB') {
+                 subTipo = "LABORATORIO CLINICO";
+            } else if (curr.apoyod_tipo_id === 'IM') {
+                 subTipo = "IMAGENOLOGIA"; 
+            }
+
+            if (subTipo) {
+                groupKey += ` - ${subTipo}`;
+            }
+
+            // Separar Laboratorios de Otros (Como hace el PHP con sus dos loops)
+            // El PHP imprime primero los NO Laboratorios, y luego los Laboratorios.
+            // Para lograr esto en el reduce, podemos prefijar la key para ordenar, o ordenar despues.
+            // Pero el usuario pide "mira como lo separa aca", implicando que quiere esa separación clara.
+            // En el frontend React, si agrupamos todo en un objeto, el orden de iteración depende de inserción (generalmente).
+            // Haremos que 'LB' siempre vaya al final o separado si es necesario. 
+            // Simplemente agrupamos por la llave compuesta, y el orden natural de aparición se mantendrá o se puede forzar sort.
+            
+            (acc[groupKey] = acc[groupKey] || []).push(curr);
+            return acc;
+         }, {});
+         
+         // Ordenar las llaves para que LABORATORIOS quede al final si se desea, o seguir el orden de datos.
+         // En el PHP primero salen NO laboratorios, luego laboratorios.
+         const sortedKeys = Object.keys(groupedByType).sort((a, b) => {
+             const isLabA = a.includes('LABORATORIO');
+             const isLabB = b.includes('LABORATORIO');
+             if (isLabA && !isLabB) return 1;
+             if (!isLabA && isLabB) return -1;
+             return 0;
+         });
+
+         return (
+            <div
+              key={`sol-evol-${evolucionId}`}
+              className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-sm mb-6"
+            >
+              <div className="bg-blue-900/30 px-4 py-2 border-b border-blue-900/30 flex justify-between items-center">
+                <h4 className="font-bold text-blue-300 flex items-center gap-2 uppercase text-base">
+                  <Stethoscope size={18} /> Órdenes y Solicitudes
+                </h4>
+                <span className="text-sm text-blue-400 font-semibold px-2 py-0.5 rounded bg-blue-900/50">
+                  Ref: {evolucionId}
+                </span>
+              </div>
+    
+              <div className="p-1 space-y-4">
+                {sortedKeys.map((typeName) => {
+                  const typeSols = groupedByType[typeName];
+                  return (
+                  <div
+                    key={typeName}
+                    className="bg-slate-900/30 rounded-lg border border-slate-700/50 overflow-hidden shadow-inner"
+                  >
+                    <div className="bg-blue-800/30 px-4 py-2 border-b border-slate-700/50 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                      <div className="flex flex-col w-full">
+                         <div className="flex items-center gap-2 mb-1">
+                            {/* TIPO: [desos] - [subtipo] */}
+                            <span className="text-sm font-bold text-white uppercase">
+                              TIPO: {typeName}
+                            </span>
+                         </div>
+                         
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 text-xs text-gray-300">
+                             <div>
+                               <span className="font-bold text-blue-400">PLAN:</span> {typeSols[0].plan_descripcion}
+                            </div>
+                            <div className="flex gap-4">
+                                <span>
+                                    <span className="font-bold text-blue-400">SERVICIO:</span> {typeSols[0].desserv || typeSols[0].servicio_descripcion || "AMBULATORIO"}
+                                </span>
+                                <span>
+                                    <span className="font-bold text-blue-400">DEPTO:</span> {typeSols[0].despto || typeSols[0].departamento_descripcion || "NO DEFINIDO"}
+                                </span>
+                            </div>
+                         </div>
+                      </div>
+    
+                      <div className="flex items-center gap-4 border-l border-white/10 pl-4 mt-2 md:mt-0">
+                          <button
+                            onClick={() => historyService.printOrder(evolucionId, typeSols[0].servicio_descripcion, typeName)}
+                            className="text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md"
+                            title="Imprimir Orden"
+                          >
+                            <Printer size={14} /> Imprimir Orden
+                          </button>
+                          
+                          {permissions?.sw_correo && (
+                            <button
+                              onClick={() => handleSendEmail("ordenes", evolucionId, typeSols[0].servicio_descripcion)}
+                              disabled={sendingEmail}
+                              className="text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md disabled:opacity-50"
+                            >
+                              <Mail size={14} /> Enviar
+                            </button>
+                          )}
+                      </div>
+                    </div>
+    
+                    <div className="divide-y divide-slate-700/30">
+                      {/* Header de la tabla interna igual al PHP */}
+                      <div className="px-4 py-2 grid grid-cols-1 md:grid-cols-12 gap-2 text-[10px] font-bold text-blue-400 uppercase tracking-wider bg-blue-900/10 hidden md:grid">
+                          <div className="md:col-span-2">Fecha</div>
+                          <div className="md:col-span-1 border-l border-white/5 pl-2">Cargo</div>
+                          <div className="md:col-span-6 border-l border-white/5 pl-2">Descripción 1</div>
+                          <div className="md:col-span-2 border-l border-white/5 pl-2">Tipo</div>
+                          <div className="md:col-span-1 border-l border-white/5 pl-2 text-center">Op</div>
+                      </div>
+
+                      {typeSols.map((sol, i) => (
+                        <div
+                          key={i}
+                          className="px-4 py-3 hover:bg-white/5 transition-colors grid grid-cols-1 md:grid-cols-12 items-start gap-3 text-xs"
+                        >
+                          {/* FECHA: fecha_registro */}
+                          <div className="md:col-span-2 font-mono text-gray-400">
+                            {sol.fecha_solicitud || sol.fecha_registro}
+                          </div>
+                          
+                          {/* CARGO: cargos */}
+                          <div className="md:col-span-1 font-bold font-mono text-gray-300 border-l border-white/5 pl-2">
+                            {sol.cargo}
+                          </div>
+                          
+                          {/* DESCRIPCION1: descar */}
+                          <div className="md:col-span-6 space-y-1 border-l border-white/5 pl-2">
+                            <span className="font-bold text-white leading-tight block uppercase">
+                              {sol.descar || sol.descripcion}
+                            </span>
+                            
+                            {/* Observaciones como en PHP */}
+                            {(sol.justificacion_nopos || sol.justificacion_nopos_qx) && (
+                                <div className="text-[11px] text-red-300 font-medium mt-1">
+                                    JUSTIFICACIÓN: Cargo NO POS requiere formato especial.
+                                </div>
+                            )}
+                            {/* Malla Validadora PHP logic visual placeholder */}
+                            {/*
+                            <div className="text-[10px] text-green-400/70 italic">
+                                CARGO VALIDADO POR LA MALLA
+                            </div>
+                            */}
+
+                            {[sol.obsapoyo, sol.obsinter, sol.obsnoqx, sol.obsqx, sol.observacion].filter(Boolean).map((obs, k) => (
+                                <div key={k} className="text-[11px] text-yellow-500 italic mt-1 px-2 py-0.5 border-l-2 border-yellow-500/30 bg-yellow-500/5">
+                                   OBS: {obs}
+                                </div>
+                            ))}
+                            
+                            {/* Solicitud Ambulatoria PHP logic */}
+                            {sol.sw_ambulatorio == 1 && (
+                                <div className="text-[10px] text-blue-300 font-bold mt-1 bg-blue-900/20 w-fit px-1 rounded">
+                                    SOLICITUD AMBULATORIA
+                                </div>
+                            )}
+                          </div>
+                          
+                           {/* TIPO: [os_tipo_solicitud_id] - [descripcion si id no es LB] */}
+                           <div className="md:col-span-2 text-gray-400 border-l border-white/5 pl-2 truncate" title={`${sol.os_tipo_solicitud_id} ${sol.apoyod_tipo_descripcion ? '- ' + sol.apoyod_tipo_descripcion : ''}`}>
+                             {sol.os_tipo_solicitud_id}
+                             {/* Segun PHP: if (tapoyo['apoyod_tipo_id'] != 'LB' && !empty...) descApoyo. Para Lab tambien lo agrega en el td de TIPO */}
+                             { (sol.apoyod_tipo_descripcion || (sol.descripcion && sol.descripcion !== sol.descar && sol.descripcion !== 'LABORATORIO CLINICO')) ? ` - ${sol.apoyod_tipo_descripcion || sol.descripcion}` : '' }
+                           </div>
+
+                             {/* OP / Imprimir Justificacion */}
+                           <div className="md:col-span-1 flex justify-center border-l border-white/5 pl-2">
+                             {(sol.justificacion_nopos || sol.justificacion_nopos_qx) && (
+                                <button
+                                   title="Imprimir Justificación NO POS"
+                                   onClick={() => historyService.printJustification(sol.hc_os_solicitud_id)}
+                                   className="text-gray-400 hover:text-white bg-white/5 p-1 rounded hover:bg-white/10 transition"
+                                >
+                                   <Printer size={16} />
+                                </button>
+                             )}
+                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )})}
+              </div>
+            </div>
+          );
+      }
+
+      // Agrupamiento por SERVICIO dentro de la evolución (Lógica original para Hospitalización)
       const groupedByServ = sols.reduce((acc, curr) => {
         const servName = curr.servicio_descripcion || "SERVICIO NO DEFINIDO";
         (acc[servName] = acc[servName] || []).push(curr);
