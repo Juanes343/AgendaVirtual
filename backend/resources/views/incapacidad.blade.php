@@ -4,15 +4,15 @@
     <meta charset="utf-8">
     <title>Incapacidad Médica</title>
     <style>
-        body { font-family: sans-serif; font-size: 12px; color: #000; }
+        body { font-family: sans-serif; font-size: 10px; color: #000; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         .header-table td { vertical-align: top; }
         .logo { max-width: 150px; }
-        .company-info { text-align: center; font-weight: bold; font-size: 14px; text-transform: uppercase; }
+        .company-info { text-align: center; font-weight: bold; font-size: 12px; text-transform: uppercase; }
         .title-box {
             text-align: center;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 12px;
             border: 1px solid #000;
             padding: 5px;
             margin-bottom: 15px;
@@ -23,9 +23,9 @@
             border-bottom: 1px solid #000;
             margin-bottom: 5px;
             margin-top: 15px;
-            font-size: 12px;
+            font-size: 11px;
         }
-        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11px; }
+        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; }
         .data-table td { border: 1px solid #000; padding: 4px; }
         .label { font-weight: bold; background-color: #f9fafb; width: 18%; }
 
@@ -117,6 +117,37 @@
                 <td class="label">Diagnóstico:</td>
                 <td colspan="5">{{ $inc->codigo_diagnostico }} - {{ $inc->diagnostico_nombre }}</td>
             </tr>
+            
+            {{-- NUEVOS CAMPOS DEL REPORTE --}}
+            <tr>
+                <td class="label">Dependencia:</td>
+                <td>{{ $inc->descripcion_dependencia ?? 'NO APLICA' }}</td>
+                <td class="label">T. de Contingencia:</td>
+                <td>{{ $inc->tipo_incapacidad ?? 'ENFERMEDAD GENERAL' }}</td>
+                <td class="label">Clase de Atención:</td>
+                <td>{{ $inc->clase_atencion ?? '' }}</td>
+            </tr>
+            <tr>
+                <td class="label" colspan="2">Modalidad de la presentación del servicio:</td>
+                <td>{{ $inc->desc_modalidad_servicio ?? 'INTRAMURAL' }}</td>
+                <td class="label">Incapacidad retroactiva:</td>
+                <td colspan="2">{{ isset($inc->desc_inc_retroactiva) ? $inc->desc_inc_retroactiva : 'NO' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Licencia de maternidad:</td>
+                <td colspan="2">{{ (isset($inc->sw_licencia_maternidad) && $inc->sw_licencia_maternidad == '1') ? 'SI' : 'NO' }}</td>
+                <td class="label">Fecha probable del parto:</td>
+                <td colspan="2">{{ $inc->fecha_posible_parto ?? '' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Edad gestación (sem):</td>
+                <td>{{ $inc->semanas_gestacion ?? '' }}</td>
+                <td class="label">Embarazo múltiple:</td>
+                <td>{{ (isset($inc->sw_embarazo_multiple) && $inc->sw_embarazo_multiple == '1') ? 'SI' : 'NO' }}</td>
+                <td class="label">Nacidos vivos:</td>
+                <td>{{ $inc->num_nacidos_vivos ?? '0' }}</td>
+            </tr>
+
             <tr>
                 <td class="label">Observaciones:</td>
                 <td colspan="5">{{ $inc->observacion_incapacidad }}</td>
