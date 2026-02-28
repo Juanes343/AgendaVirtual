@@ -1414,9 +1414,35 @@ class ReportController extends Controller
         // --- Recomendaciones ---
         $recomendaciones = DB::table('hc_recomendaciones_medicas as a')
             ->join('hc_evoluciones as b', 'a.evolucion_id', '=', 'b.evolucion_id')
+            ->leftJoin('tipos_atencion_recomendaciones as ta', 'a.tipo_atencion_recomendacion_id', '=', 'ta.tipo_atencion_recomendacion_id')
             ->where('a.evolucion_id', $evolucion_id)
-            ->select('a.evolucion_id', 'a.recomendaciones_adic')
+            ->select(
+                'a.evolucion_id', 
+                'a.recomendaciones_adic',
+                'ta.tipo_atencion_descripcion',
+                'a.sw_ingreso',
+                'a.sw_periodico',
+                'a.sw_egreso',
+                'a.sw_reubicacion'
+            )
             ->get();
+
+        // Calcular Tipo de Atención para el Header (tomando el primero si existe)
+        $tipo_atencion_descripcion = '';
+        if ($recomendaciones->isNotEmpty()) {
+            $primera = $recomendaciones->first();
+            // Prioridad: Descripción de la tabla maestra si existe
+            if (!empty($primera->tipo_atencion_descripcion)) {
+                 $tipo_atencion_descripcion = $primera->tipo_atencion_descripcion;
+            } else {
+                // Fallback a los flags booleanos si no hay tipo id
+                if ($primera->sw_ingreso == 1) $tipo_atencion_descripcion = "INGRESO";
+                elseif ($primera->sw_periodico == 1) $tipo_atencion_descripcion = "PERIÓDICO";
+                elseif ($primera->sw_egreso == 1) $tipo_atencion_descripcion = "EGRESO";
+                elseif ($primera->sw_reubicacion == 1) $tipo_atencion_descripcion = "REUBICACIÓN";
+            }
+        }
+        $header->tipo_atencion_descripcion = $tipo_atencion_descripcion;
 
         foreach ($recomendaciones as $rec) {
              $detalles = DB::table('hc_recomendaciones_medicas_detalle as d')

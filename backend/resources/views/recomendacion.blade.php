@@ -172,6 +172,10 @@
             <td>{{ $header->fecha_ingreso ?? $header->fecha ?? '' }}</td>
         </tr>
         <tr>
+             <td class="header-label">TIPO DE ATENCIÓN</td>
+             <td colspan="3">{{ $header->tipo_atencion_descripcion ?? '' }}</td>
+        </tr>
+        <tr>
             <td class="header-label">IDENTIFICACION</td>
             <td>{{ ($header->tipo_id_paciente ?? '') . ' ' . ($header->paciente_id ?? '') }}</td>
             <td class="header-label">PACIENTE</td>
@@ -212,7 +216,7 @@
             <!-- Texto Libre (Recomendaciones Adicionales) -->
             @if(!empty($rec->recomendaciones_adic))
             <div class="rec-content">
-                <strong>DESCRIPCIÓN:</strong><br>
+                <strong>RECOMENDACIONES ADICIONALES:</strong><br>
                 {!! nl2br(e($rec->recomendaciones_adic)) !!}
             </div>
             @endif
@@ -220,7 +224,7 @@
             <!-- Detalles Seleccionados (Lista) -->
             @if(!empty($rec->detalles) && count($rec->detalles) > 0)
             <div class="rec-content" style="margin-top: 5px;">
-                <strong>ITEMS SELECCIONADOS:</strong>
+                <strong>RECOMENDACIONES:</strong>
                 <ul class="rec-detail-list">
                     @foreach($rec->detalles as $detalle)
                        <li class="rec-detail-item">- {{ $detalle->descripcion }}</li>

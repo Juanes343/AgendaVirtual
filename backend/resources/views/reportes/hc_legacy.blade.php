@@ -45,10 +45,10 @@
     .legacy-wrap table{ width:100% !important; border-collapse: collapse !important; }
     .legacy-wrap td, .legacy-wrap th{
       border:1px solid #000 !important;
-      padding:3px 4px !important;
+      padding:2px 3px !important;
       vertical-align: top !important;
-      font-size: 8.2px !important;
-      line-height: 1.15 !important;
+      font-size: 7px !important;
+      line-height: 1.1 !important;
     }
 
     .legacy-wrap th,
@@ -59,7 +59,7 @@
       text-transform: uppercase;
     }
 
-    .legacy-wrap font { font-family: Arial, sans-serif !important; font-size: 8.2px !important; }
+    .legacy-wrap font { font-family: Arial, sans-serif !important; font-size: 7px !important; }
     .legacy-wrap img{ max-width: 100% !important; height: auto !important; }
 
     /* FIRMA PROFESIONAL */
