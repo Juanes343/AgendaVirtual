@@ -168,8 +168,8 @@
         <tr>
             <td class="header-label">NO. EVOLUCION</td>
             <td width="35%">{{ $header->evolucion_id ?? '' }}</td>
-            <td class="header-label">FECHA</td>
-            <td>{{ $header->fecha ?? '' }}</td>
+            <td class="header-label">FECHA INGRESO</td>
+            <td>{{ $header->fecha_ingreso ?? $header->fecha ?? '' }}</td>
         </tr>
         <tr>
             <td class="header-label">IDENTIFICACION</td>
@@ -193,6 +193,12 @@
                     <span style="font-weight:normal; margin-left: 20px;">TIPO AFILIADO: {{ $header->tipo_afiliado_id }}</span>
                 @endif
             </td>
+        </tr>
+        <tr>
+            <td class="header-label">SERVICIO</td>
+            <td>{{ $header->servicio_descripcion ?? 'AMBULATORIO' }}</td>
+            <td class="header-label">DEPARTAMENTO</td>
+            <td>{{ $header->departamento_descripcion ?? 'AMBULATORIO' }}</td>
         </tr>
     </table>
     

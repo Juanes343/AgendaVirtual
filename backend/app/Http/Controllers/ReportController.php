@@ -838,6 +838,8 @@ class ReportController extends Controller
         $header = DB::table('hc_evoluciones as a')
             ->join('ingresos as b', 'a.ingreso', '=', 'b.ingreso')
             ->leftJoin('cuentas as cu', 'b.ingreso', '=', 'cu.ingreso')
+            ->leftJoin('departamentos as dep', 'b.departamento', '=', 'dep.departamento')
+            ->leftJoin('servicios as ser', 'dep.servicio', '=', 'ser.servicio')
             ->join('pacientes as p', function ($join) {
                 $join->on('b.paciente_id', '=', 'p.paciente_id')
                     ->on('b.tipo_id_paciente', '=', 'p.tipo_id_paciente');
@@ -870,8 +872,11 @@ class ReportController extends Controller
 
                 'a.fecha_registro',
                 DB::raw("DATE(a.fecha) as fecha"),
+                DB::raw("DATE(b.fecha_ingreso) as fecha_ingreso"),
                 'a.evolucion_id',
                 'b.ingreso',
+                'dep.descripcion as departamento_descripcion',
+                'ser.descripcion as servicio_descripcion',
 
                 'd.nombre as profesional',
                 'd.tercero_id as prof_id',
