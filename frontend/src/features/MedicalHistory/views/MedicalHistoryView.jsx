@@ -468,38 +468,12 @@ export default function MedicalHistoryView() {
   };
 
   // Función similar para adjuntos generales
-  const handleOpenAttachment = async (item) => {
+  const handleOpenAttachment = (item) => {
     if (!item.nombre_asignado) return;
-
     const baseUrl = import.meta.env.VITE_LEGACY_REPO_URL;
     const fileName = item.nombre_asignado;
     const patientFolder = `${item.tipo_id_paciente}-${item.paciente_id}`;
-    const patientFolderAis = `${item.tipo_id_paciente}-${item.paciente_id}-ais`;
-
-    const urlsToTry = [
-      `${baseUrl}/${patientFolder}/${fileName}`,
-      `${baseUrl}/${patientFolder}/hc_resultados/${fileName}`, // Nueva carpeta para adjuntos también
-      `${baseUrl}/${patientFolderAis}/${fileName}`,
-      `${baseUrl}/${patientFolderAis}/hc_resultados/${fileName}`,
-      `${baseUrl}/${fileName}`
-    ];
-
-    try {
-      for (const url of urlsToTry) {
-        try {
-          const res = await fetch(url, { method: "HEAD" });
-          if (res.ok) {
-            window.open(url, "_blank");
-            return;
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-      window.open(`${baseUrl}/${patientFolder}/hc_resultados/${fileName}`, "_blank"); // Fallback
-    } catch (err) {
-      window.open(`${baseUrl}/${patientFolder}/${fileName}`, "_blank");
-    }
+    window.open(`${baseUrl}/${patientFolder}/${fileName}`, "_blank");
   };
 
   return (
