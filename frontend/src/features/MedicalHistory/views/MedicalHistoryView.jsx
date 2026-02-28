@@ -1386,18 +1386,12 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
                                     JUSTIFICACIÓN: Cargo NO POS requiere formato especial.
                                 </div>
                             )}
-                            {/* Malla Validadora PHP logic visual placeholder */}
-                            {/*
-                            <div className="text-[10px] text-green-400/70 italic">
-                                CARGO VALIDADO POR LA MALLA
-                            </div>
-                            */}
 
-                            {[sol.obsapoyo, sol.obsinter, sol.obsnoqx, sol.obsqx, sol.observacion].filter(Boolean).map((obs, k) => (
-                                <div key={k} className="text-[11px] text-yellow-500 italic mt-1 px-2 py-0.5 border-l-2 border-yellow-500/30 bg-yellow-500/5">
-                                   OBS: {obs}
+                            {!!sol.observacion && (
+                                <div className="text-[11px] text-yellow-500 italic mt-1 px-2 py-0.5 border-l-2 border-yellow-500/30 bg-yellow-500/5">
+                                   OBS: {sol.observacion}
                                 </div>
-                            ))}
+                            )}
                             
                             {/* Solicitud Ambulatoria PHP logic */}
                             {sol.sw_ambulatorio == 1 && (

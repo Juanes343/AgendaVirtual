@@ -127,6 +127,13 @@
       <td class="header-label">EDAD / SEXO</td>
       <td>{{ $edad ?? '' }} Años / {{ $paciente->sexo_id ?? '' }}</td>
     </tr>
+
+    <tr>
+      <td class="header-label">PLAN</td>
+      <td>{{ $paciente->plan_descripcion ?? '' }}</td>
+      <td class="header-label">TIPO AFILIADO</td>
+      <td>{{ $paciente->tipo_afiliado_descripcion ?? '' }}</td>
+    </tr>
     
     <!-- 
     <tr>
@@ -163,6 +170,11 @@
             <td>{{ $solicitud->descripcion ?? '' }}</td>
             <td style="text-align:center;">{{ $solicitud->cantidad ?? '' }}</td>
           </tr>
+          @if(!empty($solicitud->observacion))
+            <tr>
+              <td colspan="3" align="left" width="100%">Observación: {{ $solicitud->observacion }}</td>
+            </tr>
+          @endif
         @empty
           <tr>
             <td colspan="4" style="text-align:center;">SIN SERVICIOS REGISTRADOS</td>
