@@ -656,6 +656,11 @@ class ReportController extends Controller
             if (($type === 'all' || $type === 'incapacidad') && !empty($data->incapacidades) && count($data->incapacidades) > 0) {
                 $dompdfI = new \Dompdf\Dompdf();
                 $dompdfI->set_option('isRemoteEnabled', true);
+
+                $incapacidadNumeroEmail = optional(collect($data->incapacidades)->first())->hc_incapacidad_id ?? '';
+                $fechaSolicitudEmail = !empty($header->fecha)
+                    ? \Carbon\Carbon::parse($header->fecha)->format('d/m/Y')
+                    : date('d/m/Y');
                 
                 $dompdfI->loadHtml(view('incapacidad', [
                     'paciente' => $header,
@@ -663,6 +668,8 @@ class ReportController extends Controller
                     'empresa' => $empresa ?? null,
                     'logoBase64' => $logoBase64 ?? null,
                     'firmaBase64' => $firmaBase64,
+                    'hc_incapacidad_id' => $incapacidadNumeroEmail,
+                    'fecha_solicitud' => $fechaSolicitudEmail,
                     'fecha' => !empty($header->fecha_registro) ? date('Y-m-d', strtotime($header->fecha_registro)) : date('Y-m-d'),
                     'fecha_impresion' => date('Y-m-d H:i')
                 ])->render());
@@ -1228,6 +1235,28 @@ class ReportController extends Controller
         $header = $this->getHeaderData($evolucion_id);
         if (!$header) return response()->json(['error' => 'No encontrado'], 404);
 
+        // --- Datos del Ingreso (Empresa, IPS, Aseguradora) ---
+        $ingresoData = DB::table('hc_evoluciones as e')
+            ->leftJoin('cuentas as g', 'e.numerodecuenta', '=', 'g.numerodecuenta')
+            ->leftJoin('empresas as em', 'g.empresa_id', '=', 'em.empresa_id')
+            ->leftJoin('centros_utilidad as ct', function($join) {
+                $join->on('em.empresa_id', '=', 'ct.empresa_id');
+            })
+            ->leftJoin('planes as h', 'g.plan_id', '=', 'h.plan_id')
+            ->leftJoin('terceros as t', function($join) {
+                $join->on('h.tipo_tercero_id', '=', 't.tipo_id_tercero')
+                     ->on('h.tercero_id', '=', 't.tercero_id');
+            })
+            ->leftJoin('tipos_afiliado as ta', 'g.tipo_afiliado_id', '=', 'ta.tipo_afiliado_id')
+            ->where('e.evolucion_id', $evolucion_id)
+            ->select(
+                'ct.codigo_prestador',
+                DB::raw("COALESCE(NULLIF(t.nombre_tercero, ''), NULLIF(h.plan_descripcion, ''), '') as nombre_aseguradora"),
+                'ta.tipo_afiliado_nombre',
+                'g.rango'
+            )
+            ->first();
+
         // --- Empresa ---
         $empresa = DB::table('empresas as e')
             ->leftJoin('tipo_mpios as m', function($join) {
@@ -1277,6 +1306,7 @@ class ReportController extends Controller
 
             ->where('a.evolucion_id', $evolucion_id)
             ->select(
+                'a.hc_incapacidad_id',
                 'a.fecha_inicio',
                 'a.dias_de_incapacidad',
                 'a.observacion_incapacidad',
@@ -1298,6 +1328,11 @@ class ReportController extends Controller
             )
             ->get();
 
+        $incapacidadNumero = optional($incapacidades->first())->hc_incapacidad_id ?? '';
+        $fechaSolicitud = !empty($header->fecha)
+            ? \Carbon\Carbon::parse($header->fecha)->format('d/m/Y')
+            : date('d/m/Y');
+
         // ============================
         // ✅ FIRMA PROFESIONAL Base64
         // ============================
@@ -1309,7 +1344,13 @@ class ReportController extends Controller
             'incapacidades' => $incapacidades,
             'empresa' => $empresa,
             'logoBase64' => $logoBase64,
-            'firmaBase64' => $firmaBase64, // ✅ NUEVO
+            'firmaBase64' => $firmaBase64,
+            'codigo_prestador' => $ingresoData->codigo_prestador ?? '',
+            'nombre_aseguradora' => $ingresoData->nombre_aseguradora ?? '',
+            'tipo_afiliado_nombre' => $ingresoData->tipo_afiliado_nombre ?? '',
+            'rango' => $ingresoData->rango ?? '',
+            'hc_incapacidad_id' => $incapacidadNumero,
+            'fecha_solicitud' => $fechaSolicitud,
             'fecha' => !empty($header->fecha_registro) ? date('Y-m-d', strtotime($header->fecha_registro)) : date('Y-m-d'),
             'fecha_impresion' => date('Y-m-d H:i')
         ])->render();
@@ -1412,13 +1453,27 @@ class ReportController extends Controller
     try {
         $url = env('LEGACY_WS_URL');
 
+        Log::info('🔍 generateHistoryPdf: Llamando a WS legacy', [
+            'url' => $url,
+            'ingreso' => $ingreso,
+        ]);
+
         $resp = Http::withHeaders([
             'X-Legacy-Token' => env('LEGACY_HC_TOKEN'),
         ])->get($url, [
             'ingreso' => (int)$ingreso,
         ]);
 
+        Log::info('🔍 Respuesta WS legacy (status)', [
+            'status' => $resp->status(),
+            'ok' => $resp->ok(),
+        ]);
+
         if (!$resp->ok()) {
+            Log::error('❌ WS legacy retornó error', [
+                'status' => $resp->status(),
+                'body' => $resp->body(),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudo obtener HTML legacy',
@@ -1427,7 +1482,18 @@ class ReportController extends Controller
         }
 
         $payload = $resp->json();
+        
+        Log::info('🔍 Payload del WS legacy', [
+            'success' => $payload['success'] ?? false,
+            'has_html' => !empty($payload['html']),
+            'html_length' => strlen($payload['html'] ?? ''),
+            'evolucion_id' => $payload['evolucion_id'] ?? null,
+        ]);
+
         if (empty($payload['success']) || empty($payload['html'])) {
+            Log::error('❌ Legacy no devolvió HTML válido', [
+                'payload' => $payload,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Legacy no devolvió HTML válido',
@@ -1436,6 +1502,10 @@ class ReportController extends Controller
         }
 
         $htmlLegacy = (string)$payload['html'];
+        Log::info('✅ HTML obtenido del legacy', [
+            'length' => strlen($htmlLegacy),
+            'preview' => substr($htmlLegacy, 0, 200),
+        ]);
 
         // ==========================================
         // LIMPIEZA BASE (evita about:blank / scripts)

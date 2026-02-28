@@ -4,15 +4,15 @@
     <meta charset="utf-8">
     <title>Incapacidad Médica</title>
     <style>
-        body { font-family: sans-serif; font-size: 10px; color: #000; }
+        body { font-family: sans-serif; font-size: 12px; color: #000; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         .header-table td { vertical-align: top; }
         .logo { max-width: 150px; }
-        .company-info { text-align: center; font-weight: bold; font-size: 12px; text-transform: uppercase; }
+        .company-info { text-align: center; font-weight: bold; font-size: 14px; text-transform: uppercase; }
         .title-box {
             text-align: center;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 14px;
             border: 1px solid #000;
             padding: 5px;
             margin-bottom: 15px;
@@ -23,9 +23,9 @@
             border-bottom: 1px solid #000;
             margin-bottom: 5px;
             margin-top: 15px;
-            font-size: 11px;
+            font-size: 12px;
         }
-        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; }
+        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11px; }
         .data-table td { border: 1px solid #000; padding: 4px; }
         .label { font-weight: bold; background-color: #f9fafb; width: 18%; }
 
@@ -53,7 +53,8 @@
             <td class="company-info">
                 {{ $empresa->razon_social ?? '' }}<br>
                 NIT: {{ $empresa->nit ?? '' }}{{ !empty($empresa->digito_verificacion) ? '-'.$empresa->digito_verificacion : '' }}<br>
-                {{ $empresa->municipio ?? '' }}
+                {{ $empresa->municipio ?? '' }}<br>
+                <strong>CODIGO IPS: {{ $codigo_prestador ?? '' }}</strong>
             </td>
             <td width="20%" style="text-align: right; font-size: 10px;">
                 <strong>No. Ingreso:</strong> {{ $paciente->ingreso ?? '' }}<br>
@@ -65,6 +66,17 @@
     <div class="title-box">
         SOLICITUD DE INCAPACIDADES Y/O LICENCIAS DE MATERNIDAD
     </div>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-weight: bold;">
+        <tr>
+            <td style="width: 70%; border: 1px solid #000; padding: 4px;">
+                Fecha de Solicitud {{ $fecha_solicitud ?? '' }}
+            </td>
+            <td style="width: 15%; border: 1px solid #000; padding: 4px; text-align: center;">No.</td>
+            <td style="width: 15%; border: 1px solid #000; padding: 4px; text-align: center;">{{ $hc_incapacidad_id ?? '' }}</td>
+        </tr>
+    </table>
+
 
     <!-- Información del Paciente -->
     <div class="section-header">Información del Paciente:</div>
@@ -81,9 +93,9 @@
         </tr>
         <tr>
             <td class="label">EPS / Aseguradora:</td>
-            <td>{{ $paciente->nombre_aseguradora ?? '' }}</td>
+            <td>{{ $nombre_aseguradora ?? $paciente->nombre_aseguradora ?? $paciente->cliente_nombre ?? $paciente->plan_descripcion ?? '' }}</td>
             <td class="label">Tipo Afiliado:</td>
-            <td>{{ $paciente->tipo_afiliado_descripcion ?? ($paciente->tipo_afiliado_id ?? '') }} - {{ $paciente->rango ?? '' }}</td>
+            <td>{{ $tipo_afiliado_nombre ?? $paciente->tipo_afiliado_descripcion ?? ($paciente->tipo_afiliado_id ?? '') }} - {{ $rango ?? $paciente->rango ?? '' }}</td>
         </tr>
         <tr>
             <td class="label">Dirección:</td>
@@ -161,25 +173,17 @@
             <td width="50%" valign="bottom">
                 @if(!empty($firmaBase64))
                     <img src="{{ $firmaBase64 }}" class="firma-img">
-                @else
-                    <div style="height: 60px;"></div>
                 @endif
 
-                <div class="sign-line">PROFESIONAL: {{ $paciente->profesional ?? '' }}</div>
+                <div class="sign-line">{{ $paciente->profesional ?? '' }}</div>
                 <div>{{ $paciente->especialidad ?? 'Médico General' }}</div>
-                <div>CC: {{ $paciente->registro_medico ?? $paciente->tarjeta_profesional ?? '' }} - T.P.: {{ $paciente->registro_medico ?? $paciente->tarjeta_profesional ?? '' }}</div>
+                <div>Reg. Médico: {{ $paciente->registro_medico ?? $paciente->tarjeta_profesional ?? '' }}</div>
             </td>
-            <td width="5%"></td>
-            <td width="45%" valign="bottom">
-                <div style="height: 60px;"></div>
-                <div class="sign-line">{{ $paciente->nombre_completo ?? $paciente->nombre_paciente ?? '' }}</div>
-                <div>CC: {{ $paciente->identificacion ?? '' }}</div>
-                <div>{{ $paciente->tipo_afiliado_descripcion ?? ($paciente->tipo_afiliado_id == 'C' ? 'COTIZANTE' : 'BENEFICIARIO') }}</div>
+            <td width="50%" align="right" valign="bottom">
+                <div style="font-size: 10px;">Generado el: {{ $fecha_impresion ?? '' }}</div>
             </td>
         </tr>
     </table>
-    
-    <div style="text-align: right; font-size: 10px; margin-top: 5px;">Generado el: {{ $fecha_impresion ?? '' }}</div>
 
 </body>
 </html>
