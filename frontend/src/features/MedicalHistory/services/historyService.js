@@ -61,6 +61,15 @@ const historyService = {
             })
             .catch(err => console.error("Error descargando PDF", err));
     },
+    printRecomendacion: (evolucionId) => {
+        return api.get(`/medical-history/${evolucionId}/pdf-recomendacion`, { responseType: 'blob' })
+            .then((response) => {
+                const file = new Blob([response.data], { type: 'application/pdf' });
+                const fileURL = URL.createObjectURL(file);
+                window.open(fileURL, '_blank');
+            })
+            .catch(err => console.error("Error descargando PDF Recomendacion", err));
+    },
     // Imprimir PDF de Procedimientos No Quirúrgicos (Hospitalización)
     printNoQx: (ingresoId) => {
         return api.get(`/hospitalization/${ingresoId}/pdf-no-qx`, { responseType: 'blob' })

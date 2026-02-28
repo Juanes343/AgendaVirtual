@@ -337,6 +337,32 @@ class ReportController extends Controller
             ->where('ingreso', $ingreso)
             ->first();
 
+        // 8. Recomendaciones Médicas
+        $recomendaciones = DB::table('hc_recomendaciones_medicas as a')
+            ->join('hc_evoluciones as b', 'a.evolucion_id', '=', 'b.evolucion_id')
+            ->join('system_usuarios as u', 'b.usuario_id', '=', 'u.usuario_id')
+            ->where('b.ingreso', $ingreso)
+            ->select(
+                'a.evolucion_id',
+                'a.recomendaciones_adic',
+                DB::raw("TO_CHAR(b.fecha,'DD/MM/YYYY') AS fecha_registro"),
+                'u.nombre as usuario',
+                'u.usuario as login_usuario'
+            )
+            ->orderBy('b.fecha', 'desc')
+            ->get();
+
+        // Obtener detalles de recomendaciones (items seleccionados de una lista si aplica)
+        // A veces las recomendaciones son solo texto (recomendaciones_adic), otras veces items (hc_recomendaciones_medicas_detalle)
+        foreach ($recomendaciones as $rec) {
+             $detalles = DB::table('hc_recomendaciones_medicas_detalle as d')
+                ->join('hc_recomendaciones_medicas_listado as l', 'd.recomendacion_id', '=', 'l.recomendacion_id')
+                ->where('d.evolucion_id', $rec->evolucion_id)
+                ->select('l.descripcion', 'l.recomendacion_id')
+                ->get();
+             $rec->detalles = $detalles;
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -346,7 +372,8 @@ class ReportController extends Controller
                 'diagnosticos' => $diagnosticos,
                 'notas' => $notas,
                 'procedimientos_no_qx' => $procedimientosNoQx,
-                'encuesta' => $encuesta
+                'encuesta' => $encuesta,
+                'recomendaciones' => $recomendaciones
             ]
         ]);
     }
@@ -383,6 +410,9 @@ class ReportController extends Controller
             }));
             $data->notas = array_values(array_filter($data->notas, function ($n) use ($evolucionIdFilter) {
                 return $n->evolucion_id == $evolucionIdFilter;
+            }));
+            $data->recomendaciones = array_values(array_filter($data->recomendaciones, function ($r) use ($evolucionIdFilter) {
+                return $r->evolucion_id == $evolucionIdFilter;
             }));
         }
 
@@ -491,6 +521,7 @@ class ReportController extends Controller
             $pdfContentFormula = null;
             $pdfContentOrden = null;
             $pdfContentIncapacidad = null;
+            $pdfContentRecomendacion = null;
 
             // 3. Generar PDF consolidado en memoria (Solo si type == 'all')
             if ($type === 'all') {
@@ -550,6 +581,7 @@ class ReportController extends Controller
                     'incapacidades' => $data->incapacidades,
                     'diagnosticos' => $data->diagnosticos ?? [],
                     'notas' => $data->notas ?? [],
+                    'recomendaciones' => $data->recomendaciones ?? [], // NEW
                     'fecha' => $header->fecha,
                     'profesional' => $header->profesional,
                     'especialidad' => $header->especialidad,
@@ -639,7 +671,26 @@ class ReportController extends Controller
                 $pdfContentIncapacidad = $dompdfI->output();
             }
 
-            // 3.5 Generar PDF No Quirúrgicos (Si type === 'all')
+            // 3.5 Generar PDF Recomendacion (Si hay recomendaciones y corresponde el tipo)
+            if (($type === 'all' || $type === 'recomendaciones') && !empty($data->recomendaciones) && count($data->recomendaciones) > 0) {
+                 $dompdfR = new \Dompdf\Dompdf();
+                 $dompdfR->set_option('isRemoteEnabled', true);
+                 
+                 $dompdfR->loadHtml(view('recomendacion', [
+                    'header' => $header,
+                    'recomendaciones' => $data->recomendaciones,
+                    'empresa' => $empresa ?? null,
+                    'logoBase64' => $logoBase64 ?? null,
+                    'firmaBase64' => $firmaBase64,
+                    'edad' => isset($header->fecha_nacimiento) ? \Carbon\Carbon::parse($header->fecha_nacimiento)->age : '',
+                    'fecha_impresion' => date('Y-m-d H:i')
+                ])->render());
+                $dompdfR->setPaper('A4', 'portrait');
+                $dompdfR->render();
+                $pdfContentRecomendacion = $dompdfR->output();
+            }
+
+            // 3.6 Generar PDF No Quirúrgicos (Si type === 'all')
             $pdfContentNoQx = null;
             if ($type === 'all') {
                 $procedimientosNoQx = DB::table('hc_os_solicitudes as a')
@@ -713,7 +764,7 @@ class ReportController extends Controller
                 'fecha' => $header->fecha,
                 'ingreso' => $ingreso,
                 'profesional' => $header->profesional
-            ], function ($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden, $pdfContentIncapacidad, $pdfContentNoQx, $type) {
+            ], function ($message) use ($paciente, $ingreso, $pdfContentCompleto, $pdfContentFormula, $pdfContentOrden, $pdfContentIncapacidad, $pdfContentRecomendacion, $pdfContentNoQx, $type) {
                 $message->to($paciente->email)
                     ->subject('Reporte Historia Clínica - Ingreso #' . $ingreso);
 
@@ -737,7 +788,12 @@ class ReportController extends Controller
                     $message->attachData($pdfContentIncapacidad, "Incapacidad_Medica_{$ingreso}.pdf", ['mime' => 'application/pdf']);
                 }
                 
-                // Adjunto 5: No Qx (Si existe)
+                // Adjunto 5: Recomendacion (Si existe)
+                if ($pdfContentRecomendacion) {
+                    $message->attachData($pdfContentRecomendacion, "Recomendaciones_Medicas_{$ingreso}.pdf", ['mime' => 'application/pdf']);
+                }
+                
+                // Adjunto 6: No Qx (Si existe)
                 if ($pdfContentNoQx) {
                     $message->attachData($pdfContentNoQx, "Procedimientos_No_Qx_{$ingreso}.pdf", ['mime' => 'application/pdf']);
                 }
@@ -1268,7 +1324,90 @@ class ReportController extends Controller
     }
 
 
-public function generateHistoryPdf($ingreso)
+    public function generateRecomendacionPdf($evolucion_id)
+    {
+        $header = $this->getHeaderData($evolucion_id);
+        if (!$header) return response()->json(['error' => 'No encontrado'], 404);
+
+        // --- Empresa ---
+        $empresa = DB::table('empresas as e')
+            ->leftJoin('tipo_mpios as m', function($join) {
+                $join->on('e.tipo_mpio_id', '=', 'm.tipo_mpio_id')
+                     ->on('e.tipo_dpto_id', '=', 'm.tipo_dpto_id');
+            })
+            ->leftJoin('tipo_dptos as d', 'e.tipo_dpto_id', '=', 'd.tipo_dpto_id')
+            ->select(
+                'e.razon_social',
+                'e.id as nit',
+                'e.digito_verificacion',
+                'e.direccion',
+                'e.telefonos',
+                'e.website',
+                'e.email',
+                'm.municipio',
+                'd.departamento'
+            )
+            ->where('e.sw_activa', '1')
+            ->orderBy('e.id', 'asc')
+            ->first();
+
+        // Normalizar dirección (Colapsar espacios redundantes)
+        if ($empresa && !empty($empresa->direccion)) {
+            $empresa->direccion = preg_replace('/\s+/', ' ', trim($empresa->direccion));
+        }
+
+        // --- LOGO Base64 ---
+        $logoBase64 = null;
+        $pathLogo = public_path('assets/images/simde_logo.png');
+        if (file_exists($pathLogo)) {
+            $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
+            $data = file_get_contents($pathLogo);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+
+        // --- Recomendaciones ---
+        $recomendaciones = DB::table('hc_recomendaciones_medicas as a')
+            ->join('hc_evoluciones as b', 'a.evolucion_id', '=', 'b.evolucion_id')
+            ->where('a.evolucion_id', $evolucion_id)
+            ->select('a.evolucion_id', 'a.recomendaciones_adic')
+            ->get();
+
+        foreach ($recomendaciones as $rec) {
+             $detalles = DB::table('hc_recomendaciones_medicas_detalle as d')
+                ->join('hc_recomendaciones_medicas_listado as l', 'd.recomendacion_id', '=', 'l.recomendacion_id')
+                ->where('d.evolucion_id', $rec->evolucion_id)
+                ->select('l.descripcion', 'l.recomendacion_id')
+                ->get();
+             $rec->detalles = $detalles;
+        }
+
+        // ============================
+        // ✅ FIRMA PROFESIONAL Base64
+        // ============================
+        $firmaBase64 = $this->getFirmaBase64($header->firma);
+
+        // Render HTML
+        $html = view('recomendacion', [
+            'header' => $header,
+            'recomendaciones' => $recomendaciones,
+            'empresa' => $empresa,
+            'logoBase64' => $logoBase64,
+            'firmaBase64' => $firmaBase64,
+            'edad' => $header->edad ?? '',
+            'fecha_impresion' => date('Y-m-d H:i')
+        ])->render();
+
+        $dompdf = new \Dompdf\Dompdf();
+        $dompdf->set_option('isRemoteEnabled', true);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $dompdf->stream('recomendaciones_' . $evolucion_id . '.pdf');
+    }
+
+
+    public function generateHistoryPdf($ingreso)
 {
     try {
         $url = env('LEGACY_WS_URL');

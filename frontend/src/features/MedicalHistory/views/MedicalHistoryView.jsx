@@ -1015,6 +1015,7 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
     incapacidades: [],
     procedimientos_no_qx: [], // Agregado para soportar procedimientos no quirúrgicos
     encuesta: null, // Nuevo estado para la encuesta de satisfacción
+    recomendaciones: [],
   }); // Ahora incluye incapacidades
   const [loading, setLoading] = useState(true);
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -1034,6 +1035,7 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
       msg = servicio 
         ? `Se enviarán las órdenes del servicio: ${servicio}`
         : `Se enviarán las órdenes médicas`;
+    if (type === "recomendaciones") msg = `Se enviarán las recomendaciones médicas`;
     }
 
     const result = await Swal.fire({
@@ -1769,6 +1771,81 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
     );
   };
 
+  const renderRecomendaciones = () => {
+    if (!details.recomendaciones || details.recomendaciones.length === 0) return null;
+
+    return details.recomendaciones.map((rec, i) => (
+      <div
+        key={`rec-${i}`}
+        className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mb-6"
+      >
+        <div className="bg-emerald-900/20 px-4 py-2 border-b border-blue-900/30 flex justify-between items-center">
+          <h4 className="font-bold text-emerald-400 flex items-center gap-2 uppercase text-base">
+            <MessageSquare size={18} /> Recomendaciones Médicas
+          </h4>
+          <span className="text-sm text-emerald-500/80 font-semibold px-2 py-0.5 rounded bg-emerald-900/20">
+            {rec.fecha_registro}
+          </span>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Recomendaciones Texto Libre */}
+          {rec.recomendaciones_adic && (
+            <div className="bg-slate-900/30 rounded-lg p-4 border border-slate-700/50">
+              <h5 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">
+                Indicaciones Generales
+              </h5>
+              <p className="text-gray-300 text-sm whitespace-pre-line leading-relaxed">
+                {rec.recomendaciones_adic}
+              </p>
+            </div>
+          )}
+
+          {/* Detalles Estructurados */}
+          {rec.detalles && rec.detalles.length > 0 && (
+            <div className="bg-slate-900/30 rounded-lg border border-slate-700/50 overflow-hidden">
+               <div className="bg-emerald-900/10 px-4 py-2 border-b border-slate-700/50">
+                 <h5 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                   Recomendaciones Específicas
+                 </h5>
+               </div>
+               <div className="divide-y divide-slate-700/30">
+                 {rec.detalles.map((det, idx) => (
+                   <div key={idx} className="p-3 text-sm text-gray-300">
+                     <span className="font-bold text-white block mb-1">{det.descripcion}</span>
+                     {det.observacion && <span className="italic text-gray-400">{det.observacion}</span>}
+                   </div>
+                 ))}
+               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Acciones */}
+        <div className="bg-emerald-950/20 px-3 py-2 border-t border-blue-900/30">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+            <button
+              onClick={() => historyService.printRecomendacion(rec.evolucion_id)}
+              className="text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md"
+            >
+              <Printer size={14} /> Imprimir Recomendaciones
+            </button>
+
+            {permissions?.sw_correo && (
+              <button
+                onClick={() => handleSendEmail("recomendaciones", rec.evolucion_id)}
+                disabled={sendingEmail}
+                className="text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md disabled:opacity-50"
+              >
+                <Mail size={14} /> Enviar al Correo
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    ));
+  };
+
   const handlePrintEvolucion = () => {
     historyService.printHistoryComplete(ingresoId);
   };
@@ -1829,6 +1906,10 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
           {renderMedicamentos()}
         </div>
         <div>
+          {/* Sección Recomendaciones */}
+          {renderRecomendaciones()}
+        </div>
+        <div>
           {/* Sección Solicitudes */}
           {renderSolicitudes()}
         </div>
@@ -1845,6 +1926,7 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
       {details.medicamentos.length === 0 &&
         details.solicitudes.length === 0 &&
         details.incapacidades.length === 0 &&
+        (!details.recomendaciones || details.recomendaciones.length === 0) &&
         (!details.procedimientos_no_qx ||
           details.procedimientos_no_qx.length === 0) && (
           <div className="space-y-4">
