@@ -1434,12 +1434,6 @@ class ReportController extends Controller
             // Prioridad: Descripción de la tabla maestra si existe
             if (!empty($primera->tipo_atencion_descripcion)) {
                  $tipo_atencion_descripcion = $primera->tipo_atencion_descripcion;
-            } else {
-                // Fallback a los flags booleanos si no hay tipo id
-                if ($primera->sw_ingreso == 1) $tipo_atencion_descripcion = "INGRESO";
-                elseif ($primera->sw_periodico == 1) $tipo_atencion_descripcion = "PERIÓDICO";
-                elseif ($primera->sw_egreso == 1) $tipo_atencion_descripcion = "EGRESO";
-                elseif ($primera->sw_reubicacion == 1) $tipo_atencion_descripcion = "REUBICACIÓN";
             }
         }
         $header->tipo_atencion_descripcion = $tipo_atencion_descripcion;
@@ -1666,7 +1660,77 @@ class ReportController extends Controller
         }
 
         // Base URL del legacy (para images/, css/, etc.)
+        // Si existe LEGACY_IMAGES_URL, úsala, si no, usa LEGACY_URL
+        // Ajuste: Si LEGACY_IMAGES_URL apunta a 'images/paint/', no queremos usarla como base general
+        // porque duplicaría rutas si el HTML ya trae 'images/paint/'.
+        // Mejor usamos LEGACY_URL como base raíz, y solo usamos LEGACY_IMAGES_URL para casos específicos si fuera necesario,
+        // o asumimos que el usuario puso la raíz del proyecto en LEGACY_URL.
+        
+        // RECUPERAMOS LA LÓGICA ANTERIOR DE BASE URL (Raíz del proyecto Legacy)
         $baseUrl = rtrim(env('LEGACY_URL'), '/') . '/';
+
+        // Log para depuración
+        Log::info('PDF Legacy BaseUrl', ['baseUrl' => $baseUrl]);
+
+        // Reemplazo adicional para asegurar rutas absolutas en estilos background: url(...)
+        // wkhtmltopdf a veces ignora <base> en estilos inline
+        if (!empty($htmlLegacy)) {
+            $htmlLegacy = preg_replace_callback(
+                '/background(?:\-image)?\s*:\s*url\s*\(([\'"]?)(.*?)\1\)/i', 
+                function($matches) use ($baseUrl) {
+                    $potentialUrl = trim($matches[2]);
+                    
+                    // Si ya es absoluta (http/https/data), no tocar
+                    if (preg_match('/^(http|https|data):/i', $potentialUrl)) {
+                        return $matches[0];
+                    }
+                    
+                    // Limpiar comillas y slash inicial
+                    $cleanUrl = ltrim(trim($potentialUrl, '\'"'), '/');
+                    
+                    // CASO ESPECIAL: Si la imagen viene de 'cache/', y tenemos una variable específica para imágenes,
+                    // podríamos intentar usarla, pero generalmente cache está en la raíz o en images/paint/cache.
+                    // Según el HTML proporcionado: "cache/snapshot3126.png" y "images/paint/cristalino.png".
+                    
+                    // Si la URL empieza con "cache/", es probable que esté dentro de images/paint/ (basado en la estructura de BioMicroscopia típica)
+                    // O puede que esté en la raíz.
+                    // Vemos el HTML del usuario: url('cache/snapshot3126.png') dentro de un div con url('/images/paint/cristalino.png').
+                    // Si el sistema legacy guarda los snapshots en /images/paint/cache/, entonces debemos ajustar.
+                    
+                    // INTENTO DE CORRECCIÓN INTELIGENTE:
+                    // 1. Si la URL ya contiene "images/paint", usamos la BaseURL normal (raíz).
+                    // 2. Si la URL es "cache/..." y NO empieza con images/paint, probamos inyectarle el path de paint si así lo requiere la app.
+                    
+                    // Pero para no adivinar mal, usemos la variable de entorno LEGACY_IMAGES_URL SOLO para prefijar si la URL es corta (ej cache/)
+                    // El usuario puso LEGACY_IMAGES_URL = .../images/paint/
+                    
+                    $legacyImagesUrl = env('LEGACY_IMAGES_URL');
+                    
+                    // Lógica específica para snapshots
+                    if (str_starts_with($cleanUrl, 'cache/') && !empty($legacyImagesUrl)) {
+                         // Si es un snapshot en cache y tenemos URL de imagenes configurada, probamos usar esa
+                         $repoUrl = rtrim($legacyImagesUrl, '/') . '/';
+                         // Si el usuario configuró mal la var LEGACY_IMAGES_URL con 'images/paint/' al final,
+                         // y la imagen es 'cache/...', la URL resultante será .../images/paint/cache/... Correcto.
+                         $finalUrl = $repoUrl . str_replace('images/paint/', '', $cleanUrl); 
+                         return "background-image: url('{$finalUrl}')";
+                    }
+
+                    // Lógica para imágenes normales del template (que ya incluyen images/paint/...)
+                    // Si la URL limpia empieza con 'images/paint/', usamos la base general (LEGACY_URL)
+                    if (str_starts_with($cleanUrl, 'images/paint/')) {
+                        $finalUrl = $baseUrl . $cleanUrl;
+                         return "background-image: url('{$finalUrl}')";
+                    }
+                    
+                    // Fallback
+                    $newUrl = $baseUrl . $cleanUrl;
+                    
+                    return "background-image: url('{$newUrl}')";
+                },
+                $htmlLegacy
+            );
+        }
 
         // ==========================
         // PDF con Snappy
