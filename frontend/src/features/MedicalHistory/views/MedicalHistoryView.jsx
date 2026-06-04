@@ -24,19 +24,32 @@ import {
 import { useUser } from "../../../contexts/UserContext/UserContext";
 import Swal from "sweetalert2";
 
+const RESPUESTA_COLORES = [
+  'bg-green-600/20 text-green-400 border-green-500/30',
+  'bg-blue-600/20 text-blue-400 border-blue-500/30',
+  'bg-teal-600/20 text-teal-400 border-teal-500/30',
+  'bg-yellow-600/20 text-yellow-400 border-yellow-500/30',
+  'bg-orange-600/20 text-orange-400 border-orange-500/30',
+  'bg-red-600/20 text-red-400 border-red-500/30',
+];
+
 const EncuestaCard = ({ item }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   if (!item || parseInt(item.encuesta_completada) !== 1) return null;
 
-  const pregunta1 = item.encuesta_pregunta_1 || '';
-  const pregunta2 = item.encuesta_pregunta_2 || '';
-  const fecha = item.encuesta_fecha_registro || item.fecha_encuesta || '';
-  const fechaSolo = fecha ? fecha.split(' ')[0] : '';
+  // Normalizar: puede venir como item.encuesta.respuestas (detalle consulta externa)
+  // o como item.encuesta_respuestas (cirugía, array con descripcion_pregunta y respuesta)
+  let respuestas = item.encuesta?.respuestas ?? [];
+  if (respuestas.length === 0 && Array.isArray(item.encuesta_respuestas) && item.encuesta_respuestas.length > 0) {
+    respuestas = item.encuesta_respuestas;
+  }
+  const fecha = item.encuesta?.fecha_registro || item.encuesta_fecha_registro || '';
+  const fechaSolo = fecha ? fecha.split('T')[0].split(' ')[0] : '';
 
   return (
     <div className="bg-[#1e293b] rounded-xl border border-blue-900/30 overflow-hidden shadow-md mt-6 animate-fade-in-up transition-all duration-300">
-      <button 
+      <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full bg-blue-900/40 px-6 py-4 flex items-center justify-between hover:bg-blue-800/40 transition-colors cursor-pointer group/card"
@@ -55,45 +68,35 @@ const EncuestaCard = ({ item }) => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-           <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-600/20 text-blue-300 uppercase border border-blue-500/20 group-hover/card:bg-blue-600/30 transition-all">
-             {isOpen ? 'Ocultar Detalle' : 'Ver Respuesta'}
-           </span>
-           {isOpen ? <ChevronUp className="text-blue-400 w-5 h-5" /> : <ChevronDown className="text-blue-400 w-5 h-5" />}
+          <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-600/20 text-blue-300 uppercase border border-blue-500/20 group-hover/card:bg-blue-600/30 transition-all">
+            {isOpen ? 'Ocultar Detalle' : 'Ver Respuesta'}
+          </span>
+          {isOpen ? <ChevronUp className="text-blue-400 w-5 h-5" /> : <ChevronDown className="text-blue-400 w-5 h-5" />}
         </div>
       </button>
 
       {isOpen && (
         <div className="border-t border-blue-900/30 animate-fade-in">
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Pregunta 1 Card */}
-            <div className="bg-blue-950/40 rounded-xl p-5 border border-blue-800/20 shadow-inner group/q hover:border-blue-700/40 transition-all duration-300">
-              <p className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center text-xs text-blue-100 font-bold border border-blue-500/20 group-hover/q:scale-110 transition-transform">1</span>
-                ¿Cómo califica la atención recibida por parte del personal médico?
-              </p>
-              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-lg shadow-sm
-                ${pregunta1 === 'Excelente' ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 
-                  pregunta1 === 'Bueno' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 
-                  'bg-orange-600/20 text-orange-400 border border-orange-500/30'}`}>
-                {pregunta1}
+            {respuestas.map((r, idx) => (
+              <div
+                key={r.pregunta_id ?? idx}
+                className="bg-blue-950/40 rounded-xl p-5 border border-blue-800/20 shadow-inner group/q hover:border-blue-700/40 transition-all duration-300"
+              >
+                <p className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center text-xs text-blue-100 font-bold border border-blue-500/20 group-hover/q:scale-110 transition-transform">
+                    {idx + 1}
+                  </span>
+                  {r.descripcion_pregunta}
+                </p>
+                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-base shadow-sm border ${
+                  RESPUESTA_COLORES[idx % RESPUESTA_COLORES.length]
+                }`}>
+                  {r.respuesta}
+                </div>
               </div>
-            </div>
-
-            {/* Pregunta 2 Card */}
-            <div className="bg-blue-950/40 rounded-xl p-5 border border-blue-800/20 shadow-inner group/q hover:border-blue-700/40 transition-all duration-300">
-              <p className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center text-xs text-blue-100 font-bold border border-blue-500/20 group-hover/q:scale-110 transition-transform">2</span>
-                ¿Recomendaría nuestros servicios a familiares y amigos?
-              </p>
-              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-lg shadow-sm
-                ${pregunta2 === 'Definitivamente sí' ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 
-                  pregunta2 === 'Probablemente sí' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 
-                  'bg-orange-600/20 text-orange-400 border border-orange-500/30'}`}>
-                {pregunta2}
-              </div>
-            </div>
+            ))}
           </div>
-          
           <div className="bg-blue-900/10 px-6 py-4 border-t border-blue-900/30 text-right">
             <p className="text-xs md:text-sm text-blue-300 font-medium italic">
               Registrado el: {fechaSolo}
@@ -120,6 +123,7 @@ export default function MedicalHistoryView() {
   const [permissions, setPermissions] = useState([]);
   const [surgeryViewMode, setSurgeryViewMode] = useState("procedures"); // 'procedures' | 'histories'
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [surveyQuestions, setSurveyQuestions] = useState([]);
   const { user } = useUser();
 
   // Effect para resetear la vista si la ubicación cambia (ej. clic en menú Historial Médico)
@@ -131,7 +135,17 @@ export default function MedicalHistoryView() {
   useEffect(() => {
     loadHistory();
     loadPermissions();
+    loadSurveyQuestions();
   }, []);
+
+  const loadSurveyQuestions = async () => {
+    try {
+      const data = await historyService.getSurveyQuestions();
+      if (data.success && Array.isArray(data.data)) setSurveyQuestions(data.data);
+    } catch (e) {
+      console.error('Error cargando preguntas encuesta', e);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 5) loadAttachments();
@@ -306,70 +320,75 @@ export default function MedicalHistoryView() {
   };
 
   const handleSurvey = async (item) => {
+    // Usar preguntas del estado (cargadas al montar) o recargar si aún no llegaron
+    let preguntas = surveyQuestions;
+    if (!preguntas.length) {
+      try {
+        const data = await historyService.getSurveyQuestions();
+        preguntas = (data.success && Array.isArray(data.data)) ? data.data : [];
+        setSurveyQuestions(preguntas);
+      } catch (e) { /* continúa con array vacío */ }
+    }
+
+    if (!preguntas.length) {
+      Swal.fire({ title: 'Error', text: 'No se pudieron cargar las preguntas. Intente nuevamente.', icon: 'error', background: '#1e293b', color: '#fff' });
+      return;
+    }
+
+    // Construir HTML del formulario dinámicamente
+    const selectsHtml = preguntas.map((p, idx) => {
+      const opciones = (p.opciones ?? []).map(op => `<option value="${op}">${op}</option>`).join('');
+      return `
+        <div class="space-y-1 pt-${idx > 0 ? '3' : '0'}">
+          <label class="block text-sm font-medium text-white">${idx + 1}. ${p.descripcion_pregunta}</label>
+          <select id="pq_${p.pregunta_id}" class="w-full p-2 rounded bg-slate-700 border border-slate-600 text-white focus:ring-2 focus:ring-blue-500">
+            <option value="">Seleccione...</option>
+            ${opciones}
+          </select>
+        </div>`;
+    }).join('');
+
     const { value: formValues } = await Swal.fire({
-      title: "Encuesta de Satisfacción",
+      title: 'Encuesta de Satisfacción',
       html: `
         <div class="text-left space-y-4">
           <p class="text-sm text-gray-400 mb-4">Para continuar viendo su historia clínica, por favor califique nuestro servicio en este ingreso (${item.ingreso}).</p>
-          
-          <div class="space-y-2">
-            <label class="block text-sm font-medium text-white">1. ¿Cómo califica la atención recibida por parte del personal médico?</label>
-            <select id="p1" class="w-full p-2 rounded bg-slate-700 border border-slate-600 text-white focus:ring-2 focus:ring-blue-500">
-              <option value="">Seleccione...</option>
-              <option value="Excelente">Excelente</option>
-              <option value="Bueno">Bueno</option>
-              <option value="Regular">Regular</option>
-              <option value="Malo">Malo</option>
-            </select>
-          </div>
-
-          <div class="space-y-2 pt-2">
-            <label class="block text-sm font-medium text-white">2. ¿Recomendaría nuestros servicios a familiares y amigos?</label>
-            <select id="p2" class="w-full p-2 rounded bg-slate-700 border border-slate-600 text-white focus:ring-2 focus:ring-blue-500">
-              <option value="">Seleccione...</option>
-              <option value="Definitivamente sí">Definitivamente sí</option>
-              <option value="Probablemente sí">Probablemente sí</option>
-              <option value="No estoy seguro">No estoy seguro</option>
-              <option value="No">No</option>
-            </select>
-          </div>
-        </div>
-      `,
+          ${selectsHtml}
+        </div>`,
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: "Enviar y Continuar",
-      cancelButtonText: "Cancelar",
-      background: "#1e293b",
-      color: "#fff",
-      confirmButtonColor: "#3b82f6",
+      confirmButtonText: 'Enviar y Continuar',
+      cancelButtonText: 'Cancelar',
+      background: '#1e293b',
+      color: '#fff',
+      confirmButtonColor: '#3b82f6',
       preConfirm: () => {
-        const p1 = document.getElementById("p1").value;
-        const p2 = document.getElementById("p2").value;
-        if (!p1 || !p2) {
-          Swal.showValidationMessage("Por favor responda ambas preguntas");
-          return false;
+        const respuestas = [];
+        for (const p of preguntas) {
+          const val = document.getElementById(`pq_${p.pregunta_id}`)?.value;
+          if (!val) {
+            Swal.showValidationMessage('Por favor responda todas las preguntas');
+            return false;
+          }
+          respuestas.push({ pregunta_id: p.pregunta_id, respuesta: val });
         }
-        return { p1, p2 };
+        return respuestas;
       },
     });
 
     if (formValues) {
       try {
-        const payload = {
-          ingreso: item.ingreso,
-          pregunta_1: formValues.p1,
-          pregunta_2: formValues.p2,
-        };
+        const payload = { ingreso: item.ingreso, respuestas: formValues };
         const res = await historyService.saveSurvey(payload);
         if (res.success) {
           Swal.fire({
-            icon: "success",
-            title: "¡Gracias!",
-            text: "Su respuesta ha sido registrada. Ya puede ver su información.",
+            icon: 'success',
+            title: '¡Gracias!',
+            text: 'Su respuesta ha sido registrada. Ya puede ver su información.',
             timer: 2000,
             showConfirmButton: false,
-            background: "#1e293b",
-            color: "#fff",
+            background: '#1e293b',
+            color: '#fff',
           });
           // Recargar datos para actualizar el flag de encuesta_completada
           loadHistory();
@@ -377,19 +396,17 @@ export default function MedicalHistoryView() {
           loadDiagnosticSupport();
           loadSurgeries();
 
-          // Solo abrir el detalle automáticamente para Consulta Externa (1) u Hospitalización (4)
-          // Para Apoyos y Cirugía nos quedamos en el listado para mostrar la tarjeta de resultados
           if (activeTab === 1 || activeTab === 4) {
             setSelectedIngreso(item.ingreso);
           }
         }
       } catch (error) {
         Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "No se pudo guardar la encuesta. Intente nuevamente.",
-          background: "#1e293b",
-          color: "#fff",
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo guardar la encuesta. Intente nuevamente.',
+          background: '#1e293b',
+          color: '#fff',
         });
       }
     }
@@ -1754,13 +1771,12 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
 
   const renderEncuesta = () => {
     if (!details.encuesta) return null;
-    
+
     return (
       <EncuestaCard item={{
         encuesta_completada: 1,
-        encuesta_pregunta_1: details.encuesta.pregunta_1,
-        encuesta_pregunta_2: details.encuesta.pregunta_2,
-        encuesta_fecha_registro: details.encuesta.fecha_registro
+        encuesta: details.encuesta,           // { ingreso, fecha_registro, respuestas: [...] }
+        encuesta_fecha_registro: details.encuesta.fecha_registro,
       }} />
     );
   };

@@ -35,7 +35,7 @@ export default function DashboardView() {
         // 'AGENDAMIENTO_WEB' con sw_imprime=1
         const config = data.data['AGENDAMIENTO_WEB'];
         if (config) {
-             setCanSchedule(Boolean(config.sw_imprime));
+             setCanSchedule(config.estado === "1");
         }
       } catch (error) {
         console.warn("Warning checking permissions", error);

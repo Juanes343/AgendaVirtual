@@ -118,7 +118,10 @@ export default function AdminSettingsView() {
                         {/* Logo */}
                         <div className="flex items-center gap-2">
                             <img src={logo} alt="Logo" className="w-12 h-12 rounded-lg object-contain bg-blue-500/10 p-1" />
-                            <span className="text-2xl font-bold hidden sm:block">SanDi•Med</span>
+                            {/* <span className="text-2xl font-bold hidden sm:block">SanDi•Med</span> */}
+                            <span className="text-2xl font-bold hidden sm:block">
+                                {import.meta.env.VITE_APP_TITLE || "SanDi•Med"}
+                            </span>
                         </div>
 
                         {/* Navigation */}

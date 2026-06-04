@@ -335,9 +335,9 @@ export default function LoginView() {
                                 >
                                     ¿Olvidaste tu contraseña?
                                 </button>
-                                <Link to="/register" className="block w-full text-sm text-foreground hover:text-primary transition-colors text-center font-medium border border-border rounded-lg py-2 hover:bg-muted/50">
+                                {/* <Link to="/register" className="block w-full text-sm text-foreground hover:text-primary transition-colors text-center font-medium border border-border rounded-lg py-2 hover:bg-muted/50">
                                     Crear cuenta nueva
-                                </Link>
+                                </Link> */}
                             </div>
 
                             <div className="flex items-center justify-center gap-2 pt-4 border-t border-border">

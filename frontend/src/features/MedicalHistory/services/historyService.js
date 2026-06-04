@@ -109,7 +109,12 @@ const historyService = {
         return response.data;
     },
     saveSurvey: async (formData) => {
+        // formData: { ingreso: int, respuestas: [{ pregunta_id, respuesta }] }
         const response = await api.post('/medical-history/satisfaction-survey', formData);
+        return response.data;
+    },
+    getSurveyQuestions: async () => {
+        const response = await api.get('/survey-questions');
         return response.data;
     },
     printNotaOperatoria: (notaId) => {
