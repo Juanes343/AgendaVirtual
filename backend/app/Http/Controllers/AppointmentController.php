@@ -331,7 +331,7 @@ class AppointmentController extends Controller
                 T.nombre_tercero as profesional,
                 a.agenda_cita_id,
                 b.agenda_cita_asignada_id,
-                CASE WHEN B.sw_tipo_atencion = '1' THEN 'PRESENCIAL' ELSE 'TELECONSULTA' END AS atencion,
+                -- CASE WHEN B.sw_tipo_atencion = '1' THEN 'PRESENCIAL' ELSE 'TELECONSULTA' END AS atencion,
                 om.sw_estado as orden_estado
             FROM agenda_citas A
             JOIN agenda_citas_asignadas B ON A.agenda_cita_id = B.agenda_cita_id
@@ -555,7 +555,7 @@ class AppointmentController extends Controller
                 'cod_autorizacion' => $authSeq,
                 'fecha_deseada' => $turno->fecha_turno, 
                 'observacion' => 'Agendado desde Web',
-                'sw_tipo_atencion' => '1',
+                // 'sw_tipo_atencion' => '1',
                 'modalidad_atencion_id' => '01',
                 'sw_estado' => '1'
             ]);

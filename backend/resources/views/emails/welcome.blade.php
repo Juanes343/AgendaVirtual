@@ -25,14 +25,14 @@
             
             <div class="info-box">
                 <p><strong>Usuario / Documento:</strong> {{ $documento }}</p>
-                <p>Para activar tu cuenta y poder ingresar, haz clic en el siguiente botón:</p>
+                <p>Para activar tu cuenta, haz clic en el siguiente botón y elige tu contraseña de acceso:</p>
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{{ $activationUrl }}" 
                    style="display: inline-block; background: #0F52BA; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; font-family: Arial, sans-serif;" 
                    target="_blank">
-                   Activar mi cuenta
+                   Activar cuenta y crear contraseña
                 </a>
             </div>
 

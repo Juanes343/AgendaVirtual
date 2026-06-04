@@ -37,19 +37,31 @@ class SurgeryController extends Controller
                 // Si ya viene del service no hace falta, pero usualmente es un objeto o array
                 $ing = is_object($surgery) ? $surgery->ingreso : ($surgery['ingreso'] ?? null);
                 if ($ing) {
-                    $survey = DB::table('hc_encuesta_satisfaccion')->where('ingreso', $ing)->first();
-                    $hasSurvey = !empty($survey);
-                    
+                    $surveyHeader = DB::table('hc_encuesta_satisfaccion')->where('ingreso', $ing)->first();
+                    $hasSurvey = !empty($surveyHeader);
+
+                    $pregunta1 = null;
+                    $pregunta2 = null;
+                    $fechaEncuesta = null;
+
+                    if ($hasSurvey) {
+                        $fechaEncuesta = substr($surveyHeader->fecha_registro ?? '', 0, 10);
+                        $detalles = DB::table('hc_encuesta_satisfaccion_detalle as d')
+                            ->join('encuesta_satisfaccion_preguntas as p', 'p.pregunta_id', '=', 'd.pregunta_id')
+                            ->where('d.ingreso', $ing)
+                            ->orderBy('p.indice_orden')
+                            ->select('d.pregunta_id', 'd.respuesta', 'p.descripcion_pregunta', 'p.indice_orden')
+                            ->get();
+                    }
+
                     if (is_object($surgery)) {
                         $surgery->encuesta_completada = $hasSurvey ? 1 : 0;
-                        $surgery->encuesta_pregunta_1 = $hasSurvey ? $survey->pregunta_1 : null;
-                        $surgery->encuesta_pregunta_2 = $hasSurvey ? $survey->pregunta_2 : null;
-                        $surgery->encuesta_fecha_registro = $hasSurvey ? substr($survey->fecha_registro, 0, 10) : null;
+                        $surgery->encuesta_respuestas = $hasSurvey ? $detalles : [];
+                        $surgery->encuesta_fecha_registro = $fechaEncuesta;
                     } else {
                         $surgery['encuesta_completada'] = $hasSurvey ? 1 : 0;
-                        $surgery['encuesta_pregunta_1'] = $hasSurvey ? $survey->pregunta_1 : null;
-                        $surgery['encuesta_pregunta_2'] = $hasSurvey ? $survey->pregunta_2 : null;
-                        $surgery['encuesta_fecha_registro'] = $hasSurvey ? substr($survey->fecha_registro, 0, 10) : null;
+                        $surgery['encuesta_respuestas'] = $hasSurvey ? $detalles : [];
+                        $surgery['encuesta_fecha_registro'] = $fechaEncuesta;
                     }
                 } else {
                     if (is_object($surgery)) {

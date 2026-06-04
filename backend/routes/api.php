@@ -19,6 +19,12 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/manual', [AuthController::class, 'downloadManual']);
 Route::get('/document-types', [AuthController::class, 'getDocumentTypes']);
 
+// Preguntas de la encuesta de satisfacción (público, no requiere auth para cargarlas)
+Route::get('/survey-questions', [\App\Http\Controllers\ReportController::class, 'getSurveyQuestions']);
+
+// Endpoint para provisionamiento desde el sistema legado (IHC/PHP74)
+Route::post('/legacy/provision-patient', [AuthController::class, 'provisionPatient']);
+
 
 // Rutas de Agendamiento (Públicas para catálogos)
 Route::prefix('appointments')->group(function () {

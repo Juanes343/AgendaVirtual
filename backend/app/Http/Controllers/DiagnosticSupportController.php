@@ -30,8 +30,6 @@ class DiagnosticSupportController extends Controller
                 rs.usuario_id_profesional_autoriza,
                 rs.nombre_profesional,
                 CASE WHEN enc.ingreso IS NOT NULL THEN 1 ELSE 0 END as encuesta_completada,
-                enc.pregunta_1 as encuesta_pregunta_1,
-                enc.pregunta_2 as encuesta_pregunta_2,
                 TO_CHAR(enc.fecha_registro, 'YYYY-MM-DD') as encuesta_fecha_registro
             FROM (
                 SELECT DISTINCT 

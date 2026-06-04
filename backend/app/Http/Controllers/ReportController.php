@@ -82,8 +82,9 @@ class ReportController extends Controller
                 DB::raw("MAX(cups.descripcion) as servicio"),
                 DB::raw("MAX(cups.cargo) as codigo_servicio"),
                 'b.estado',
-                DB::raw("MAX(tc.tipo) as tipo_consulta_id"), // Se asume nombre de columna 'tipo'
-                DB::raw("CASE WHEN enc.ingreso IS NOT NULL THEN 1 ELSE 0 END as encuesta_completada")
+                DB::raw("MAX(tc.tipo) as tipo_consulta_id"),
+                DB::raw("CASE WHEN enc.ingreso IS NOT NULL THEN 1 ELSE 0 END as encuesta_completada"),
+                DB::raw("MAX(enc.fecha_registro) as encuesta_fecha_registro")
             )
             ->where('b.paciente_id', $pacienteId)
             ->where('b.tipo_id_paciente', $tipoDoc)
@@ -332,10 +333,26 @@ class ReportController extends Controller
             ->orderBy('a.fecha_solicitud', 'desc')
             ->get();
 
-        // 7. Encuesta de Satisfacción (Nuevo)
-        $encuesta = DB::table('hc_encuesta_satisfaccion')
+        // 7. Encuesta de Satisfacción (parametrizada)
+        $encuestaHeader = DB::table('hc_encuesta_satisfaccion')
             ->where('ingreso', $ingreso)
             ->first();
+
+        $encuesta = null;
+        if ($encuestaHeader) {
+            $respuestasDetalle = DB::table('hc_encuesta_satisfaccion_detalle as d')
+                ->join('encuesta_satisfaccion_preguntas as p', 'd.pregunta_id', '=', 'p.pregunta_id')
+                ->where('d.ingreso', $ingreso)
+                ->orderBy('p.indice_orden', 'asc')
+                ->select('d.pregunta_id', 'p.descripcion_pregunta', 'd.respuesta', 'p.indice_orden')
+                ->get();
+
+            $encuesta = [
+                'ingreso'          => $encuestaHeader->ingreso,
+                'fecha_registro'   => $encuestaHeader->fecha_registro,
+                'respuestas'       => $respuestasDetalle,
+            ];
+        }
 
         // 8. Recomendaciones Médicas
         $recomendaciones = DB::table('hc_recomendaciones_medicas as a')
@@ -1927,7 +1944,31 @@ class ReportController extends Controller
     }
 
     /**
-     * Guarda la respuesta de la encuesta de satisfacción por ingreso
+     * Devuelve las preguntas activas de la encuesta de satisfacción, ordenadas por indice_orden.
+     */
+    public function getSurveyQuestions()
+    {
+        try {
+            $preguntas = DB::table('encuesta_satisfaccion_preguntas')
+                ->orderBy('indice_orden', 'asc')
+                ->get(['pregunta_id', 'descripcion_pregunta', 'opciones', 'grupo_id', 'indice_orden']);
+
+            // opciones viene como JSON string desde PG; lo decodificamos
+            $preguntas = $preguntas->map(function ($p) {
+                $p->opciones = is_string($p->opciones) ? json_decode($p->opciones, true) : ($p->opciones ?? []);
+                return $p;
+            });
+
+            return response()->json(['success' => true, 'data' => $preguntas]);
+        } catch (\Exception $e) {
+            Log::error('Error cargando preguntas encuesta: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error al cargar preguntas'], 500);
+        }
+    }
+
+    /**
+     * Guarda las respuestas de la encuesta de satisfacción por ingreso (estructura parametrizada).
+     * Espera: { ingreso: int, respuestas: [ { pregunta_id: int, respuesta: string }, ... ] }
      */
     public function storeSurvey(Request $request)
     {
@@ -1938,32 +1979,43 @@ class ReportController extends Controller
             }
 
             $validated = $request->validate([
-                'ingreso' => 'required',
-                'pregunta_1' => 'required|string',
-                'pregunta_2' => 'required|string'
+                'ingreso'               => 'required|integer',
+                'respuestas'            => 'required|array|min:1',
+                'respuestas.*.pregunta_id' => 'required|integer',
+                'respuestas.*.respuesta'   => 'required|string|max:500',
             ]);
 
-            // Verificar si el ingreso ya tiene encuesta
+            // Verificar si el ingreso ya tiene encuesta registrada
             $exists = DB::table('hc_encuesta_satisfaccion')
                 ->where('ingreso', $validated['ingreso'])
                 ->exists();
 
             if ($exists) {
                 return response()->json([
-                    'success' => true, 
+                    'success' => true,
                     'message' => 'Ya se ha registrado una respuesta para este ingreso'
                 ]);
             }
 
-            // Insertar respuesta
-            DB::table('hc_encuesta_satisfaccion')->insert([
-                'tipo_id_paciente' => $user->tipo_documento,
-                'paciente_id' => $user->paciente_id,
-                'ingreso' => $validated['ingreso'],
-                'pregunta_1' => $validated['pregunta_1'],
-                'pregunta_2' => $validated['pregunta_2'],
-                'fecha_registro' => now()
-            ]);
+            DB::transaction(function () use ($validated) {
+                // 1. Cabecera en hc_encuesta_satisfaccion
+                DB::table('hc_encuesta_satisfaccion')->insert([
+                    'ingreso'         => $validated['ingreso'],
+                    'fecha_registro'  => now(),
+                ]);
+
+                // 2. Detalle por pregunta
+                $detalle = array_map(function ($r) use ($validated) {
+                    return [
+                        'ingreso'         => $validated['ingreso'],
+                        'pregunta_id'     => $r['pregunta_id'],
+                        'respuesta'       => $r['respuesta'],
+                        'fecha_registro'  => now(),
+                    ];
+                }, $validated['respuestas']);
+
+                DB::table('hc_encuesta_satisfaccion_detalle')->insert($detalle);
+            });
 
             return response()->json([
                 'success' => true,

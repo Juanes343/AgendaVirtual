@@ -547,6 +547,10 @@ class AuthController extends Controller
             }
 
             $usuario->passwd = Hash::make($request->password);
+            // Si la cuenta estaba inactiva (creada desde el sistema legado), activarla ahora
+            if ($usuario->estado == '0') {
+                $usuario->estado = '1';
+            }
             $usuario->save();
 
             $tokenRecord->estado = '0';
@@ -554,7 +558,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Contraseña restablecida exitosamente. Ahora puede iniciar sesión.'
+                'message' => 'Contraseña establecida correctamente. Ya puede iniciar sesión.'
             ]);
 
         } catch (\Exception $e) {
@@ -733,6 +737,168 @@ class AuthController extends Controller
             return response()->json($types);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error fetching document types', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Endpoint para provisionamiento de acceso al portal desde el sistema legado.
+     * POST /api/legacy/provision-patient
+     *
+     * Lógica:
+     *  - Usuario nuevo           → crea cuenta (estado=0) + envía email de activación
+     *  - Usuario existente inactivo (estado=0) → reenvía token de activación
+     *  - Usuario existente activo  (estado=1) → envía recordatorio de acceso al portal
+     */
+    public function provisionPatient(Request $request)
+    {
+        // Autenticación mediante token compartido con el sistema legado
+        $incomingToken = $request->header('X-Legacy-Token') ?? $request->input('legacy_token');
+        if ($incomingToken !== env('LEGACY_HC_TOKEN')) {
+            return response()->json(['success' => false, 'message' => 'No autorizado.'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'paciente_id' => 'required|string',
+            'tipo_doc'    => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos inválidos.',
+                'errors'  => $validator->errors()
+            ], 400);
+        }
+
+        $pacienteId = trim($request->paciente_id);
+        $tipoDoc    = trim($request->tipo_doc);
+
+        $paciente = Paciente::whereRaw('trim(paciente_id) = ?', [$pacienteId])
+            ->whereRaw('trim(tipo_id_paciente) = ?', [$tipoDoc])
+            ->first();
+
+        if (!$paciente) {
+            return response()->json(['success' => false, 'message' => 'Paciente no encontrado.'], 404);
+        }
+
+        if (empty(trim($paciente->email ?? ''))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El paciente no tiene correo electrónico registrado. No se puede notificar.'
+            ], 422);
+        }
+
+        $nombre      = trim("{$paciente->primer_nombre} {$paciente->primer_apellido}");
+        $frontendUrl = rtrim(env('FRONTEND_URL'), '/');
+        $appName     = env('APP_DISPLAY_NAME', 'SanDi•Med');
+
+        $usuarioVirtual = SystemUsuarioVirtual::where('paciente_id', $pacienteId)
+            ->where('tipo_documento', $tipoDoc)
+            ->first();
+
+        try {
+            DB::beginTransaction();
+
+            // ── CASO 1: Usuario nuevo ─────────────────────────────────────────
+            if (!$usuarioVirtual) {
+                $usuarioVirtual = new SystemUsuarioVirtual();
+                $usuarioVirtual->paciente_id    = $pacienteId;
+                $usuarioVirtual->tipo_documento = $tipoDoc;
+                $usuarioVirtual->passwd         = Hash::make(Str::random(20)); // temporal hasta que el paciente establezca su clave
+                $usuarioVirtual->estado         = '0';
+                $usuarioVirtual->save();
+
+                $tokenStr = Str::random(64);
+                TokenAgendaVirtual::create([
+                    'incriptacion'   => $tokenStr,
+                    'paciente_id'    => $pacienteId,
+                    'tipo_documento' => $tipoDoc,
+                    'fecha_registro' => now(),
+                    'estado'         => '1',
+                ]);
+
+                // Apunta a reset-password para que el paciente establezca su propia contraseña
+                $activationUrl = $frontendUrl . '/#/reset-password?token=' . $tokenStr;
+
+                Mail::send('emails.welcome', [
+                    'nombre'        => $nombre,
+                    'documento'     => $pacienteId,
+                    'activationUrl' => $activationUrl,
+                ], function ($message) use ($paciente, $appName) {
+                    $message->to(trim($paciente->email))
+                        ->subject("¡Bienvenido a {$appName}! - Activa tu cuenta en el Portal del Paciente");
+                });
+
+                DB::commit();
+                return response()->json([
+                    'success' => true,
+                    'status'  => 'created',
+                    'message' => 'Cuenta creada. Correo de activación enviado a ' . $this->maskEmail(trim($paciente->email)) . '.',
+                ], 201);
+            }
+
+            // ── CASO 2: Usuario existente e inactivo → reenviar activación ────
+            if ($usuarioVirtual->estado == '0') {
+                // Invalidar tokens de activación anteriores
+                TokenAgendaVirtual::where('paciente_id', $pacienteId)
+                    ->where('tipo_documento', $tipoDoc)
+                    ->where('estado', '1')
+                    ->update(['estado' => '0']);
+
+                $tokenStr = Str::random(64);
+                TokenAgendaVirtual::create([
+                    'incriptacion'   => $tokenStr,
+                    'paciente_id'    => $pacienteId,
+                    'tipo_documento' => $tipoDoc,
+                    'fecha_registro' => now(),
+                    'estado'         => '1',
+                ]);
+
+                // Apunta a reset-password para que el paciente establezca su propia contraseña
+                $activationUrl = $frontendUrl . '/#/reset-password?token=' . $tokenStr;
+
+                Mail::send('emails.welcome', [
+                    'nombre'        => $nombre,
+                    'documento'     => $pacienteId,
+                    'activationUrl' => $activationUrl,
+                ], function ($message) use ($paciente, $appName) {
+                    $message->to(trim($paciente->email))
+                        ->subject("Activa tu cuenta en {$appName} - Portal del Paciente");
+                });
+
+                DB::commit();
+                return response()->json([
+                    'success' => true,
+                    'status'  => 'activation_resent',
+                    'message' => 'Correo reenviado a ' . $this->maskEmail(trim($paciente->email)) . '.',
+                ]);
+            }
+
+            // ── CASO 3: Usuario activo → recordatorio de acceso al portal ─────
+            Mail::send('emails.portal_acceso', [
+                'nombre'    => $nombre,
+                'documento' => $pacienteId,
+                'portalUrl' => $frontendUrl . '/#/login',
+                'appName'   => $appName,
+            ], function ($message) use ($paciente, $appName) {
+                $message->to(trim($paciente->email))
+                    ->subject("Tienes una cita registrada - Accede a tu Portal {$appName}");
+            });
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'status'  => 'reminder_sent',
+                'message' => 'Correo recordatorio enviado a ' . $this->maskEmail(trim($paciente->email)) . '.',
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al provisionar acceso al portal.',
+                'error'   => $e->getMessage()
+            ], 500);
         }
     }
 
