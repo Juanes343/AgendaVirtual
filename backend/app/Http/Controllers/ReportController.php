@@ -196,7 +196,7 @@ class ReportController extends Controller
              ->select(
                 'e.evolucion_id',
                 DB::raw("TO_CHAR(a.fecha_solicitud, 'DD/MM/YYYY HH24:MI') as fecha_solicitud"),
-                'a.fecha_registro',
+                'e.fecha_registro',
                 'a.cargo as cargo',
                 'a.cargo as codigo',
                 'b.descripcion as descar', 
@@ -250,12 +250,9 @@ class ReportController extends Controller
             ->join('diagnosticos as d', 'a.diagnostico_id', '=', 'd.diagnostico_id')
             ->leftJoin('hc_tipos_incapacidad as ti', 'a.tipo_incapacidad_id', '=', 'ti.tipo_incapacidad_id')
             
-            // JOINS Adicionales para el reporte detallado
-            ->leftJoin('modalidad_prestacion_servicio as ms', 'a.modalidad_prestacion_servicio_id', '=', 'ms.modalidad_prestacion_servicio_id')
-            ->leftJoin('hc_incapacidades_tipo_retroactiva as ir', 'a.incapacidades_tipo_retroactiva_id', '=', 'ir.incapacidades_tipo_retroactiva_id')
             ->leftJoin('uv_dependencias as dep', 'a.codigo_dependencia_id', '=', 'dep.codigo_dependencia_id')
             ->leftJoin('hc_tipos_atencion_incapacidad as v', 'a.tipo_atencion_incapacidad_id', '=', 'v.tipo_atencion_incapacidad_id')
-            
+
             ->where('e.ingreso', $ingreso)
             ->select(
                 'e.evolucion_id',
@@ -268,17 +265,15 @@ class ReportController extends Controller
                 'ti.descripcion as tipo_incapacidad',
                 'd.diagnostico_nombre',
                 'd.diagnostico_id as codigo_diagnostico',
-                
-                // Campos adicionales requeridos en el reporte
                 'dep.descripcion_dependencia',
-                'ms.descripcion as desc_modalidad_servicio',
-                'ir.descripcion as desc_inc_retroactiva',
+                DB::raw('NULL as desc_modalidad_servicio'),
+                DB::raw('NULL as desc_inc_retroactiva'),
                 'v.descripcion as clase_atencion',
-                'a.sw_licencia_maternidad',
-                'a.fecha_posible_parto',
-                'a.semanas_gestacion',
-                'a.sw_embarazo_multiple',
-                'a.num_nacidos_vivos'
+                DB::raw('NULL as sw_licencia_maternidad'),
+                DB::raw('NULL as fecha_posible_parto'),
+                DB::raw('NULL as semanas_gestacion'),
+                DB::raw('NULL as sw_embarazo_multiple'),
+                DB::raw('NULL as num_nacidos_vivos')
             )
             ->get();
 
@@ -1320,9 +1315,6 @@ class ReportController extends Controller
             ->leftJoin('diagnosticos as d', 'a.diagnostico_id', '=', 'd.diagnostico_id')
             ->leftJoin('hc_tipos_incapacidad as ti', 'a.tipo_incapacidad_id', '=', 'ti.tipo_incapacidad_id')
             
-            // JOINS Adicionales para el reporte detallado
-            ->leftJoin('modalidad_prestacion_servicio as ms', 'a.modalidad_prestacion_servicio_id', '=', 'ms.modalidad_prestacion_servicio_id')
-            ->leftJoin('hc_incapacidades_tipo_retroactiva as ir', 'a.incapacidades_tipo_retroactiva_id', '=', 'ir.incapacidades_tipo_retroactiva_id')
             ->leftJoin('uv_dependencias as dep', 'a.codigo_dependencia_id', '=', 'dep.codigo_dependencia_id')
             ->leftJoin('hc_tipos_atencion_incapacidad as v', 'a.tipo_atencion_incapacidad_id', '=', 'v.tipo_atencion_incapacidad_id')
 
@@ -1336,17 +1328,15 @@ class ReportController extends Controller
                 'd.diagnostico_nombre',
                 'd.diagnostico_id as codigo_diagnostico',
                 'ti.descripcion as tipo_incapacidad',
-                
-                // Campos adicionales requeridos en el reporte
                 'dep.descripcion_dependencia',
-                'ms.descripcion as desc_modalidad_servicio',
-                'ir.descripcion as desc_inc_retroactiva',
+                DB::raw('NULL as desc_modalidad_servicio'),
+                DB::raw('NULL as desc_inc_retroactiva'),
                 'v.descripcion as clase_atencion',
-                'a.sw_licencia_maternidad',
-                'a.fecha_posible_parto',
-                'a.semanas_gestacion',
-                'a.sw_embarazo_multiple',
-                'a.num_nacidos_vivos'
+                DB::raw('NULL as sw_licencia_maternidad'),
+                DB::raw('NULL as fecha_posible_parto'),
+                DB::raw('NULL as semanas_gestacion'),
+                DB::raw('NULL as sw_embarazo_multiple'),
+                DB::raw('NULL as num_nacidos_vivos')
             )
             ->get();
 
@@ -1950,6 +1940,7 @@ class ReportController extends Controller
     {
         try {
             $preguntas = DB::table('encuesta_satisfaccion_preguntas')
+                ->whereIn('pregunta_id', [1, 2])
                 ->orderBy('indice_orden', 'asc')
                 ->get(['pregunta_id', 'descripcion_pregunta', 'opciones', 'grupo_id', 'indice_orden']);
 

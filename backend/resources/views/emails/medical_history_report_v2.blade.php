@@ -17,8 +17,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>SIMDE</h1>
-            <p>Reporte de Historia Clínica por SIMDE</p>
+            <h1>{{ env('APP_DISPLAY_NAME', 'SIMDE') }}</h1>
+            <p>Reporte de Historia Clínica por {{ env('APP_DISPLAY_NAME', 'SIMDE') }}</p>
         </div>
         <div class="content">
             <h2>Hola, {{ $nombre }}</h2>
@@ -33,7 +33,7 @@
             <p>Estos documentos contienen información confidencial. Por favor consérvalos de manera segura.</p>
             
             <div style="text-align: center;">
-                <a href="https://devel82els.simde.com.co/AgendaVirtual/frontend/build" class="btn">Ingresar al Portal</a>
+                <a href="{{ env('FRONTEND_URL', 'https://siis09.simde.com.co/PortalPaciente/CEO/AgendaVirtual/frontend/build/') }}" class="btn">Ingresar al Portal</a>
             </div>
 
              <div class="disclaimer">
