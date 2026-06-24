@@ -913,17 +913,17 @@ export default function MedicalHistoryView() {
               >
                 <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div className="flex-1 space-y-2">
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-blue-300 font-semibold uppercase tracking-wider">
+                    <div className="flex flex-wrap items-center gap-3 text-base text-blue-300 font-semibold uppercase tracking-wider">
                       <div
-                        className={`px-2 py-1 rounded text-sm ${item.estado === "1" ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}
+                        className={`px-3 py-1.5 rounded text-base ${item.estado === "1" ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}
                       >
                         Ingreso #{item.ingreso}
                       </div>
                       <span className="flex items-center gap-1">
-                        <Calendar size={14} /> {item.fecha}
+                        <Calendar size={16} /> {item.fecha}
                       </span>
-                      <div className="flex items-center gap-2 text-blue-300 text-sm border-l border-white/10 pl-3 ml-1 font-bold">
-                        <User size={14} className="text-blue-500" />
+                      <div className="flex items-center gap-2 text-blue-300 text-base border-l border-white/10 pl-3 ml-1 font-bold">
+                        <User size={16} className="text-blue-500" />
                         <span>{item.profesional_nombre || "INSTITUCIÓN"}</span>
                       </div>
                     </div>
@@ -975,26 +975,26 @@ export default function MedicalHistoryView() {
               <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 {/* Info Principal */}
                 <div className="flex-1 space-y-2">
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-blue-300 font-semibold uppercase tracking-wider">
+                  <div className="flex flex-wrap items-center gap-3 text-base text-blue-300 font-semibold uppercase tracking-wider">
                     <div
-                      className={`px-2 py-1 rounded text-sm ${item.estado === "1" ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}
+                      className={`px-3 py-1.5 rounded text-base ${item.estado === "1" ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}
                     >
                       Ingreso #{item.ingreso}
                     </div>
                     <span className="flex items-center gap-1">
-                      <Calendar size={14} /> {item.fecha}
+                      <Calendar size={16} /> {item.fecha}
                     </span>
 
                     {/* Professional Name moved here */}
-                    <div className="flex items-center gap-2 text-blue-300 text-sm border-l border-white/10 pl-3 ml-1 font-bold">
-                      <User size={14} className="text-blue-500" />
+                    <div className="flex items-center gap-2 text-blue-300 text-base border-l border-white/10 pl-3 ml-1 font-bold">
+                      <User size={16} className="text-blue-500" />
                       <span>{"PROFESIONAL: " + item.profesional_nombre}</span>
                     </div>
                   </div>
-                  <h3 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors">
+                  <div className="!text-sm font-semibold text-gray-300 group-hover:text-blue-400 transition-colors">
                     {item.codigo_servicio ? `${item.codigo_servicio} - ` : ""}
                     {item.servicio || "ATENCIÓN MÉDICA GENERAL"}
-                  </h3>
+                  </div>
                 </div>
 
                 {/* Botón Acción */}
@@ -1036,7 +1036,22 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
   }); // Ahora incluye incapacidades
   const [loading, setLoading] = useState(true);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState({}); // { [hc_os_solicitud_id]: true } para impresión/envío por fila
   const { user } = useUser();
+
+  // Alterna la selección de una solicitud individual
+  const toggleOrder = (id) =>
+    setSelectedOrders((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  // Marca/desmarca todas las solicitudes de un grupo
+  const setGroupSelection = (sols, checked) =>
+    setSelectedOrders((prev) => {
+      const next = { ...prev };
+      sols.forEach((s) => {
+        next[s.hc_os_solicitud_id] = checked;
+      });
+      return next;
+    });
 
   useEffect(() => {
     historyService.getDetail(ingresoId).then((data) => {
@@ -1313,6 +1328,11 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
               <div className="p-1 space-y-4">
                 {sortedKeys.map((typeName) => {
                   const typeSols = groupedByType[typeName];
+                  const selectedInGroup = typeSols.filter((s) => selectedOrders[s.hc_os_solicitud_id]);
+                  const groupIds = (selectedInGroup.length ? selectedInGroup : typeSols)
+                    .map((s) => s.hc_os_solicitud_id)
+                    .join(",");
+                  const allGroupSelected = typeSols.length > 0 && selectedInGroup.length === typeSols.length;
                   return (
                   <div
                     key={typeName}
@@ -1344,23 +1364,23 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
     
                       <div className="flex items-center gap-4 border-l border-white/10 pl-4 mt-2 md:mt-0">
                           <button
-                            onClick={() => historyService.printOrder(evolucionId, typeSols[0].servicio_descripcion, typeName)}
+                            onClick={() => historyService.printOrder(evolucionId, typeSols[0].servicio_descripcion, typeName, groupIds)}
                             className="text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md"
-                            title="Imprimir Orden"
+                            title={selectedInGroup.length ? `Imprimir ${selectedInGroup.length} seleccionada(s)` : "Imprimir todas las órdenes de este tipo"}
                           >
-                            <Printer size={14} /> Imprimir Orden
+                            <Printer size={14} /> {selectedInGroup.length ? `Imprimir (${selectedInGroup.length})` : "Imprimir Orden"}
                           </button>
-                          
+
                           {permissions?.sw_correo && (
                             <button
                               onClick={() => {
-                                const ids = typeSols.map(s => s.hc_os_solicitud_id).join(',');
-                                handleSendEmail("ordenes", evolucionId, typeSols[0].servicio_descripcion, ids);
+                                handleSendEmail("ordenes", evolucionId, typeSols[0].servicio_descripcion, groupIds);
                               }}
                               disabled={sendingEmail}
                               className="text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded flex items-center gap-2 text-[11px] font-bold uppercase transition-all shadow-md disabled:opacity-50"
+                              title={selectedInGroup.length ? `Enviar ${selectedInGroup.length} seleccionada(s)` : "Enviar todas las órdenes de este tipo"}
                             >
-                              <Mail size={14} /> Enviar
+                              <Mail size={14} /> {selectedInGroup.length ? `Enviar (${selectedInGroup.length})` : "Enviar"}
                             </button>
                           )}
                       </div>
@@ -1369,11 +1389,19 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
                     <div className="divide-y divide-slate-700/30">
                       {/* Header de la tabla interna igual al PHP */}
                       <div className="px-4 py-2 grid grid-cols-1 md:grid-cols-12 gap-2 text-[10px] font-bold text-blue-400 uppercase tracking-wider bg-blue-900/10 hidden md:grid">
-                          <div className="md:col-span-2">Fecha</div>
+                          <div className="md:col-span-2 flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={allGroupSelected}
+                              onChange={(e) => setGroupSelection(typeSols, e.target.checked)}
+                              className="accent-blue-500 cursor-pointer w-3.5 h-3.5"
+                              title="Seleccionar todas"
+                            />
+                            Fecha
+                          </div>
                           <div className="md:col-span-1 border-l border-white/5 pl-2">Cargo</div>
-                          <div className="md:col-span-6 border-l border-white/5 pl-2">Descripción 1</div>
+                          <div className="md:col-span-7 border-l border-white/5 pl-2">Descripción 1</div>
                           <div className="md:col-span-2 border-l border-white/5 pl-2">Tipo</div>
-                          <div className="md:col-span-1 border-l border-white/5 pl-2 text-center">Op</div>
                       </div>
 
                       {typeSols.map((sol, i) => (
@@ -1382,7 +1410,14 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
                           className="px-4 py-3 hover:bg-white/5 transition-colors grid grid-cols-1 md:grid-cols-12 items-start gap-3 text-xs"
                         >
                           {/* FECHA: fecha_registro */}
-                          <div className="md:col-span-2 font-mono text-gray-400">
+                          <div className="md:col-span-2 font-mono text-gray-400 flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={!!selectedOrders[sol.hc_os_solicitud_id]}
+                              onChange={() => toggleOrder(sol.hc_os_solicitud_id)}
+                              className="accent-blue-500 cursor-pointer w-3.5 h-3.5 shrink-0"
+                              title="Seleccionar esta orden"
+                            />
                             {sol.fecha_solicitud || sol.fecha_registro}
                           </div>
                           
@@ -1392,7 +1427,7 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
                           </div>
                           
                           {/* DESCRIPCION1: descar */}
-                          <div className="md:col-span-6 space-y-1 border-l border-white/5 pl-2">
+                          <div className="md:col-span-7 space-y-1 border-l border-white/5 pl-2">
                             <span className="font-bold text-white leading-tight block uppercase">
                               {sol.descar || sol.descripcion}
                             </span>
@@ -1423,19 +1458,6 @@ function HistoryDetail({ ingresoId, onBack, permissions, activeTab }) {
                              {sol.os_tipo_solicitud_id}
                              {/* Segun PHP: if (tapoyo['apoyod_tipo_id'] != 'LB' && !empty...) descApoyo. Para Lab tambien lo agrega en el td de TIPO */}
                              { (sol.apoyod_tipo_descripcion || (sol.descripcion && sol.descripcion !== sol.descar && sol.descripcion !== 'LABORATORIO CLINICO')) ? ` - ${sol.apoyod_tipo_descripcion || sol.descripcion}` : '' }
-                           </div>
-
-                             {/* OP / Imprimir Justificacion */}
-                           <div className="md:col-span-1 flex justify-center border-l border-white/5 pl-2">
-                             {(sol.justificacion_nopos || sol.justificacion_nopos_qx) && (
-                                <button
-                                   title="Imprimir Justificación NO POS"
-                                   onClick={() => historyService.printJustification(sol.hc_os_solicitud_id)}
-                                   className="text-gray-400 hover:text-white bg-white/5 p-1 rounded hover:bg-white/10 transition"
-                                >
-                                   <Printer size={16} />
-                                </button>
-                             )}
                            </div>
                         </div>
                       ))}

@@ -10,7 +10,8 @@ export default defineConfig({
   ],
 
   // Ruta base EXACTA donde se sirve el build
-  base: '/PortalPaciente/OFTA_QUINDIO/AgendaVirtual/frontend/build/',
+  // base: '/PortalPaciente/CEO/AgendaVirtual/frontend/build/',
+  base: '/PortalPaciente/SANDIEGO/AgendaVirtual/frontend/build/',
 
   build: {
     outDir: 'build',

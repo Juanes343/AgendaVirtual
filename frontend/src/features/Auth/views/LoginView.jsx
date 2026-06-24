@@ -136,14 +136,14 @@ export default function LoginView() {
             <div className="fixed top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none z-0" />
             <div className="fixed bottom-1/4 right-1/4 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none z-0" />
 
-            <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-16 items-center relative z-10 flex-grow py-8">
+            <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-[2fr_1fr] gap-8 lg:gap-16 items-center relative z-10 flex-grow py-8">
                 {/* Left side - Branding */}
                 <div className="space-y-6">
                    {/* Logo */}
                     <div className="flex items-center gap-3">
-                        <img src={logo} alt="Logo" className="w-16 h-16 rounded-xl object-contain bg-primary/10 p-1" />
-                        <div>
-                            <h1 className="text-3xl font-bold text-foreground">{import.meta.env.VITE_APP_TITLE || "SanDi•Med"}</h1>
+                        <img src={logo} alt="Logo" className="w-32 h-32 object-contain" />
+                        <div className="flex-1 min-w-0">
+                            <h1 className="text-3xl lg:text-4xl font-bold text-foreground text-balance">{import.meta.env.VITE_APP_TITLE || "SanDi•Med"}</h1>
                             <p className="text-base text-muted-foreground">Portal del Paciente</p>
                         </div>
                     </div>
