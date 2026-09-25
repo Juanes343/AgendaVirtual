@@ -18,4 +18,4 @@ bootstrap/cache/
 # OS
 .DS_Store
 Thumbs.db
-EOF
+EOFfrontend/.env.production
